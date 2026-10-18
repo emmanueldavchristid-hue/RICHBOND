@@ -13,6 +13,12 @@ export function isWritable(
   return license.trialEndsAt >= now;
 }
 
+/** Version non bloquante pour l'interface : boutons d'écriture désactivés si faux. */
+export async function isWritableNow(now: Date = new Date()): Promise<boolean> {
+  const license = await db.license.findFirst({ orderBy: { createdAt: "desc" } });
+  return isWritable(license, now);
+}
+
 /** Refuse toute écriture si l'essai est expiré (enrichi en LOT-02). */
 export async function requireWritable(now: Date = new Date()): Promise<void> {
   const license = await db.license.findFirst({ orderBy: { createdAt: "desc" } });

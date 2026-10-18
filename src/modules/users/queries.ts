@@ -21,3 +21,8 @@ export async function listUsers(actor: Actor, raw: ListUsersInput = {}) {
   const users = await db.user.findMany({ where, orderBy: [{ active: "desc" }, { name: "asc" }] });
   return users.map(toPublicUser);
 }
+
+/** Compte actuellement verrouillé (H12) ? */
+export function isUserLocked(lockedUntil: Date | null, now: Date = new Date()): boolean {
+  return !!lockedUntil && lockedUntil.getTime() > now.getTime();
+}

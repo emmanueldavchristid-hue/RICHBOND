@@ -1,3 +1,3 @@
 export * from "./schemas";
 export * from "./service";
-export { listUsers } from "./queries";
+export { isUserLocked, listUsers } from "./queries";
