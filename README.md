@@ -14,4 +14,12 @@ Développement : Christ-Emmanuel (Jason) Mouhi – freelance.
 Toute la méthode : `docs/07-guide-de-travail.md`. Plan et avancement : `docs/03-plan-des-lots.md`.
 
 ## Comptes de démonstration
-Créés par le seed (`npx prisma db seed`) une fois le LOT-01 terminé ; la liste et le mot de passe de démo seront indiqués ici.
+Créés (fictifs) par le seed `npx prisma db seed`. Mot de passe de tous les comptes : la valeur de `SEED_DEFAULT_PASSWORD` de votre environnement local.
+
+| Rôle | Email |
+|---|---|
+| Super-admin | `admin@richbond.test` |
+| Responsable Achats | `responsable@richbond.test` |
+| Acheteur local | `acheteur.local@richbond.test` |
+| Acheteur import | `acheteur.import@richbond.test` |
+| Magasinier | `magasinier@richbond.test` |

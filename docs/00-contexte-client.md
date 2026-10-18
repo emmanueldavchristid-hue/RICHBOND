@@ -40,4 +40,8 @@ Correspondance avec le cahier des charges : « assistant achat local » et « as
 | H6 | Inventaire hebdomadaire tournant (une partie des articles chaque semaine, tous les articles A chaque mois) | à confirmer |
 | H7 | Application maître du cycle DA → BC → réception ; Sage maître de la comptabilité et des codes articles/fournisseurs | à confirmer |
 | H8 | Jours ouvrés = lundi–vendredi ; jours fériés ivoiriens non gérés à ce stade (utile pour les délais fournisseurs) | à confirmer |
-| H9 | Comptes seed fictifs sur le domaine `exemple.ci` ; les vrais comptes sont créés par le SUPER_ADMIN à l'installation | à confirmer |
+| H9 | Comptes seed fictifs sur le domaine `richbond.test` (TLD réservé, remplace `exemple.ci` depuis LOT-01) ; les anciens comptes `@exemple.ci` sont désactivés par le seed ; les vrais comptes sont créés par le SUPER_ADMIN à l'installation | à confirmer |
+| H10 | Emails seed `@richbond.test` (spec LOT-01) ; nom du Responsable en seed = « Responsable Achats (démo) » et non le vrai nom du client (règle 9) | à confirmer |
+| H11 | Mot de passe de démo non écrit dans le dépôt : le README renvoie à `SEED_DEFAULT_PASSWORD` | à confirmer |
+| H12 | Session de 8 h ; verrouillage 15 min après 5 échecs consécutifs ; déverrouillage anticipé par le Responsable | à confirmer |
+| H13 | Le Magasinier ne voit pas les prix d'achat mais voit le PMP ; réglage modifiable en LOT-03 | à confirmer |

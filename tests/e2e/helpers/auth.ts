@@ -5,11 +5,11 @@ export type E2ERole =
 
 /** Comptes fictifs du seed (mot de passe : SEED_DEFAULT_PASSWORD). */
 export const SEED_EMAILS: Record<E2ERole, string> = {
-  SUPER_ADMIN: "admin@exemple.ci",
-  RESPONSABLE_ACHATS: "resp.achats@exemple.ci",
-  ACHETEUR_LOCAL: "acheteur.local@exemple.ci",
-  ACHETEUR_IMPORT: "acheteur.import@exemple.ci",
-  MAGASINIER: "magasinier@exemple.ci",
+  SUPER_ADMIN: "admin@richbond.test",
+  RESPONSABLE_ACHATS: "responsable@richbond.test",
+  ACHETEUR_LOCAL: "acheteur.local@richbond.test",
+  ACHETEUR_IMPORT: "acheteur.import@richbond.test",
+  MAGASINIER: "magasinier@richbond.test",
 };
 
 /** Connexion par rôle. À implémenter avec LOT-01 (page /connexion). */
