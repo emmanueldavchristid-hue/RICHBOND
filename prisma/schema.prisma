@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  RESPONSABLE_ACHATS
+  ACHETEUR
+  MAGASINIER
+}
+
+enum PurchaseScope {
+  LOCAL
+  IMPORT
+  ALL
+}
+
+enum LicenseStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  role          Role
+  purchaseScope PurchaseScope? @map("purchase_scope")
+  active        Boolean        @default(true)
+  lastLoginAt   DateTime?      @map("last_login_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+model Counter {
+  key       String
+  year      Int
+  value     Int      @default(0)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([key, year])
+  @@map("counters")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model License {
+  id             String        @id @default(cuid())
+  status         LicenseStatus
+  trialStartsAt  DateTime      @map("trial_starts_at")
+  trialEndsAt    DateTime      @map("trial_ends_at")
+  licensedTo     String?       @map("licensed_to")
+  activatedAt    DateTime?     @map("activated_at")
+  keyFingerprint String?       @map("key_fingerprint")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@map("licenses")
+}
