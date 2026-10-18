@@ -1,0 +1,34 @@
+# Dépendances et build
+node_modules/
+.next/
+out/
+build/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Réglages personnels Claude Code
+.claude/settings.local.json
+
+# Documents client (coordonnées) et Sage : jamais dans Git
+docs/cahier-des-charges-RICHBOND.pdf
+*.rar
+*.exe
+*.cab
+*.gcm
+*.mae
+*.bdd
+sage-data/
+uploads/
+
+# Système
+.DS_Store
+Thumbs.db
+*.log
