@@ -1,8 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-test("la page d'accueil s'ouvre", async ({ page }) => {
+test("la racine redirige vers la connexion quand on n'est pas connecté", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "RICHBOND – Achats & Stocks" })).toBeVisible();
+  await expect(page).toHaveURL(/\/connexion/);
+  await expect(page.getByRole("heading", { name: "Achats & Stocks" })).toBeVisible();
+  await expect(page.getByTestId("login-submit")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "fr");
   await expect(page).toHaveTitle(/RICHBOND/);
 });
