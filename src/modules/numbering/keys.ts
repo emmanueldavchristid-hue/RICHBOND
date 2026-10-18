@@ -12,4 +12,6 @@ export const COUNTER_KEYS = {
 
 export type CounterKey = keyof typeof COUNTER_KEYS;
 
+export const yearSchema = z.number().int().min(2000).max(9999);
+
 export const counterKeySchema = z.enum(Object.keys(COUNTER_KEYS) as [CounterKey, ...CounterKey[]]);

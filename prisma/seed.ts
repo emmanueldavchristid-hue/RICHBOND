@@ -26,11 +26,11 @@ const USERS: { name: string; email: string; role: Role; purchaseScope?: Purchase
 async function main() {
   const password = process.env.SEED_DEFAULT_PASSWORD;
   if (!password) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("SEED_DEFAULT_PASSWORD est obligatoire en production.");
-    }
+    throw new Error(
+      "SEED_DEFAULT_PASSWORD est obligatoire : définissez-le dans votre environnement local avant de lancer le seed.",
+    );
   }
-  const passwordHash = await bcrypt.hash(password ?? "ChangeMe-dev-2026", 12);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   for (const u of USERS) {
     await prisma.user.upsert({

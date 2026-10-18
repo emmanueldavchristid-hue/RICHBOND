@@ -1,6 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
-import { nextNumber } from "@/modules/numbering";
+import { nextNumber as nextNumberTx, type CounterKey } from "@/modules/numbering";
+
+/** Variante de test : ouvre sa propre transaction. */
+const nextNumber = (key: CounterKey, year: number, tx?: Parameters<typeof nextNumberTx>[2]) =>
+  tx ? nextNumberTx(key, year, tx) : db.$transaction((t) => nextNumberTx(key, year, t));
 
 beforeEach(async () => {
   await db.counter.deleteMany();
@@ -36,5 +40,11 @@ describe("nextNumber (base de test)", () => {
   it("rejette une clé inconnue", async () => {
     // @ts-expect-error clé volontairement invalide
     await expect(nextNumber("ZZZ", 2026)).rejects.toThrow();
+  });
+
+  it("rejette une année invalide", async () => {
+    await expect(nextNumber("DA", 1999)).rejects.toThrow();
+    await expect(nextNumber("DA", 10000)).rejects.toThrow();
+    await expect(nextNumber("DA", 2026.5)).rejects.toThrow();
   });
 });

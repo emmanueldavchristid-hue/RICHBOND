@@ -11,7 +11,7 @@ export default defineConfig({
     command: "npm run dev -- -p 3100",
     url: "http://localhost:3100",
     env: { DATABASE_URL: process.env.DATABASE_URL_TEST ?? "" },
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [
