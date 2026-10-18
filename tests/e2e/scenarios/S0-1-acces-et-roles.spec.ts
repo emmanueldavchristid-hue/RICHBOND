@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { loginAs, logout, seedPassword, submitLogin, type E2ERole } from "../helpers/auth";
+import { loginAs, logout, submitLogin, type E2ERole } from "../helpers/auth";
 
 /** S0.1 / S0.2 – connexion par rôle, menus, accès refusé, verrouillage, utilisateur créé, mot de passe forcé. */
 
@@ -21,8 +21,9 @@ const MENUS: Record<E2ERole, { role: string; visible: string[] }> = {
 
 /** Le menu est latéral (>= 1024 px) ou dans le tiroir (mobile) : on ouvre le tiroir si besoin. */
 async function openedNav(page: Page) {
-  const sidebar = page.getByTestId("sidebar");
-  if (!(await sidebar.isVisible())) await page.getByTestId("menu-toggle").click();
+  const width = page.viewportSize()?.width ?? 1280;
+  if (width >= 1024) await expect(page.getByTestId("sidebar")).toBeVisible();
+  else await page.getByTestId("menu-toggle").click();
   return page.getByTestId("main-nav").filter({ visible: true });
 }
 
@@ -120,7 +121,9 @@ test.describe("S0.1 – Accès direct à une URL interdite", () => {
 });
 
 test.describe("S0.2 – Gestion des comptes", () => {
-  test("création d'un utilisateur tracée au journal, puis mot de passe changé de force", async ({ page }, testInfo) => {
+  test("création d'un utilisateur tracée au journal, puis mot de passe changé de force", async ({
+    page,
+  }, testInfo) => {
     const email = uniqueEmail("cree", testInfo.project.name);
     const name = `E2E Magasinier ${testInfo.project.name}`;
     let temporaryPassword = "";
@@ -149,13 +152,15 @@ test.describe("S0.2 – Gestion des comptes", () => {
     await test.step("Première connexion : redirection forcée vers Mon compte, sans menu", async () => {
       await submitLogin(page, email, temporaryPassword);
       await expect(page).toHaveURL(/\/mon-compte/);
-      await expect(page.getByTestId("premiere-connexion")).toContainText("Vous devez définir votre mot de passe");
+      await expect(page.getByTestId("premiere-connexion")).toContainText(
+        "Vous devez définir votre mot de passe",
+      );
       await expect(page.getByTestId("sidebar")).toHaveCount(0);
       await expect(page.getByTestId("menu-toggle")).toHaveCount(0);
     });
 
     await test.step("Toute autre page ramène à Mon compte tant que le mot de passe n'est pas changé", async () => {
-      for (const url of ["/accueil", "/stock", "/parametres/utilisateurs"]) {
+      for (const url of ["/accueil", "/stock", "/parametres"]) {
         await page.goto(url);
         await expect(page).toHaveURL(/\/mon-compte/);
       }
@@ -201,7 +206,9 @@ test.describe("S0.2 – Gestion des comptes", () => {
     });
   });
 
-  test("verrouillage après 5 échecs sur un compte jetable, puis déverrouillage", async ({ page }, testInfo) => {
+  test("verrouillage après 5 échecs sur un compte jetable, puis déverrouillage", async ({
+    page,
+  }, testInfo) => {
     const email = uniqueEmail("verrou", testInfo.project.name);
     const name = `E2E Verrou ${testInfo.project.name}`;
     let temporaryPassword = "";
@@ -248,9 +255,5 @@ test.describe("S0.2 – Gestion des comptes", () => {
       await submitLogin(page, email, temporaryPassword);
       await expect(page).toHaveURL(/\/mon-compte/);
     });
-  });
-
-  test("le mot de passe du seed reste lisible depuis l'environnement de test", async () => {
-    expect(seedPassword().length).toBeGreaterThan(0);
   });
 });

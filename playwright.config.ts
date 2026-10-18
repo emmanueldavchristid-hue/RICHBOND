@@ -1,8 +1,12 @@
 import "dotenv/config";
 import { defineConfig, devices } from "@playwright/test";
 
+// Mot de passe fictif des comptes du seed pour la base de test (si non fourni par l'environnement).
+process.env.SEED_DEFAULT_PASSWORD ||= "E2e-Passw0rd-Test!";
+
 export default defineConfig({
   testDir: "tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],
@@ -10,7 +14,12 @@ export default defineConfig({
   webServer: {
     command: "npm run dev -- -p 3100",
     url: "http://localhost:3100",
-    env: { DATABASE_URL: process.env.DATABASE_URL_TEST ?? "" },
+    // AUTH_URL forcé : sinon Auth.js réécrit les redirections vers le port du .env de dev.
+    env: {
+      DATABASE_URL: process.env.DATABASE_URL_TEST ?? "",
+      AUTH_URL: "http://localhost:3100",
+      NEXTAUTH_URL: "http://localhost:3100",
+    },
     reuseExistingServer: false,
     timeout: 120_000,
   },
