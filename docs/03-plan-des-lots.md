@@ -6,7 +6,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 
 | Lot | Nom | Exigences | Statut |
 |---|---|---|---|
-| LOT-00 | Initialisation et outillage | – | À faire |
+| LOT-00 | Initialisation et outillage | – | Terminé |
 | LOT-01 | Authentification, rôles, utilisateurs, journal d'audit, mise en page | EX-01, 02, 04 | À faire |
 | LOT-02 | Période d'essai, compte à rebours, licence | EX-05 | À faire |
 | LOT-03 | Référentiels : articles, fournisseurs, dépôts, services, devises | EX-10, 11 | À faire |

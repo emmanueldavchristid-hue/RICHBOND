@@ -32,3 +32,7 @@ uploads/
 .DS_Store
 Thumbs.db
 *.log
+
+# Génération et tests
+/src/generated/
+/playwright/.auth/

@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: richbond
+          POSTGRES_PASSWORD: ci_password_factice
+          POSTGRES_DB: richbond_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U richbond"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://richbond:ci_password_factice@localhost:5432/richbond_dev
+      DATABASE_URL_TEST: postgresql://richbond:ci_password_factice@localhost:5432/richbond_test
+      AUTH_SECRET: ci-secret-factice-ne-pas-utiliser-en-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

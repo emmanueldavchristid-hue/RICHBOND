@@ -39,3 +39,5 @@ Correspondance avec le cahier des charges : « assistant achat local » et « as
 | H5 | TVA 18 % sur achats locaux, PMP calculé hors taxes | à confirmer |
 | H6 | Inventaire hebdomadaire tournant (une partie des articles chaque semaine, tous les articles A chaque mois) | à confirmer |
 | H7 | Application maître du cycle DA → BC → réception ; Sage maître de la comptabilité et des codes articles/fournisseurs | à confirmer |
+| H8 | Jours ouvrés = lundi–vendredi ; jours fériés ivoiriens non gérés à ce stade (utile pour les délais fournisseurs) | à confirmer |
+| H9 | Comptes seed fictifs sur le domaine `exemple.ci` ; les vrais comptes sont créés par le SUPER_ADMIN à l'installation | à confirmer |
