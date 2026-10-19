@@ -3,8 +3,6 @@ import { can } from "@/lib/permissions";
 import { getCurrentUser } from "@/modules/auth/session";
 import { readItemPhoto } from "@/modules/items";
 
-export const dynamic = "force-dynamic";
-
 /** Photo d'un article : session + `item.view` (jamais servie depuis public/). */
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();

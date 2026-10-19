@@ -17,8 +17,6 @@ import {
 } from "@/modules/referentials/labels";
 import { exportSuppliers } from "@/modules/suppliers";
 
-export const dynamic = "force-dynamic";
-
 /**
  * GET /api/export/articles | /api/export/fournisseurs : mêmes filtres que la liste (query string).
  * Autorisé en lecture seule (essai expiré) : pas de contrôle d'écriture.
