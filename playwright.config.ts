@@ -4,6 +4,10 @@ import { defineConfig, devices } from "@playwright/test";
 // Mot de passe fictif des comptes du seed pour la base de test (si non fourni par l'environnement).
 process.env.SEED_DEFAULT_PASSWORD ||= "E2e-Passw0rd-Test!";
 
+if (!process.env.DATABASE_URL_TEST) {
+  throw new Error("DATABASE_URL_TEST est absente : les tests e2e exigent une base de test dédiée.");
+}
+
 export default defineConfig({
   testDir: "tests/e2e",
   globalSetup: "./tests/e2e/global-setup.ts",
@@ -16,7 +20,7 @@ export default defineConfig({
     url: "http://localhost:3100",
     // AUTH_URL forcé : sinon Auth.js réécrit les redirections vers le port du .env de dev.
     env: {
-      DATABASE_URL: process.env.DATABASE_URL_TEST ?? "",
+      DATABASE_URL: process.env.DATABASE_URL_TEST,
       AUTH_URL: "http://localhost:3100",
       NEXTAUTH_URL: "http://localhost:3100",
     },

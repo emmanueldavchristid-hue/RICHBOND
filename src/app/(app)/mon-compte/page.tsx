@@ -1,19 +1,19 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { KeyRound } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { roleLabel } from "@/lib/permissions";
 import { getCurrentUser } from "@/modules/auth/session";
 import { ChangePasswordForm } from "./change-password-form";
 
 export const metadata: Metadata = { title: "Mon compte – RICHBOND" };
 
-export default async function MonComptePage() {
+async function MonCompteContent() {
   const user = await getCurrentUser();
   if (!user) redirect("/connexion");
   return (
-    <div className="mx-auto max-w-xl">
-      <PageHeader title="Mon compte" />
+    <>
       {user.mustChangePassword ? (
         <div
           role="status"
@@ -39,6 +39,17 @@ export default async function MonComptePage() {
         <dd data-testid="compte-role">{roleLabel(user)}</dd>
       </dl>
       <ChangePasswordForm forced={user.mustChangePassword} />
+    </>
+  );
+}
+
+export default function MonComptePage() {
+  return (
+    <div className="mx-auto max-w-xl">
+      <PageHeader title="Mon compte" />
+      <Suspense fallback={<PageSkeleton />}>
+        <MonCompteContent />
+      </Suspense>
     </div>
   );
 }

@@ -19,8 +19,17 @@ export async function loginErrorMessage(code: string | undefined, email: string)
 
 /** Évite les redirections ouvertes : chemin interne uniquement. */
 export function safeRedirect(retour: string | null | undefined): string {
-  if (retour && retour.startsWith("/") && !retour.startsWith("//") && !retour.includes("\\")) return retour;
-  return "/accueil";
+  const fallback = "/accueil";
+  if (!retour || !retour.startsWith("/") || retour.startsWith("//")) return fallback;
+  if (retour.includes("\\") || /[\x00-\x1f\x7f]/.test(retour)) return fallback;
+  try {
+    // Rejette aussi les caractères de contrôle encodés (%09, %0a…).
+    if (/[\x00-\x1f\x7f]/.test(decodeURIComponent(retour))) return fallback;
+    if (new URL(retour, "http://x").origin !== "http://x") return fallback;
+  } catch {
+    return fallback;
+  }
+  return retour;
 }
 
 export async function recordLogout(userId: string, ip: string | null): Promise<void> {

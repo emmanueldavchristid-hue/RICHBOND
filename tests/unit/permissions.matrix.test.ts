@@ -8,19 +8,38 @@ const MAG: PermissionUser = { role: "MAGASINIER" };
 
 /** Matrice complète, écrite à la main d'après la spec LOT-01 : toute dérive casse le test. */
 const ACHETEUR_OK: Action[] = [
-  "purchaseRequest.view", "purchaseRequest.create", "purchaseRequest.cancel",
-  "rfq.view", "rfq.manage",
-  "purchaseOrder.view", "purchaseOrder.create", "purchaseOrder.send", "purchaseOrder.remind",
-  "importFile.view", "importFile.manage",
-  "invoice.view", "invoice.manage",
-  "supplier.view", "supplier.manage",
-  "item.view", "item.manage",
-  "stock.view", "price.viewPurchase", "price.viewPmp", "report.purchasing",
+  "purchaseRequest.view",
+  "purchaseRequest.create",
+  "purchaseRequest.cancel",
+  "rfq.view",
+  "rfq.manage",
+  "purchaseOrder.view",
+  "purchaseOrder.create",
+  "purchaseOrder.send",
+  "purchaseOrder.remind",
+  "importFile.view",
+  "importFile.manage",
+  "invoice.view",
+  "invoice.manage",
+  "supplier.view",
+  "supplier.manage",
+  "item.view",
+  "item.manage",
+  "stock.view",
+  "price.viewPurchase",
+  "price.viewPmp",
+  "report.purchasing",
 ];
 const MAGASINIER_OK: Action[] = [
-  "purchaseRequest.view", "purchaseRequest.createReplenishment",
-  "stock.view", "stock.receive", "stock.issue", "inventory.count",
-  "item.view", "price.viewPmp", "report.stock",
+  "purchaseRequest.view",
+  "purchaseRequest.createReplenishment",
+  "stock.view",
+  "stock.receive",
+  "stock.issue",
+  "inventory.count",
+  "item.view",
+  "price.viewPmp",
+  "report.stock",
 ];
 
 describe("matrice exhaustive rôle x action", () => {
@@ -36,9 +55,16 @@ describe("matrice exhaustive rôle x action", () => {
 
   it("le Super-admin ne peut valider ni approuver ni sortir du stock", () => {
     const interdites: Action[] = [
-      "purchaseRequest.approve", "purchaseOrder.approve", "invoice.approvePayment",
-      "stock.issue", "stock.receive", "stock.adjust", "inventory.validate", "settings.manage",
-      "purchaseOrder.create", "purchaseRequest.create",
+      "purchaseRequest.approve",
+      "purchaseOrder.approve",
+      "invoice.approvePayment",
+      "stock.issue",
+      "stock.receive",
+      "stock.adjust",
+      "inventory.validate",
+      "settings.manage",
+      "purchaseOrder.create",
+      "purchaseRequest.create",
     ];
     for (const a of interdites) expect(can(SUPER, a), a).toBe(false);
   });
@@ -52,7 +78,12 @@ describe("matrice exhaustive rôle x action", () => {
 
   it("seuls Responsable et Super-admin voient le journal ; seul le Responsable gère les paramètres", () => {
     expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "audit.view"))).toEqual([true, true, false, false]);
-    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "settings.manage"))).toEqual([false, true, false, false]);
+    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "settings.manage"))).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ]);
   });
 
   it("rôle inconnu : tout est refusé", () => {

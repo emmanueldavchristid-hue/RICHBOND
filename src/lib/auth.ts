@@ -12,15 +12,20 @@ export class DisabledError extends CredentialsSignin {
   code = "DISABLED";
 }
 
+function clientIp(request: Request | undefined): string | null {
+  const xff = request?.headers?.get("x-forwarded-for");
+  return xff ? xff.split(",")[0].trim().slice(0, 64) : null;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
       credentials: { email: {}, password: {} },
-      async authorize(raw) {
+      async authorize(raw, request) {
         const parsed = loginSchema.safeParse(raw);
         if (!parsed.success) return null;
-        const r = await authenticate(parsed.data.email, parsed.data.password);
+        const r = await authenticate(parsed.data.email, parsed.data.password, new Date(), clientIp(request));
         if (r.ok) {
           return {
             id: r.user.id,

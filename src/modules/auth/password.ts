@@ -1,7 +1,12 @@
 import bcrypt from "bcryptjs";
 import { randomInt } from "node:crypto";
 
-const COST = 12;
+/** Coût bcrypt : 12 en production ; réductible via BCRYPT_COST (tests uniquement, jamais < 4). */
+const envCost = Number(process.env.BCRYPT_COST);
+const COST =
+  process.env.NODE_ENV !== "production" && Number.isInteger(envCost) && envCost >= 4 && envCost <= 14
+    ? envCost
+    : 12;
 
 export function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, COST);

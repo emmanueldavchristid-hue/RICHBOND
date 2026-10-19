@@ -53,19 +53,23 @@ export async function authenticate(
     return { ok: false, reason: "LOCKED", lockedUntil: user.lockedUntil };
   }
 
-  if (!passwordOk) {
-    return db.$transaction(async (tx) => {
-      // Incrément atomique ; si un verrou expiré traîne, on repart de zéro.
-      const base = user.lockedUntil ? { failedLoginCount: 0, lockedUntil: null } : {};
-      if (user.lockedUntil) await tx.user.update({ where: { id: user.id }, data: base });
-      const updated = await tx.user.update({
-        where: { id: user.id },
-        data: { failedLoginCount: { increment: 1 } },
-        select: { failedLoginCount: true },
-      });
-      if (updated.failedLoginCount >= MAX_FAILED_ATTEMPTS) {
+  // Section critique : le verrou de ligne sérialise les tentatives concurrentes sur un même compte.
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${user.id} FOR UPDATE`;
+    const fresh = await tx.user.findUnique({ where: { id: user.id } });
+    if (!fresh) return { ok: false, reason: "INVALID" } as const;
+    if (!fresh.active) return { ok: false, reason: "DISABLED" } as const;
+    if (fresh.lockedUntil && fresh.lockedUntil > now) {
+      return { ok: false, reason: "LOCKED", lockedUntil: fresh.lockedUntil } as const;
+    }
+
+    if (!passwordOk) {
+      // Un verrou expiré est remis à zéro avant de compter la nouvelle tentative.
+      const previous = fresh.lockedUntil ? 0 : fresh.failedLoginCount;
+      const count = previous + 1;
+      if (count >= MAX_FAILED_ATTEMPTS) {
         const lockedUntil = new Date(now.getTime() + LOCK_MINUTES * 60_000);
-        await tx.user.update({ where: { id: user.id }, data: { lockedUntil } });
+        await tx.user.update({ where: { id: user.id }, data: { failedLoginCount: count, lockedUntil } });
         await log(tx, {
           userId: user.id,
           action: "ACCOUNT_LOCKED",
@@ -76,36 +80,34 @@ export async function authenticate(
         });
         return { ok: false, reason: "LOCKED", lockedUntil } as const;
       }
+      await tx.user.update({ where: { id: user.id }, data: { failedLoginCount: count, lockedUntil: null } });
       await log(tx, {
         userId: user.id,
         action: "LOGIN_FAILED",
         entity: "User",
         entityId: user.id,
-        after: { failedLoginCount: updated.failedLoginCount },
+        after: { failedLoginCount: count },
         ip,
       });
       return { ok: false, reason: "INVALID" } as const;
-    });
-  }
+    }
 
-  await db.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: { failedLoginCount: 0, lockedUntil: null, lastLoginAt: now },
     });
     await log(tx, { userId: user.id, action: "LOGIN_SUCCESS", entity: "User", entityId: user.id, ip });
+    return {
+      ok: true,
+      user: {
+        id: fresh.id,
+        name: fresh.name,
+        email: fresh.email,
+        role: fresh.role,
+        purchaseScope: fresh.purchaseScope,
+        sessionVersion: fresh.sessionVersion,
+        mustChangePassword: fresh.mustChangePassword,
+      },
+    } as const;
   });
-
-  return {
-    ok: true,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      purchaseScope: user.purchaseScope,
-      sessionVersion: user.sessionVersion,
-      mustChangePassword: user.mustChangePassword,
-    },
-  };
 }

@@ -65,4 +65,24 @@ describe("verrouillage : cas limites", () => {
     const logs = await db.auditLog.findMany({ where: { entityId: u.id } });
     expect(JSON.stringify(logs)).not.toContain("Secret-Tente-99");
   });
+
+  it("15 tentatives parallèles : au plus 5 échecs comptés, un seul verrouillage", async () => {
+    const u = await createTestUser("conc1");
+    const results = await Promise.all(
+      Array.from({ length: 15 }, () => authenticate(u.email, "mauvais", T0, "10.0.0.9")),
+    );
+    const fresh = await db.user.findUniqueOrThrow({ where: { id: u.id } });
+    expect(fresh.failedLoginCount).toBe(5);
+    expect(fresh.lockedUntil).not.toBeNull();
+    expect(results.filter((r) => !r.ok && r.reason === "INVALID")).toHaveLength(4);
+    expect(results.filter((r) => !r.ok && r.reason === "LOCKED")).toHaveLength(11);
+    const logs = await db.auditLog.groupBy({
+      by: ["action"],
+      where: { entityId: u.id },
+      _count: true,
+    });
+    const n = (a: string) => logs.find((l) => l.action === a)?._count ?? 0;
+    expect(n("LOGIN_FAILED")).toBe(4);
+    expect(n("ACCOUNT_LOCKED")).toBe(1);
+  });
 });

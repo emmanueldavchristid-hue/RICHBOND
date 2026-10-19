@@ -36,9 +36,9 @@ describe("règles utilisateurs complémentaires", () => {
   it("changer son propre rôle est refusé", async () => {
     const r = await createTestUser("r-self", { role: "RESPONSABLE_ACHATS" });
     await createTestUser("r-other", { role: "RESPONSABLE_ACHATS" });
-    expect(
-      await code(updateUser(r, { id: r.id, name: r.name, email: r.email, role: "MAGASINIER" })),
-    ).toBe("SELF_ROLE");
+    expect(await code(updateUser(r, { id: r.id, name: r.name, email: r.email, role: "MAGASINIER" }))).toBe(
+      "SELF_ROLE",
+    );
   });
 
   it("avec deux Responsables actifs, l'un peut désactiver l'autre ; le dernier ne le peut plus", async () => {
@@ -96,7 +96,14 @@ describe("règles utilisateurs complémentaires", () => {
       await code(updateUser(r, { id: sa.id, name: "Xavier", email: sa.email, role: "MAGASINIER" })),
     ).toBe("USER_NOT_FOUND");
     expect(
-      await code(updateUser(r, { id: (await createTestUser("m-up")).id, name: "Xavier", email: "it-m-up@richbond.test", role: "SUPER_ADMIN" })),
+      await code(
+        updateUser(r, {
+          id: (await createTestUser("m-up")).id,
+          name: "Xavier",
+          email: "it-m-up@richbond.test",
+          role: "SUPER_ADMIN",
+        }),
+      ),
     ).toBe("FORBIDDEN");
   });
 
@@ -104,16 +111,32 @@ describe("règles utilisateurs complémentaires", () => {
     const r = await createTestUser("r-mail", { role: "RESPONSABLE_ACHATS" });
     const a = await createTestUser("mail-a");
     const b = await createTestUser("mail-b");
-    expect(await code(updateUser(r, { id: a.id, name: a.name, email: b.email.toUpperCase(), role: "MAGASINIER" }))).toBe("EMAIL_TAKEN");
-    expect(await code(updateUser(r, { id: a.id, name: "Nouveau nom", email: a.email, role: "MAGASINIER" }))).toBe("ok");
+    expect(
+      await code(updateUser(r, { id: a.id, name: a.name, email: b.email.toUpperCase(), role: "MAGASINIER" })),
+    ).toBe("EMAIL_TAKEN");
+    expect(
+      await code(updateUser(r, { id: a.id, name: "Nouveau nom", email: a.email, role: "MAGASINIER" })),
+    ).toBe("ok");
   });
 
   it("changement de nom seul : sessionVersion inchangée ; changement de périmètre : incrémentée", async () => {
     const r = await createTestUser("r-sv", { role: "RESPONSABLE_ACHATS" });
     const a = await createTestUser("ach-sv", { role: "ACHETEUR", purchaseScope: "LOCAL" });
-    await updateUser(r, { id: a.id, name: "Autre nom", email: a.email, role: "ACHETEUR", purchaseScope: "LOCAL" });
+    await updateUser(r, {
+      id: a.id,
+      name: "Autre nom",
+      email: a.email,
+      role: "ACHETEUR",
+      purchaseScope: "LOCAL",
+    });
     expect((await db.user.findUniqueOrThrow({ where: { id: a.id } })).sessionVersion).toBe(a.sessionVersion);
-    await updateUser(r, { id: a.id, name: "Autre nom", email: a.email, role: "ACHETEUR", purchaseScope: "IMPORT" });
+    await updateUser(r, {
+      id: a.id,
+      name: "Autre nom",
+      email: a.email,
+      role: "ACHETEUR",
+      purchaseScope: "IMPORT",
+    });
     const row = await db.user.findUniqueOrThrow({ where: { id: a.id } });
     expect(row.sessionVersion).toBe(a.sessionVersion + 1);
     expect(row.purchaseScope).toBe("IMPORT");
@@ -152,7 +175,11 @@ describe("règles utilisateurs complémentaires", () => {
 
   it("création : l'IP de l'acteur est journalisée", async () => {
     const r = await createTestUser("r-ip", { role: "RESPONSABLE_ACHATS" });
-    const { user } = await createUser(r, { name: "IP", email: "it-ip@richbond.test", role: "MAGASINIER" }, "10.0.0.7");
+    const { user } = await createUser(
+      r,
+      { name: "IP", email: "it-ip@richbond.test", role: "MAGASINIER" },
+      "10.0.0.7",
+    );
     expect((await db.auditLog.findFirstOrThrow({ where: { entityId: user.id } })).ip).toBe("10.0.0.7");
   });
 });
@@ -197,7 +224,13 @@ describe("journal d'audit", () => {
   it("listAudit : filtre de dates en fuseau Abidjan (UTC+0) et pagination bornée", async () => {
     const r = await createTestUser("a-d", { role: "RESPONSABLE_ACHATS" });
     await db.auditLog.create({
-      data: { userId: r.id, action: "TEST_DATE", entity: "Test", entityId: r.id, createdAt: new Date("2026-03-02T23:59:00Z") },
+      data: {
+        userId: r.id,
+        action: "TEST_DATE",
+        entity: "Test",
+        entityId: r.id,
+        createdAt: new Date("2026-03-02T23:59:00Z"),
+      },
     });
     const dedans = await listAudit({ userId: r.id, from: "2026-03-02", to: "2026-03-02" }, "SUPER_ADMIN");
     const dehors = await listAudit({ userId: r.id, from: "2026-03-03", to: "2026-03-03" }, "SUPER_ADMIN");

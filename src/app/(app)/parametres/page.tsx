@@ -1,13 +1,14 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { can } from "@/lib/permissions";
 import { requirePageAction } from "@/modules/auth/session";
 
 export const metadata: Metadata = { title: "Paramètres – RICHBOND" };
 
-export default async function ParametresPage() {
+async function ParametresContent() {
   const user = await requirePageAction(null);
   // Même règle que le menu : réservé à ceux qui gèrent les comptes ou les paramètres.
   if (!can(user, "users.manage") && !can(user, "settings.manage")) redirect("/acces-refuse");
@@ -17,7 +18,6 @@ export default async function ParametresPage() {
   ].filter((l) => l.ok);
   return (
     <>
-      <PageHeader title="Paramètres" />
       <div className="grid gap-3 sm:grid-cols-2" data-testid="parametres-liens">
         {links.map((l) => (
           <Link key={l.href} href={l.href} className="rounded-lg border bg-card p-5 shadow-sm hover:bg-muted">
@@ -26,6 +26,17 @@ export default async function ParametresPage() {
           </Link>
         ))}
       </div>
+    </>
+  );
+}
+
+export default function ParametresPage() {
+  return (
+    <>
+      <PageHeader title="Paramètres" />
+      <Suspense fallback={<PageSkeleton />}>
+        <ParametresContent />
+      </Suspense>
     </>
   );
 }
