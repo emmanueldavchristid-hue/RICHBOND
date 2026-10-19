@@ -11,6 +11,7 @@ import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { RecordTabs } from "@/components/referentials/record-tabs";
 import { ChangeCodeDialog } from "@/components/referentials/change-code-dialog";
 import { EntityJournal } from "@/components/referentials/entity-journal";
+import { unitShort } from "@/components/unit-select";
 import { StatusBadge } from "@/components/status-badge";
 import { isBusinessError } from "@/lib/errors";
 import { formatNumber, toFcfa } from "@/lib/money";
@@ -51,7 +52,7 @@ function PriceHistory({ rows }: { rows: PriceRow[] }) {
           <tr>
             <th className="p-3">Date</th>
             <th className="p-3">Fournisseur</th>
-            <th className="p-3 text-right">Prix</th>
+            <th className="p-3 text-right">Prix (par unité d&apos;achat)</th>
             <th className="p-3 text-right">Taux</th>
             <th className="p-3 text-right">Équivalent FCFA</th>
             <th className="p-3">Source</th>
@@ -67,6 +68,7 @@ function PriceHistory({ rows }: { rows: PriceRow[] }) {
               <td className="p-3">{r.supplier?.name ?? "–"}</td>
               <td className="p-3 text-right tabular-nums">
                 <MoneyCell value={r.price} currency={r.currencyCode} />
+                {r.priceUnit ? <span className="text-muted-foreground"> / {unitShort(r.priceUnit)}</span> : null}
               </td>
               <td className="p-3 text-right tabular-nums">{r.currencyCode === "XOF" || !r.rateToXof ? "–" : formatNumber(r.rateToXof, 6)}</td>
               <td className="p-3 text-right tabular-nums">
@@ -176,6 +178,7 @@ async function ItemContent({ params }: { params: Promise<{ id: string }> }) {
       content: (
         <ItemSuppliersTab
           itemId={item.id}
+          purchaseUnit={item.purchaseUnit}
           links={item.suppliers}
           mainSupplierId={item.mainSupplierId}
           supplierOptions={suppliers.map(({ id: sid, code, name, currencyCode }) => ({ id: sid, code, name, currencyCode }))}
@@ -204,7 +207,7 @@ async function ItemContent({ params }: { params: Promise<{ id: string }> }) {
       label: "Journal",
       content: (
         <Suspense fallback={<PageSkeleton />}>
-          <EntityJournal entity="Item" entityId={item.id} />
+          <EntityJournal entity="Item" entityId={item.id} related={[{ entity: "ItemSupplier", ids: item.suppliers.map((l) => l.id) }]} />
         </Suspense>
       ),
     });

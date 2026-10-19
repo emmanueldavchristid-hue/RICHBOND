@@ -232,6 +232,11 @@ model Supplier {
   type            SupplierType
   country         String         @default("CI")
   city            String?
+  address         String?
+  phone           String?
+  email           String?
+  /// Coordonnées bancaires / RIB, texte libre (à ne pas diffuser).
+  bankDetails     String?        @map("bank_details")
   currencyCode    String         @map("currency_code")
   ncc             String?        @unique
   rccm            String?
@@ -325,6 +330,8 @@ model ItemSupplier {
   lastPrice     Decimal?  @map("last_price") @db.Decimal(14, 2)
   currencyCode  String?   @map("currency_code")
   lastPriceDate DateTime? @map("last_price_date")
+  /// Unité du prix et du minimum de commande = unité d'achat de l'article au moment de la saisie.
+  priceUnit     String?   @map("price_unit")
   leadTimeDays  Int?      @map("lead_time_days")
   minOrderQty   Decimal?  @map("min_order_qty") @db.Decimal(14, 3)
   active        Boolean   @default(true)
@@ -347,6 +354,8 @@ model ItemPriceHistory {
   price        Decimal     @db.Decimal(14, 2)
   currencyCode String      @map("currency_code")
   rateToXof    Decimal?    @map("rate_to_xof") @db.Decimal(14, 6)
+  /// Unité d'achat de l'article à la date du prix.
+  priceUnit    String?     @map("price_unit")
   source       PriceSource @default(MANUEL)
   sourceRef    String?     @map("source_ref")
   date         DateTime

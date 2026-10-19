@@ -9,6 +9,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { MoneyCell } from "@/components/money-cell";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { QtyCell } from "@/components/qty-cell";
+import { unitShort } from "@/components/unit-select";
 import { ChangeCodeDialog } from "@/components/referentials/change-code-dialog";
 import { countryName } from "@/components/referentials/countries";
 import { EntityJournal } from "@/components/referentials/entity-journal";
@@ -50,6 +51,10 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
     type: s.type,
     country: s.country,
     city: s.city ?? "",
+    address: s.address ?? "",
+    phone: s.phone ?? "",
+    email: s.email ?? "",
+    bankDetails: s.bankDetails ?? "",
     currencyCode: s.currencyCode,
     ncc: s.ncc ?? "",
     rccm: s.rccm ?? "",
@@ -128,10 +133,10 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
                 <tr>
                   <th className="p-3">Article</th>
                   <th className="p-3">Référence fournisseur</th>
-                  {showPrices ? <th className="p-3 text-right">Dernier prix</th> : null}
+                  {showPrices ? <th className="p-3 text-right">Dernier prix (par unité d&apos;achat)</th> : null}
                   {showPrices ? <th className="p-3">Date du prix</th> : null}
                   <th className="p-3 text-right">Délai (jours)</th>
-                  <th className="p-3 text-right">Minimum</th>
+                  <th className="p-3 text-right">Minimum (unité d&apos;achat)</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,6 +152,7 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
                     {showPrices ? (
                       <td className="p-3 text-right tabular-nums">
                         <MoneyCell value={l.lastPrice} currency={l.currencyCode} />
+                        {l.lastPrice ? <span className="text-muted-foreground"> / {unitShort(l.priceUnit ?? l.item.purchaseUnit)}</span> : null}
                       </td>
                     ) : null}
                     {showPrices ? (
@@ -172,7 +178,14 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
       label: "Journal",
       content: (
         <Suspense fallback={<PageSkeleton />}>
-          <EntityJournal entity="Supplier" entityId={s.id} />
+          <EntityJournal
+            entity="Supplier"
+            entityId={s.id}
+            related={[
+              { entity: "SupplierContact", ids: s.contacts.map((c) => c.id) },
+              { entity: "ItemSupplier", ids: s.items.map((l) => l.id) },
+            ]}
+          />
         </Suspense>
       ),
     });

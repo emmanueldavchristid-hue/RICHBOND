@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { getNow } from "@/lib/clock";
 import { getClientIp } from "@/modules/auth/ip";
 import { withAction } from "@/modules/auth/session";
 import { expectedUpdatedAtSchema, idSchema } from "@/modules/referentials";
@@ -77,7 +78,7 @@ export const setSupplierStatusAction = withAction(
 
 /** Bloquer : acheteurs et Responsable. Retourne `affectedItems` (articles dont il est le principal). */
 export const blockSupplierAction = withAction("supplier.manage", blockSupplierSchema, async ({ user, input }) => {
-  const r = await blockSupplier(user, input, await getClientIp());
+  const r = await blockSupplier(user, input, await getClientIp(), (await getNow()).now);
   touch(input.id);
   return serialize(r);
 });

@@ -41,14 +41,28 @@ const CURRENCIES = [
   { code: "CNY", name: "Yuan renminbi", symbol: "¥", decimals: 2, isBase: false },
 ];
 
+/**
+ * Taux datés. Le plus ancien (-150 j) précède tous les prix de l'historique (-120 j) : chaque ligne d'historique
+ * trouve donc un taux à sa date (colonne « Équivalent FCFA » toujours remplie). Écarts < 20 % entre deux taux.
+ */
 const RATES: { currencyCode: string; offset: number; rate: string }[] = [
   { currencyCode: "EUR", offset: -1, rate: "655.957" },
   { currencyCode: "EUR", offset: -35, rate: "655.957" },
+  { currencyCode: "EUR", offset: -150, rate: "655.957" },
   { currencyCode: "USD", offset: -1, rate: "605.000" },
   { currencyCode: "USD", offset: -35, rate: "598.500" },
+  { currencyCode: "USD", offset: -150, rate: "590.000" },
   { currencyCode: "CNY", offset: -1, rate: "83.000" },
   { currencyCode: "CNY", offset: -35, rate: "82.200" },
+  { currencyCode: "CNY", offset: -150, rate: "80.500" },
 ];
+
+/** Dernier taux connu à `offset` (jours relatifs) : même règle que getRateAt (dernier taux <= date). */
+function seedRateAt(currency: string, offset: number): string | null {
+  if (currency === "XOF") return null;
+  const r = RATES.filter((x) => x.currencyCode === currency && x.offset <= offset).sort((a, b) => b.offset - a.offset)[0];
+  return r?.rate ?? null;
+}
 
 interface SupplierSeed {
   name: string;
@@ -63,6 +77,8 @@ interface SupplierSeed {
   status?: SupplierStatus;
   reason?: string;
   contact: [string, string];
+  /** Mode de règlement fictif. */
+  bank?: string;
 }
 
 const SUPPLIERS: SupplierSeed[] = [
@@ -109,6 +125,13 @@ interface ItemSeed {
   rp?: number;
   eoq?: number;
   lead?: number;
+  /** Quantité minimale de commande, en unité d'ACHAT (défaut 1). */
+  moq?: number;
+  /**
+   * Les prix de `s` sont exprimés par unité d'ACHAT. Sinon (défaut) ils sont donnés par unité de STOCK et convertis
+   * ici (prix x coefficient) : le prix d'un lien est toujours enregistré par unité d'achat.
+   */
+  perPack?: boolean;
   s: SupLink[];
 }
 
@@ -129,10 +152,10 @@ const ITEMS: ItemSeed[] = [
   { name: "Colle de contrecollage", cat: "INTRANT", family: "Adhésifs", su: "L", pu: "FUT", coef: 200, crit: "IMPORTANT", ss: 400, rp: 800, eoq: 1200, lead: 12, s: [[1, 2450, "XOF"], [17, 4.1, "USD"]] },
   { name: "Chlorure de méthylène", cat: "INTRANT", family: "Solvants", su: "KG", pu: "FUT", coef: 270, crit: "STANDARD", ss: 500, rp: 1000, eoq: 1600, lead: 12, s: [[1, 1350, "XOF"], [23, 1.4, "USD"]] },
   { name: "Film étirable", cat: "INTRANT", family: "Emballage", su: "U", pu: "CARTON", coef: 6, crit: "STANDARD", ss: 30, rp: 60, eoq: 120, lead: 7, s: [[2, 3200, "XOF"], [13, 22, "CNY"]] },
-  { name: "Étiquettes produit", cat: "INTRANT", family: "Emballage", su: "U", pu: "ROULEAU", coef: 1000, crit: "STANDARD", ss: 5000, rp: 10000, eoq: 20000, lead: 10, s: [[11, 18500, "XOF"], [2, 21000, "XOF"]] },
+  { name: "Étiquettes produit", cat: "INTRANT", family: "Emballage", su: "U", pu: "ROULEAU", coef: 1000, crit: "STANDARD", ss: 5000, rp: 10000, eoq: 20000, lead: 10, perPack: true, s: [[11, 18500, "XOF"], [2, 21000, "XOF"]] },
   // PDR
-  { name: "Roulement 6205", cat: "PDR", family: "Roulements", su: "U", pu: "CARTON", coef: 10, crit: "CRITIQUE", eq: "Ligne mousse continue", wh: "MAG-PDR", ss: 20, rp: 40, eoq: 50, lead: 20, s: [[4, 3800, "XOF"], [16, 1.2, "USD"], [20, 1.9, "EUR"]] },
-  { name: "Roulement 6308", cat: "PDR", family: "Roulements", su: "U", pu: "CARTON", coef: 10, crit: "CRITIQUE", eq: "Ligne mousse continue", wh: "MAG-PDR", ss: 10, rp: 20, eoq: 30, lead: 25, s: [[16, 3.4, "USD"], [20, 5.2, "EUR"], [4, 11500, "XOF"]] },
+  { name: "Roulement 6205", cat: "PDR", family: "Roulements", su: "U", pu: "U", crit: "CRITIQUE", eq: "Ligne mousse continue", wh: "MAG-PDR", ss: 20, rp: 40, eoq: 50, lead: 20, s: [[4, 3800, "XOF"], [16, 1.2, "USD"], [20, 1.9, "EUR"]] },
+  { name: "Roulement 6308", cat: "PDR", family: "Roulements", su: "U", pu: "U", crit: "CRITIQUE", eq: "Ligne mousse continue", wh: "MAG-PDR", ss: 10, rp: 20, eoq: 30, lead: 25, s: [[16, 3.4, "USD"], [20, 5.2, "EUR"], [4, 11500, "XOF"]] },
   { name: "Courroie trapézoïdale SPZ 1250", cat: "PDR", family: "Transmission", su: "U", pu: "U", crit: "IMPORTANT", eq: "Matelasseuse", wh: "MAG-PDR", ss: 4, rp: 8, eoq: 10, lead: 15, s: [[4, 9500, "XOF"], [7, 8800, "XOF"]] },
   { name: "Courroie trapézoïdale SPB 2000", cat: "PDR", family: "Transmission", su: "U", pu: "U", crit: "IMPORTANT", eq: "Ligne mousse continue", wh: "MAG-PDR", ss: 4, rp: 8, eoq: 10, lead: 15, s: [[4, 14800, "XOF"], [15, 78, "CNY"]] },
   { name: "Courroie crantée HTD 8M", cat: "PDR", family: "Transmission", su: "U", pu: "U", crit: "STANDARD", eq: "Matelasseuse", wh: "MAG-PDR", ss: 2, rp: 4, eoq: 6, lead: 20, s: [[15, 95, "CNY"], [21, 28, "EUR"]] },
@@ -141,7 +164,7 @@ const ITEMS: ItemSeed[] = [
   { name: "Contacteur 25 A", cat: "PDR", family: "Électricité", su: "U", pu: "U", crit: "IMPORTANT", eq: "Fermeuse", wh: "MAG-PDR", ss: 3, rp: 6, eoq: 10, lead: 10, s: [[5, 18500, "XOF"], [7, 19500, "XOF"]] },
   { name: "Capteur de proximité inductif", cat: "PDR", family: "Électricité", su: "U", pu: "U", crit: "IMPORTANT", eq: "Fermeuse", wh: "MAG-PDR", ss: 4, rp: 8, eoq: 10, lead: 15, s: [[5, 24500, "XOF"], [15, 62, "CNY"]] },
   { name: "Buse de mélange", cat: "PDR", family: "Mousse", su: "U", pu: "U", crit: "CRITIQUE", eq: "Ligne mousse continue", wh: "MAG-PDR", ss: 2, rp: 3, eoq: 4, lead: 60, s: [[21, 380, "EUR"], [15, 2200, "CNY"]] },
-  { name: "Aiguille de matelasseuse", cat: "PDR", family: "Matelassage", su: "U", pu: "CARTON", coef: 100, crit: "IMPORTANT", eq: "Matelasseuse", wh: "MAG-PDR", ss: 200, rp: 400, eoq: 600, lead: 35, s: [[15, 1450, "CNY"], [22, 190, "EUR"]] },
+  { name: "Aiguille de matelasseuse", cat: "PDR", family: "Matelassage", su: "U", pu: "CARTON", coef: 100, crit: "IMPORTANT", eq: "Matelasseuse", wh: "MAG-PDR", ss: 200, rp: 400, eoq: 600, lead: 35, perPack: true, s: [[15, 1450, "CNY"], [22, 190, "EUR"]] },
   { name: "Joint hydraulique 63 mm", cat: "PDR", family: "Hydraulique", su: "U", pu: "U", crit: "STANDARD", eq: "Ensacheuse", wh: "MAG-PDR", ss: 4, rp: 8, eoq: 12, lead: 20, s: [[10, 6500, "XOF"], [21, 14, "EUR"]] },
   { name: "Résistance chauffante ensacheuse", cat: "PDR", family: "Ensachage", su: "U", pu: "U", crit: "IMPORTANT", eq: "Ensacheuse", wh: "MAG-PDR", ss: 2, rp: 4, eoq: 6, lead: 25, s: [[15, 180, "CNY"], [5, 32000, "XOF"]] },
   { name: "Vérin pneumatique Ø63", cat: "PDR", family: "Pneumatique", su: "U", pu: "U", crit: "IMPORTANT", eq: "Ensacheuse", wh: "MAG-PDR", ss: 1, rp: 2, eoq: 3, lead: 30, s: [[21, 165, "EUR"], [15, 980, "CNY"]] },
@@ -190,6 +213,10 @@ export async function seedReferentials(prisma: PrismaClient): Promise<void> {
       type: s.type,
       country: s.country,
       city: s.city,
+      address: `${10 + i} rue des Industries, ${s.city} (adresse fictive)`,
+      phone: s.contact[1],
+      email: `contact@fournisseur-${String(i + 1).padStart(2, "0")}.exemple.test`,
+      bankDetails: s.country === "CI" ? `Banque fictive – RIB CI00 0000 0000 ${String(1000 + i)} (donnée fictive)` : `Fictive Bank – IBAN XX00 0000 ${String(1000 + i)} / SWIFT FICTXX00 (fictitious)`,
       currencyCode: s.cur,
       ncc: s.country === "CI" ? `${2100000 + i + 1}A` : null,
       rccm: s.country === "CI" ? `CI-ABJ-2020-B-${String(1000 + i)}` : null,
@@ -207,6 +234,11 @@ export async function seedReferentials(prisma: PrismaClient): Promise<void> {
       update: { name: base.name },
       create: { code, ...base },
     });
+    // Reprise : renseigne les coordonnées des fournisseurs semés avant leur ajout, sans écraser une saisie.
+    await prisma.supplier.updateMany({
+      where: { id: sup.id, address: null, phone: null, email: null, bankDetails: null },
+      data: { address: base.address, phone: base.phone, email: base.email, bankDetails: base.bankDetails },
+    });
     supplierIds.push(sup.id);
     if ((await prisma.supplierContact.count({ where: { supplierId: sup.id } })) === 0) {
       await prisma.supplierContact.create({
@@ -223,7 +255,7 @@ export async function seedReferentials(prisma: PrismaClient): Promise<void> {
     const mainId = supplierIds[it.s[0][0] - 1];
     const item = await prisma.item.upsert({
       where: { code },
-      update: { name: it.name },
+      update: { name: it.name, purchaseUnit: it.pu, conversionFactor: it.coef ?? 1 },
       create: {
         code,
         name: it.name,
@@ -243,28 +275,38 @@ export async function seedReferentials(prisma: PrismaClient): Promise<void> {
         equipment: it.cat === "PDR" ? (it.eq ?? null) : null,
       },
     });
-    for (const [n, [supNo, price, cur]] of it.s.entries()) {
+    for (const [n, [supNo, rawPrice, cur]] of it.s.entries()) {
       const supplierId = supplierIds[supNo - 1];
+      // Prix par unité d'achat (cf. ItemSeed.perPack) ; FCFA entier, devises à 2 décimales.
+      const factor = it.perPack ? 1 : (it.coef ?? 1);
+      const price = cur === "XOF" ? Math.round(rawPrice * factor) : Math.round(rawPrice * factor * 100) / 100;
+      const old = cur === "XOF" ? Math.round(price * 0.95) : Math.round(price * 0.95 * 100) / 100;
+      const linkData = {
+        supplierRef: `REF-${code.slice(-3)}-${n + 1}`,
+        lastPrice: price,
+        currencyCode: cur,
+        lastPriceDate: dayAt(-5),
+        priceUnit: it.pu,
+        leadTimeDays: SUPPLIERS[supNo - 1].lead,
+        minOrderQty: it.moq ?? 1,
+      };
       const existing = await prisma.itemSupplier.findUnique({ where: { itemId_supplierId: { itemId: item.id, supplierId } } });
-      if (existing) continue;
-      await prisma.itemSupplier.create({
-        data: {
-          itemId: item.id,
-          supplierId,
-          supplierRef: `REF-${code.slice(-3)}-${n + 1}`,
-          lastPrice: price,
-          currencyCode: cur,
-          lastPriceDate: dayAt(-5),
-          leadTimeDays: SUPPLIERS[supNo - 1].lead,
-          minOrderQty: it.coef ?? 1,
-        },
-      });
-      // Historique : un prix plus ancien (-5 %), puis le prix actuel.
-      const old = Math.round(price * 0.95 * 100) / 100;
+      if (existing) {
+        // Reprise des données fictives d'une version précédente (prix par unité de stock, sans unité ni taux).
+        if (existing.priceUnit === null || existing.priceUnit !== it.pu || !existing.lastPrice?.eq(price)) {
+          await prisma.itemSupplier.update({ where: { id: existing.id }, data: linkData });
+          await prisma.itemPriceHistory.deleteMany({ where: { itemId: item.id, supplierId, source: "MANUEL", createdById: null } });
+        } else if ((await prisma.itemPriceHistory.count({ where: { itemId: item.id, supplierId } })) > 0) {
+          continue;
+        }
+      } else {
+        await prisma.itemSupplier.create({ data: { itemId: item.id, supplierId, ...linkData } });
+      }
+      // Historique : un prix plus ancien (-5 %), puis le prix actuel, avec le taux figé à leur date.
       await prisma.itemPriceHistory.createMany({
         data: [
-          { itemId: item.id, supplierId, price: cur === "XOF" ? Math.round(old) : old, currencyCode: cur, source: "MANUEL", date: dayAt(-120) },
-          { itemId: item.id, supplierId, price, currencyCode: cur, source: "MANUEL", date: dayAt(-5) },
+          { itemId: item.id, supplierId, price: old, currencyCode: cur, rateToXof: seedRateAt(cur, -120), priceUnit: it.pu, source: "MANUEL", date: dayAt(-120) },
+          { itemId: item.id, supplierId, price, currencyCode: cur, rateToXof: seedRateAt(cur, -5), priceUnit: it.pu, source: "MANUEL", date: dayAt(-5) },
         ],
       });
     }

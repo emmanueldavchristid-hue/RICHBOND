@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { KeyRound } from "lucide-react";
 import { CodeInput } from "@/components/code-input";
+import { CODE_FORMAT_MESSAGE, isValidCode } from "@/modules/referentials/codes";
 import { FormError, FormField } from "@/components/form-field";
 import { WriteButton } from "@/components/license/write-button";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,10 @@ export function ChangeCodeDialog({
     setError(null);
     if (code.trim() === "") {
       setError("Le code est obligatoire.");
+      return;
+    }
+    if (!isValidCode(code)) {
+      setError(CODE_FORMAT_MESSAGE);
       return;
     }
     if (code === currentCode) {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { BusinessError } from "@/lib/errors";
+import { getNow } from "@/lib/clock";
 import { getClientIp } from "@/modules/auth/ip";
 import { withAction } from "@/modules/auth/session";
 import {
@@ -95,13 +96,13 @@ export const changeItemCodeAction = withAction("settings.manage", changeItemCode
 });
 
 export const linkSupplierAction = withAction("item.manage", linkSupplierSchema, async ({ user, input }) => {
-  const r = await linkSupplier(user, input, await getClientIp());
+  const r = await linkSupplier(user, input, await getClientIp(), (await getNow()).now);
   touch(input.itemId);
   return serialize(r);
 });
 
 export const updateItemSupplierAction = withAction("item.manage", updateItemSupplierSchema, async ({ user, input }) => {
-  const r = await updateItemSupplier(user, input, await getClientIp());
+  const r = await updateItemSupplier(user, input, await getClientIp(), (await getNow()).now);
   touch(r.itemId);
   return serialize(r);
 });
@@ -118,10 +119,12 @@ export const deactivateItemSupplierAction = withAction(
 
 /** FormData : champs `id`, `expectedUpdatedAt` (ISO), `file`. */
 export const setItemPhotoAction = withAction("item.manage", z.instanceof(FormData), async ({ user, input }) => {
-  const id = String(input.get("id") ?? "");
+  const parsedId = idSchema.safeParse(input.get("id"));
   const expectedUpdatedAt = expectedUpdatedAtSchema.safeParse(input.get("expectedUpdatedAt"));
   const file = input.get("file");
-  if (!id || !expectedUpdatedAt.success) throw new BusinessError("VALIDATION", "Version de la fiche manquante.");
+  if (!parsedId.success) throw new BusinessError("VALIDATION", "Article manquant ou invalide.");
+  if (!expectedUpdatedAt.success) throw new BusinessError("VALIDATION", "Version de la fiche manquante.");
+  const id = parsedId.data;
   if (!(file instanceof File)) throw new BusinessError("VALIDATION", "Aucune photo sélectionnée.");
   const r = await setItemPhoto(
     user,

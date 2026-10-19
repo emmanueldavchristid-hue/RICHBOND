@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Pencil, Plus, Power, PowerOff } from "lucide-react";
 import { CodeInput } from "@/components/code-input";
+import { CODE_FORMAT_MESSAGE, isValidCode } from "@/modules/referentials/codes";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { FormError, FormField } from "@/components/form-field";
@@ -51,6 +52,7 @@ function RefForm({ labels, target, create, update, onDone }: { labels: SimpleRef
     setFormError(null);
     const next: { code?: string; name?: string } = {};
     if (!target && code.trim() === "") next.code = "Le code est obligatoire.";
+    else if (!target && !isValidCode(code.trim())) next.code = CODE_FORMAT_MESSAGE;
     if (name.trim().length < 2) next.name = `Le nom est obligatoire (2 caractères minimum).`;
     setErrors(next);
     if (next.code || next.name) return;
@@ -64,7 +66,7 @@ function RefForm({ labels, target, create, update, onDone }: { labels: SimpleRef
   return (
     <form onSubmit={onSubmit} noValidate className="space-y-4" data-testid={`${labels.testId}-form`}>
       <FormError message={formError} testId={`${labels.testId}-form-error`} />
-      <FormField id={`${labels.testId}-code`} label="Code" required={!target} error={errors.code} hint={target ? "Le code ne peut pas être modifié." : "Lettres majuscules et chiffres, 17 caractères maximum."}>
+      <FormField id={`${labels.testId}-code`} label="Code" required={!target} error={errors.code} hint={target ? "Le code ne peut pas être modifié." : "Lettres majuscules, chiffres, « . », « _ » ou « - » ; 17 caractères maximum."}>
         <CodeInput
           id={`${labels.testId}-code`}
           value={code}

@@ -8,7 +8,7 @@ import { log } from "@/modules/audit";
 import { getRateAt } from "@/modules/currencies/service";
 import type { Actor } from "@/modules/referentials/actor";
 import { generateCode } from "@/modules/referentials/auto-code";
-import { assertFresh } from "@/modules/referentials/concurrency";
+import { lockFresh } from "@/modules/referentials/concurrency";
 import { codeExists, rethrowUnique } from "@/modules/referentials/db-errors";
 import { EXPORT_MAX_ROWS, toPage, type Page } from "@/modules/referentials/list-query";
 import { expectedUpdatedAtSchema, idSchema } from "@/modules/referentials/schemas";
@@ -165,6 +165,7 @@ export async function getItem(id: string, opts: { showPrices: boolean }) {
       lastPrice: opts.showPrices ? dec(l.lastPrice) : null,
       currencyCode: opts.showPrices ? l.currencyCode : null,
       lastPriceDate: opts.showPrices ? l.lastPriceDate : null,
+      priceUnit: opts.showPrices ? (l.priceUnit ?? it.purchaseUnit) : null,
     })),
   };
 }
@@ -188,6 +189,7 @@ export async function listPriceHistory(itemId: string, opts: { showPrices: boole
     price: r.price.toString(),
     currencyCode: r.currencyCode,
     rateToXof: dec(r.rateToXof),
+    priceUnit: r.priceUnit,
     source: r.source,
     sourceRef: r.sourceRef,
   }));
@@ -246,12 +248,21 @@ export async function updateItem(actor: Actor, raw: UpdateItemInput, ip?: string
     return await db.$transaction(async (tx) => {
       const before = await tx.item.findUnique({ where: { id } });
       if (!before) throw new BusinessError("NOT_FOUND", "Article introuvable.");
-      assertFresh(before.updatedAt, expectedUpdatedAt);
+      await lockFresh(tx, "items", before.id, expectedUpdatedAt);
       if (data.defaultWarehouseId && data.defaultWarehouseId !== before.defaultWarehouseId) {
         await assertWarehouseUsable(tx, data.defaultWarehouseId);
       }
       if (data.mainSupplierId && data.mainSupplierId !== before.mainSupplierId) {
         await ensureMainSupplier(tx, actor, id, data.mainSupplierId);
+      }
+      if (data.purchaseUnit !== before.purchaseUnit) {
+        const priced = await tx.itemSupplier.count({ where: { itemId: id, active: true, lastPrice: { not: null } } });
+        if (priced > 0) {
+          throw new BusinessError(
+            "PURCHASE_UNIT_LOCKED",
+            "L'unité d'achat ne peut plus changer : des prix fournisseurs sont exprimés dans l'unité actuelle. Retirez ou ressaisissez ces prix d'abord.",
+          );
+        }
       }
       const after = await tx.item.update({ where: { id }, data });
       await log(tx, { userId: actor.id, action: "ITEM_UPDATE", entity: "Item", entityId: id, before, after, ip });
@@ -267,7 +278,7 @@ export async function setItemStatus(actor: Actor, raw: z.input<typeof setItemSta
   return db.$transaction(async (tx) => {
     const before = await tx.item.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Article introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "items", before.id, input.expectedUpdatedAt);
     if (before.status === input.status) return before;
     const after = await tx.item.update({ where: { id: before.id }, data: { status: input.status } });
     await log(tx, {
@@ -290,7 +301,7 @@ export async function changeItemCode(actor: Actor, raw: z.input<typeof changeIte
     return await db.$transaction(async (tx) => {
       const before = await tx.item.findUnique({ where: { id: input.id } });
       if (!before) throw new BusinessError("NOT_FOUND", "Article introuvable.");
-      assertFresh(before.updatedAt, input.expectedUpdatedAt);
+      await lockFresh(tx, "items", before.id, input.expectedUpdatedAt);
       if (before.code === input.code) return before;
       const after = await tx.item.update({ where: { id: before.id }, data: { code: input.code } });
       await log(tx, {
@@ -320,6 +331,7 @@ async function recordPrice(
   price: number,
   currencyCode: string,
   at: Date,
+  priceUnit: string,
 ) {
   let rateToXof: Prisma.Decimal | null = null;
   try {
@@ -328,7 +340,7 @@ async function recordPrice(
     if (!(e instanceof BusinessError) || e.code !== "RATE_MISSING") throw e;
   }
   await tx.itemPriceHistory.create({
-    data: { itemId, supplierId, price, currencyCode, rateToXof, source: "MANUEL", date: at, createdById: actor.id },
+    data: { itemId, supplierId, price, currencyCode, rateToXof, priceUnit, source: "MANUEL", date: at, createdById: actor.id },
   });
 }
 
@@ -338,13 +350,13 @@ async function assertCurrencyKnown(tx: Prisma.TransactionClient, code: string | 
   if (!c || !c.active) throw new BusinessError("CURRENCY_INVALID", "Devise inconnue ou désactivée.");
 }
 
-export async function linkSupplier(actor: Actor, raw: z.input<typeof linkSupplierSchema>, ip?: string | null) {
+export async function linkSupplier(actor: Actor, raw: z.input<typeof linkSupplierSchema>, ip?: string | null, at: Date = now()) {
   const input = linkSupplierSchema.parse(raw);
   const { itemId, supplierId, ...fields } = input;
   try {
     return await db.$transaction(async (tx) => {
       const [item, supplier] = await Promise.all([
-        tx.item.findUnique({ where: { id: itemId }, select: { id: true } }),
+        tx.item.findUnique({ where: { id: itemId }, select: { id: true, purchaseUnit: true } }),
         tx.supplier.findUnique({ where: { id: supplierId }, select: { id: true, name: true, status: true } }),
       ]);
       if (!item) throw new BusinessError("NOT_FOUND", "Article introuvable.");
@@ -353,17 +365,21 @@ export async function linkSupplier(actor: Actor, raw: z.input<typeof linkSupplie
         throw new BusinessError("SUPPLIER_BLOCKED", `Le fournisseur « ${supplier.name} » est bloqué.`);
       }
       await assertCurrencyKnown(tx, fields.currencyCode);
-      const at = now();
       const existing = await tx.itemSupplier.findUnique({ where: { itemId_supplierId: { itemId, supplierId } } });
       if (existing?.active) {
         throw new BusinessError("LINK_EXISTS", "Cet article est déjà lié à ce fournisseur.");
       }
-      const data = { ...fields, lastPriceDate: fields.lastPrice != null ? at : null, active: true };
+      const data = {
+        ...fields,
+        lastPriceDate: fields.lastPrice != null ? at : null,
+        priceUnit: fields.lastPrice != null ? item.purchaseUnit : null,
+        active: true,
+      };
       const link = existing
         ? await tx.itemSupplier.update({ where: { id: existing.id }, data })
         : await tx.itemSupplier.create({ data: { itemId, supplierId, ...data, createdById: actor.id } });
       if (fields.lastPrice != null && fields.currencyCode) {
-        await recordPrice(tx, actor, itemId, supplierId, fields.lastPrice, fields.currencyCode, at);
+        await recordPrice(tx, actor, itemId, supplierId, fields.lastPrice, fields.currencyCode, at, item.purchaseUnit);
       }
       await log(tx, { userId: actor.id, action: "ITEM_SUPPLIER_LINK", entity: "ItemSupplier", entityId: link.id, after: link, ip });
       return link;
@@ -373,23 +389,33 @@ export async function linkSupplier(actor: Actor, raw: z.input<typeof linkSupplie
   }
 }
 
-export async function updateItemSupplier(actor: Actor, raw: z.input<typeof updateItemSupplierSchema>, ip?: string | null) {
+export async function updateItemSupplier(
+  actor: Actor,
+  raw: z.input<typeof updateItemSupplierSchema>,
+  ip?: string | null,
+  at: Date = now(),
+) {
   const { id, expectedUpdatedAt, ...fields } = updateItemSupplierSchema.parse(raw);
   return db.$transaction(async (tx) => {
     const before = await tx.itemSupplier.findUnique({ where: { id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Lien article-fournisseur introuvable.");
-    assertFresh(before.updatedAt, expectedUpdatedAt);
+    await lockFresh(tx, "item_suppliers", before.id, expectedUpdatedAt);
     await assertCurrencyKnown(tx, fields.currencyCode);
-    const at = now();
+    const item = await tx.item.findUnique({ where: { id: before.itemId }, select: { purchaseUnit: true } });
+    if (!item) throw new BusinessError("NOT_FOUND", "Article introuvable.");
     const priceChanged =
       fields.lastPrice != null &&
       (before.lastPrice === null || !before.lastPrice.eq(fields.lastPrice) || before.currencyCode !== fields.currencyCode);
     const after = await tx.itemSupplier.update({
       where: { id },
-      data: { ...fields, lastPriceDate: priceChanged ? at : fields.lastPrice == null ? null : before.lastPriceDate },
+      data: {
+        ...fields,
+        lastPriceDate: priceChanged ? at : fields.lastPrice == null ? null : before.lastPriceDate,
+        priceUnit: fields.lastPrice == null ? null : priceChanged ? item.purchaseUnit : (before.priceUnit ?? item.purchaseUnit),
+      },
     });
     if (priceChanged && fields.lastPrice != null && fields.currencyCode) {
-      await recordPrice(tx, actor, before.itemId, before.supplierId, fields.lastPrice, fields.currencyCode, at);
+      await recordPrice(tx, actor, before.itemId, before.supplierId, fields.lastPrice, fields.currencyCode, at, item.purchaseUnit);
     }
     await log(tx, { userId: actor.id, action: "ITEM_SUPPLIER_UPDATE", entity: "ItemSupplier", entityId: id, before, after, ip });
     return after;
@@ -405,7 +431,7 @@ export async function deactivateItemSupplier(
   return db.$transaction(async (tx) => {
     const before = await tx.itemSupplier.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Lien article-fournisseur introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "item_suppliers", before.id, input.expectedUpdatedAt);
     if (!before.active) return before;
     const item = await tx.item.findUnique({ where: { id: before.itemId }, select: { mainSupplierId: true } });
     if (item?.mainSupplierId === before.supplierId) {

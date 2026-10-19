@@ -38,12 +38,23 @@ const itemFields = {
 };
 
 type ItemFieldsOut = {
+  stockUnit: string;
+  purchaseUnit: string;
+  conversionFactor: number;
   category: string;
   safetyStock: number | null;
   reorderPoint: number | null;
 };
 
 function thresholdRule(v: ItemFieldsOut, ctx: z.RefinementCtx) {
+  // I3 : même unité d'achat et de stock => 1 pour 1, sinon la conversion n'a pas de sens.
+  if (v.stockUnit === v.purchaseUnit && v.conversionFactor !== 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["conversionFactor"],
+      message: "L'unité d'achat est identique à l'unité de stock : le coefficient de conversion doit être 1.",
+    });
+  }
   if (v.category !== "SERVICE" && v.safetyStock != null && v.reorderPoint != null && v.reorderPoint < v.safetyStock) {
     ctx.addIssue({
       code: "custom",

@@ -11,6 +11,7 @@ import { WriteButton } from "@/components/license/write-button";
 import { MoneyCell } from "@/components/money-cell";
 import { NativeSelect } from "@/components/native-select";
 import { QtyCell } from "@/components/qty-cell";
+import { unitName, unitShort } from "@/components/unit-select";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -31,6 +32,8 @@ export interface ItemLinkRow {
   lastPrice: string | null;
   currencyCode: string | null;
   lastPriceDate: Date | null;
+  /** Unité du prix et du minimum : unité d'achat de l'article. */
+  priceUnit: string | null;
 }
 
 interface LinkValues {
@@ -52,6 +55,7 @@ const SERVER_FIELD: Record<string, keyof LinkValues> = {
 
 function LinkDialog({
   itemId,
+  purchaseUnit,
   target,
   open,
   onOpenChange,
@@ -60,6 +64,7 @@ function LinkDialog({
   showPrices,
 }: {
   itemId: string;
+  purchaseUnit: string;
   /** null = nouveau lien. */
   target: ItemLinkRow | null;
   open: boolean;
@@ -74,6 +79,7 @@ function LinkDialog({
         {open ? (
           <LinkForm
             itemId={itemId}
+            purchaseUnit={purchaseUnit}
             target={target}
             onDone={() => onOpenChange(false)}
             onCancel={() => onOpenChange(false)}
@@ -89,6 +95,7 @@ function LinkDialog({
 
 function LinkForm({
   itemId,
+  purchaseUnit,
   target,
   onDone,
   onCancel,
@@ -97,6 +104,7 @@ function LinkForm({
   showPrices,
 }: {
   itemId: string;
+  purchaseUnit: string;
   target: ItemLinkRow | null;
   onDone: () => void;
   onCancel: () => void;
@@ -195,7 +203,7 @@ function LinkForm({
         </FormField>
         {showPrices ? (
           <div className="grid grid-cols-[1fr_8rem] gap-3">
-            <FormField id="link-price" label="Dernier prix d'achat" error={errors.lastPrice} hint="En FCFA : nombre entier.">
+            <FormField id="link-price" label={`Dernier prix d'achat (par ${unitShort(purchaseUnit)})`} error={errors.lastPrice} hint={`Prix pour 1 ${unitName(purchaseUnit)} (unité d'achat). En FCFA : nombre entier.`}>
               <Input id="link-price" className="h-11" inputMode="decimal" value={v.lastPrice} onChange={(e) => set("lastPrice", e.target.value)} data-testid="link-price" />
             </FormField>
             <FormField id="link-currency" label="Devise" error={errors.currencyCode}>
@@ -213,7 +221,7 @@ function LinkForm({
           <FormField id="link-lead" label="Délai annoncé (jours)" error={errors.leadTimeDays}>
             <Input id="link-lead" className="h-11" inputMode="numeric" value={v.leadTimeDays} onChange={(e) => set("leadTimeDays", e.target.value)} data-testid="link-lead" />
           </FormField>
-          <FormField id="link-moq" label="Minimum de commande" error={errors.minOrderQty}>
+          <FormField id="link-moq" label={`Minimum de commande (en ${unitShort(purchaseUnit)})`} error={errors.minOrderQty}>
             <Input id="link-moq" className="h-11" inputMode="decimal" value={v.minOrderQty} onChange={(e) => set("minOrderQty", e.target.value)} data-testid="link-moq" />
           </FormField>
         </div>
@@ -233,6 +241,7 @@ function LinkForm({
 /** Onglet « Fournisseurs » d'un article : plusieurs fournisseurs, référence, dernier prix, délai, minimum. */
 export function ItemSuppliersTab({
   itemId,
+  purchaseUnit,
   links,
   mainSupplierId,
   supplierOptions,
@@ -241,6 +250,7 @@ export function ItemSuppliersTab({
   canEdit,
 }: {
   itemId: string;
+  purchaseUnit: string;
   links: ItemLinkRow[];
   mainSupplierId: string | null;
   supplierOptions: { id: string; code: string; name: string; currencyCode: string }[];
@@ -274,10 +284,10 @@ export function ItemSuppliersTab({
               <tr>
                 <th className="p-3">Fournisseur</th>
                 <th className="p-3">Référence</th>
-                {showPrices ? <th className="p-3 text-right">Dernier prix</th> : null}
+                {showPrices ? <th className="p-3 text-right">Dernier prix (par {unitShort(purchaseUnit)})</th> : null}
                 {showPrices ? <th className="p-3">Date du prix</th> : null}
                 <th className="p-3 text-right">Délai (jours)</th>
-                <th className="p-3 text-right">Minimum</th>
+                <th className="p-3 text-right">Minimum ({unitShort(purchaseUnit)})</th>
                 {canEdit ? <th className="p-3" /> : null}
               </tr>
             </thead>
@@ -300,6 +310,7 @@ export function ItemSuppliersTab({
                   {showPrices ? (
                     <td className="p-3 text-right tabular-nums">
                       <MoneyCell value={l.lastPrice} currency={l.currencyCode} />
+                      {l.lastPrice ? <span className="text-muted-foreground"> / {unitShort(l.priceUnit ?? purchaseUnit)}</span> : null}
                     </td>
                   ) : null}
                   {showPrices ? (
@@ -309,7 +320,7 @@ export function ItemSuppliersTab({
                   ) : null}
                   <td className="p-3 text-right tabular-nums">{l.leadTimeDays ?? "–"}</td>
                   <td className="p-3 text-right tabular-nums">
-                    <QtyCell value={l.minOrderQty} />
+                    <QtyCell value={l.minOrderQty} unit={l.minOrderQty ? purchaseUnit : null} />
                   </td>
                   {canEdit ? (
                     <td className="p-3">
@@ -333,6 +344,7 @@ export function ItemSuppliersTab({
       <LinkDialog
         key={dialog?.target?.id ?? "new"}
         itemId={itemId}
+        purchaseUnit={purchaseUnit}
         target={dialog?.target ?? null}
         open={dialog !== null}
         onOpenChange={(o) => (!o ? setDialog(null) : undefined)}

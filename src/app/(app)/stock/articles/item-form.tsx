@@ -339,13 +339,13 @@ export function ItemForm({
                   ))}
                 </NativeSelect>
               </FormField>
-              <FormField id="item-safety" label="Stock de sécurité" error={err("safetyStock")} hint="Niveau à ne jamais atteindre.">
+              <FormField id="item-safety" label={`Stock de sécurité (en ${unitShort(v.stockUnit)})`} error={err("safetyStock")} hint="Niveau à ne jamais atteindre, en unité de stock.">
                 <Input id="item-safety" className="h-11" inputMode="decimal" value={v.safetyStock} onChange={(e) => set("safetyStock", e.target.value)} data-testid="item-safety" />
               </FormField>
-              <FormField id="item-reorder" label="Point de commande" error={err("reorderPoint")} hint="Déclenche le réapprovisionnement.">
+              <FormField id="item-reorder" label={`Point de commande (en ${unitShort(v.stockUnit)})`} error={err("reorderPoint")} hint="Déclenche le réapprovisionnement, en unité de stock.">
                 <Input id="item-reorder" className="h-11" inputMode="decimal" value={v.reorderPoint} onChange={(e) => set("reorderPoint", e.target.value)} data-testid="item-reorder" />
               </FormField>
-              <FormField id="item-eoq" label="Quantité économique" error={err("economicOrderQty")} hint="Quantité habituelle à commander.">
+              <FormField id="item-eoq" label={`Quantité économique (en ${unitShort(v.stockUnit)})`} error={err("economicOrderQty")} hint="Quantité habituelle à commander, en unité de stock.">
                 <Input id="item-eoq" className="h-11" inputMode="decimal" value={v.economicOrderQty} onChange={(e) => set("economicOrderQty", e.target.value)} data-testid="item-eoq" />
               </FormField>
             </div>

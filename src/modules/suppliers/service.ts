@@ -6,7 +6,7 @@ import type { Prisma, SupplierStatus } from "@/generated/prisma/client";
 import { log } from "@/modules/audit";
 import type { Actor } from "@/modules/referentials/actor";
 import { generateCode } from "@/modules/referentials/auto-code";
-import { assertFresh } from "@/modules/referentials/concurrency";
+import { lockFresh } from "@/modules/referentials/concurrency";
 import { normalizeName, validateNcc, requiredCodeSchema } from "@/modules/referentials/codes";
 import { codeExists, rethrowUnique } from "@/modules/referentials/db-errors";
 import { EXPORT_MAX_ROWS, toPage, type Page } from "@/modules/referentials/list-query";
@@ -154,6 +154,7 @@ export async function getSupplier(id: string, opts: { showPrices: boolean }) {
       lastPrice: opts.showPrices ? (l.lastPrice?.toString() ?? null) : null,
       currencyCode: opts.showPrices ? l.currencyCode : null,
       lastPriceDate: opts.showPrices ? l.lastPriceDate : null,
+      priceUnit: opts.showPrices ? (l.priceUnit ?? l.item.purchaseUnit) : null,
     })),
     indicators: await supplierIndicators(id),
   };
@@ -220,7 +221,7 @@ export async function updateSupplier(actor: Actor, raw: UpdateSupplierInput, ip?
     return await db.$transaction(async (tx) => {
       const before = await tx.supplier.findUnique({ where: { id } });
       if (!before) throw new BusinessError("NOT_FOUND", "Fournisseur introuvable.");
-      assertFresh(before.updatedAt, expectedUpdatedAt);
+      await lockFresh(tx, "suppliers", before.id, expectedUpdatedAt);
       if (data.currencyCode !== before.currencyCode) await assertCurrencyUsable(tx, data.currencyCode);
       // Le blocage/déblocage passe par ses propres actions (motif, droits).
       const status = before.status === "BLOQUE" ? "BLOQUE" : data.status;
@@ -247,7 +248,7 @@ export async function changeSupplierCode(
     return await db.$transaction(async (tx) => {
       const before = await tx.supplier.findUnique({ where: { id: input.id } });
       if (!before) throw new BusinessError("NOT_FOUND", "Fournisseur introuvable.");
-      assertFresh(before.updatedAt, input.expectedUpdatedAt);
+      await lockFresh(tx, "suppliers", before.id, input.expectedUpdatedAt);
       if (before.code === input.code) return before;
       const after = await tx.supplier.update({ where: { id: before.id }, data: { code: input.code } });
       await log(tx, {
@@ -267,16 +268,16 @@ export async function changeSupplierCode(
 }
 
 /** R7/R8 : motif obligatoire ; retourne les articles actifs dont il est le fournisseur principal. */
-export async function blockSupplier(actor: Actor, raw: z.input<typeof blockSupplierSchema>, ip?: string | null) {
+export async function blockSupplier(actor: Actor, raw: z.input<typeof blockSupplierSchema>, ip?: string | null, at: Date = now()) {
   const input = blockSupplierSchema.parse(raw);
   return db.$transaction(async (tx) => {
     const before = await tx.supplier.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Fournisseur introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "suppliers", before.id, input.expectedUpdatedAt);
     if (before.status === "BLOQUE") throw new BusinessError("ALREADY_BLOCKED", "Ce fournisseur est déjà bloqué.");
     const after = await tx.supplier.update({
       where: { id: before.id },
-      data: { status: "BLOQUE", blockedReason: input.reason, blockedAt: now(), blockedById: actor.id },
+      data: { status: "BLOQUE", blockedReason: input.reason, blockedAt: at, blockedById: actor.id },
     });
     const affectedItems = await tx.item.findMany({
       where: { mainSupplierId: before.id, status: "ACTIF" },
@@ -302,7 +303,7 @@ export async function unblockSupplier(actor: Actor, raw: z.input<typeof unblockS
   return db.$transaction(async (tx) => {
     const before = await tx.supplier.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Fournisseur introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "suppliers", before.id, input.expectedUpdatedAt);
     if (before.status !== "BLOQUE") throw new BusinessError("NOT_BLOCKED", "Ce fournisseur n'est pas bloqué.");
     const after = await tx.supplier.update({
       where: { id: before.id },
@@ -333,7 +334,7 @@ export async function setSupplierStatus(
   return db.$transaction(async (tx) => {
     const before = await tx.supplier.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Fournisseur introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "suppliers", before.id, input.expectedUpdatedAt);
     if (before.status === "BLOQUE") {
       throw new BusinessError("SUPPLIER_BLOCKED", "Fournisseur bloqué : utilisez « Débloquer » (Responsable Achats).");
     }
@@ -377,7 +378,7 @@ export async function updateContact(actor: Actor, raw: z.input<typeof updateCont
   return db.$transaction(async (tx) => {
     const before = await tx.supplierContact.findUnique({ where: { id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Contact introuvable.");
-    assertFresh(before.updatedAt, expectedUpdatedAt);
+    await lockFresh(tx, "supplier_contacts", before.id, expectedUpdatedAt);
     const after = await tx.supplierContact.update({ where: { id }, data });
     if (after.isPrimary) await clearOtherPrimary(tx, after.supplierId, after.id);
     await log(tx, { userId: actor.id, action: "SUPPLIER_CONTACT_UPDATE", entity: "SupplierContact", entityId: id, before, after, ip });
@@ -394,7 +395,7 @@ export async function setContactActive(
   return db.$transaction(async (tx) => {
     const before = await tx.supplierContact.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Contact introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "supplier_contacts", before.id, input.expectedUpdatedAt);
     const after = await tx.supplierContact.update({
       where: { id: before.id },
       data: { active: input.active, ...(input.active ? {} : { isPrimary: false }) },

@@ -41,6 +41,18 @@ describe("seed idempotent", () => {
     expect(await db.supplier.count({ where: { status: "EN_EVALUATION", code: { startsWith: "FRS-" } } })).toBe(2);
     expect(await db.item.count({ where: { category: "SERVICE", stocked: true } })).toBe(0);
     expect(await db.itemSupplier.count()).toBeGreaterThanOrEqual(60);
+    // I1/I2 : prix par unité d'achat, avec unité ; taux figé sur chaque ligne d'historique en devise.
+    const links = await db.itemSupplier.findMany({ where: { lastPrice: { not: null } }, include: { item: true } });
+    expect(links.length).toBeGreaterThanOrEqual(60);
+    expect(links.every((l) => l.priceUnit === l.item.purchaseUnit)).toBe(true);
+    const polyol = links.find((l) => l.item.name.startsWith("Polyol") && l.currencyCode === "EUR");
+    expect(polyol?.lastPrice?.toString()).toBe("380"); // 1,9 EUR/kg x 200 kg par fût
+    const roulement = await db.item.findFirstOrThrow({ where: { name: "Roulement 6205" } });
+    expect(roulement.purchaseUnit).toBe("U");
+    expect(await db.itemPriceHistory.count({ where: { currencyCode: { not: "XOF" }, rateToXof: null } })).toBe(0);
+    expect(await db.itemPriceHistory.count({ where: { priceUnit: null } })).toBe(0);
+    const supplier = await db.supplier.findFirstOrThrow({ where: { code: "FRS-00001" } });
+    expect(supplier.address && supplier.phone && supplier.email && supplier.bankDetails).toBeTruthy();
     expect((await db.counter.findUniqueOrThrow({ where: { key_year: { key: "ART", year: 0 } } })).value).toBeGreaterThanOrEqual(40);
   }, 60_000);
 });

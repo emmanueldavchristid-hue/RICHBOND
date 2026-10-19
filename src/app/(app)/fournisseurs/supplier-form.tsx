@@ -31,6 +31,10 @@ export interface SupplierFormValues {
   type: string;
   country: string;
   city: string;
+  address: string;
+  phone: string;
+  email: string;
+  bankDetails: string;
   currencyCode: string;
   ncc: string;
   rccm: string;
@@ -50,6 +54,10 @@ export const EMPTY_SUPPLIER: SupplierFormValues = {
   type: "LOCAL",
   country: "CI",
   city: "",
+  address: "",
+  phone: "",
+  email: "",
+  bankDetails: "",
   currencyCode: "XOF",
   ncc: "",
   rccm: "",
@@ -134,6 +142,10 @@ export function SupplierForm({
       type: v.type,
       country: v.country,
       city: v.city,
+      address: v.address,
+      phone: v.phone,
+      email: v.email,
+      bankDetails: v.bankDetails,
       currencyCode: v.currencyCode,
       ncc: v.ncc,
       rccm: v.rccm,
@@ -241,6 +253,15 @@ export function SupplierForm({
             <FormField id="sup-city" label="Ville" error={errors.city}>
               <Input id="sup-city" className="h-11" value={v.city} maxLength={80} onChange={(e) => set("city", e.target.value)} data-testid="supplier-city" />
             </FormField>
+            <FormField id="sup-address" label="Adresse" error={errors.address}>
+              <Input id="sup-address" className="h-11" value={v.address} maxLength={250} onChange={(e) => set("address", e.target.value)} data-testid="supplier-address" />
+            </FormField>
+            <FormField id="sup-phone" label="Téléphone général" error={errors.phone}>
+              <Input id="sup-phone" className="h-11" type="tel" inputMode="tel" value={v.phone} maxLength={25} onChange={(e) => set("phone", e.target.value)} data-testid="supplier-phone" />
+            </FormField>
+            <FormField id="sup-email" label="Email général" error={errors.email}>
+              <Input id="sup-email" className="h-11" type="email" inputMode="email" value={v.email} maxLength={120} onChange={(e) => set("email", e.target.value)} data-testid="supplier-email" />
+            </FormField>
             <FormField id="sup-currency" label="Devise par défaut" required error={errors.currencyCode}>
               <NativeSelect id="sup-currency" value={v.currencyCode} onChange={(e) => set("currencyCode", e.target.value)} data-testid="supplier-currency">
                 {currencies.some((c) => c.code === v.currencyCode) ? null : <option value={v.currencyCode}>{v.currencyCode}</option>}
@@ -319,6 +340,9 @@ export function SupplierForm({
               ))}
             </div>
           </fieldset>
+          <FormField id="sup-bank" label="Banque / RIB" error={errors.bankDetails} hint="Texte libre (banque, n° de compte ou RIB, IBAN/SWIFT pour l'import). Information sensible.">
+            <TextArea id="sup-bank" value={v.bankDetails} maxLength={500} onChange={(e) => set("bankDetails", e.target.value)} data-testid="supplier-bank" />
+          </FormField>
           <FormField id="sup-notes" label="Notes" error={errors.notes}>
             <TextArea id="sup-notes" value={v.notes} maxLength={2000} onChange={(e) => set("notes", e.target.value)} data-testid="supplier-notes" />
           </FormField>
