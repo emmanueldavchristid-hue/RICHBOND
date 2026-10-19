@@ -15,7 +15,7 @@ import { buyerCoversType, pickLeastLoaded } from "./assignment";
 import { duplicateWarnings, type DuplicateWarning } from "./commitments";
 import { displayNumber, PR_URGENCY_LABELS, type PrKind, type PrType } from "./labels";
 import { parseInput } from "./parse";
-import { assertNeededByNotPast, dateOnly, priorityOf, resolveNeededBy } from "./priority";
+import { assertNeededByNotPast, dateOnly, effectivePriority, priorityOf, resolveNeededBy } from "./priority";
 import {
   approveManySchema,
   approveRequestSchema,
@@ -542,7 +542,7 @@ export async function approveMany(actor: RequestUser, raw: unknown, ip?: string 
   const results: ApproveManyItem[] = [];
   for (const it of input.items) {
     try {
-      const r = await approveRequest(actor, { id: it.id, expectedUpdatedAt: it.expectedUpdatedAt }, ip, at);
+      const r = await approveRequest(actor, { id: it.id, expectedUpdatedAt: it.expectedUpdatedAt, type: it.type ?? null }, ip, at);
       results.push({ id: it.id, number: r.number, ok: true });
     } catch (e) {
       const number = await db.purchaseRequest
@@ -582,7 +582,7 @@ async function decide(
   return db.$transaction(async (tx) => {
     const pr = await loadLocked(tx, id, expectedUpdatedAt);
     const { to } = assertTransition(pr, action, actor);
-    const data: Prisma.PurchaseRequestUncheckedUpdateInput = { status: to! };
+    const data: Prisma.PurchaseRequestUncheckedUpdateInput = { status: to!, priority: effectivePriority(pr.urgency, to!) };
     if (action === "reject") data.rejectedReason = detail;
     if (action === "cancel") {
       data.cancelledReason = detail;
@@ -750,7 +750,7 @@ export async function refreshOrderedStatus(
   if (!target || target === pr.status) return result(pr);
   const user = { id: actor.id, role: "RESPONSABLE_ACHATS" as const };
   const { to } = assertTransition(pr, target === "COMMANDEE" ? "markOrdered" : "markPartiallyOrdered", user);
-  const after = await tx.purchaseRequest.update({ where: { id: requestId }, data: { status: to! } });
+  const after = await tx.purchaseRequest.update({ where: { id: requestId }, data: { status: to!, priority: effectivePriority(pr.urgency, to!) } });
   await recordEvent(tx, { requestId, type: "STATUS_SYNC", userId: actor.id, from: pr.status, to: to!, at });
   await log(tx, {
     userId: actor.id,

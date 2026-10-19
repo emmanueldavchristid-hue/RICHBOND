@@ -14,6 +14,7 @@ import {
   exportRequests,
   findOpenCommitments,
   getRequest,
+  homeRequestSummary,
   listRequests,
   markInConsultation,
   readAttachment,
@@ -384,6 +385,58 @@ describe("validation groupée : erreur technique", () => {
     expect(res.results[0]).toMatchObject({ ok: false, code: "INTERNAL", message: "Erreur technique, réessayez" });
     expect(res.results[1].ok).toBe(true);
     expect(res.approved).toBe(1);
+  });
+});
+
+describe("recette LOT-04 : tri, validation groupée, accueil", () => {
+  const stop = { urgency: "ARRET_PRODUCTION", reason: "Machine arrêtée, ligne 2 bloquée" };
+
+  it("I2 : une DA arrêt de production refusée ou annulée perd sa priorité; hors « À valider », les plus récentes d'abord", async () => {
+    const a = await submitted(achLocal, stop);
+    const b = await submitted(achLocal);
+    const c = await submitted(achLocal, stop);
+    await rejectRequest(resp, { id: a.id, expectedUpdatedAt: a.updatedAt, reason: "Doublon avéré" });
+    expect((await reload(a.id)).priority).toBe(2);
+    expect((await reload(c.id)).priority).toBe(0);
+    const all = await listRequests(resp, {}, { showPrices: true });
+    expect(all.rows[0].id).toBe(c.id);
+    expect(all.rows.map((r) => r.id).slice(1)).toEqual([b.id, a.id]);
+    // onglet « À valider » : ordre D5 conservé (arrêt, puis date de besoin)
+    const tab = await listRequests(resp, { onglet: "a-valider" }, { showPrices: true });
+    expect(tab.rows[0].id).toBe(c.id);
+  });
+
+  it("I3 : validation groupée d'une DA « À définir » avec un type choisi", async () => {
+    const d = await submitted(achAll, { type: "A_DEFINIR" });
+    const e = await submitted(achAll, { type: "A_DEFINIR" });
+    const res = await approveMany(resp, {
+      items: [
+        { id: d.id, expectedUpdatedAt: d.updatedAt, type: "IMPORT" },
+        { id: e.id, expectedUpdatedAt: e.updatedAt },
+      ],
+    });
+    expect(res.results.map((r) => r.code)).toEqual([undefined, "TYPE_REQUIRED"]);
+    const r = await reload(d.id);
+    expect(r.status).toBe("VALIDEE");
+    expect(r.type).toBe("IMPORT");
+  });
+
+  it("C6 : le compteur « À valider » ignore les filtres de la liste", async () => {
+    await submitted(achLocal);
+    await submitted(achLocal, stop);
+    const page = await listRequests(resp, { onglet: "toutes", urgence: "ARRET_PRODUCTION", q: "zzz" }, { showPrices: true });
+    expect(page.rows).toHaveLength(0);
+    expect(page.toValidate).toBe(2);
+  });
+
+  it("I1 : résumé d'accueil Responsable (à valider, arrêts) et Acheteur (assignées)", async () => {
+    const a = await submitted(achLocal, stop);
+    await submitted(achLocal);
+    expect(await homeRequestSummary(resp)).toEqual({ toValidate: 2, stops: 1, assignedToMe: 0 });
+    await approveRequest(resp, { id: a.id, expectedUpdatedAt: a.updatedAt, buyerId: achLocal.id });
+    expect(await homeRequestSummary(resp)).toEqual({ toValidate: 1, stops: 0, assignedToMe: 0 });
+    expect(await homeRequestSummary(achLocal)).toEqual({ toValidate: 0, stops: 0, assignedToMe: 1 });
+    expect(await homeRequestSummary(mag)).toEqual({ toValidate: 0, stops: 0, assignedToMe: 0 });
   });
 });
 

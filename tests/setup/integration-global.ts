@@ -1,8 +1,10 @@
 import "dotenv/config";
 import { execSync } from "node:child_process";
+import { acquireTestDbLock } from "./db-lock";
 
 /** Applique les migrations sur la base de test (jamais sur la base de dev). */
 export default function setup() {
+  const release = acquireTestDbLock("vitest (intégration)");
   const url = process.env.DATABASE_URL_TEST;
   if (!url) {
     throw new Error(
@@ -16,4 +18,5 @@ export default function setup() {
     stdio: "inherit",
     env: { ...process.env, DATABASE_URL: url },
   });
+  return release;
 }

@@ -49,11 +49,13 @@ export function RequestsTable({
   const { run, pending } = useActionRunner();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [types, setTypes] = useState<Record<string, "LOCAL" | "IMPORT" | "">>({});
   const [report, setReport] = useState<BulkResult | null>(null);
 
   const selectable = useMemo(() => (canApprove ? rows.filter((r) => r.status === "SOUMISE") : []), [rows, canApprove]);
   const chosen = selectable.filter((r) => selected.has(r.id));
-  const skipped = chosen.filter((r) => r.type === "A_DEFINIR");
+  // I3 : les DA « À définir » reçoivent le type choisi dans la fenêtre ; sans choix, elles sont écartées.
+  const skipped = chosen.filter((r) => r.type === "A_DEFINIR" && !types[r.id]);
   const allChecked = selectable.length > 0 && chosen.length === selectable.length;
 
   const toggle = useCallback((id: string) =>
@@ -67,12 +69,13 @@ export function RequestsTable({
 
   async function approveSelection() {
     const res = await run(
-      () => approveManyAction({ items: chosen.map((r) => ({ id: r.id, expectedUpdatedAt: new Date(r.updatedAt).toISOString() })) }),
+      () => approveManyAction({ items: chosen.map((r) => ({ id: r.id, expectedUpdatedAt: new Date(r.updatedAt).toISOString(), type: r.type === "A_DEFINIR" ? types[r.id] || null : null })) }),
       {
         onSuccess: (data) => {
           const d = data as BulkResult;
           setConfirmOpen(false);
           setSelected(new Set());
+          setTypes({});
           setReport(d);
           if (d.approved > 0) toast.success(d.approved === 1 ? "1 demande validée." : `${d.approved} demandes validées.`);
           if (d.failed > 0) toast.warning(d.failed === 1 ? "1 demande écartée : voir le détail." : `${d.failed} demandes écartées : voir le détail.`);
@@ -198,7 +201,7 @@ export function RequestsTable({
         exportHref="/api/export/demandes"
         rowHref={(r) => `/achats/demandes/${r.id}`}
         rowTestId={(r) => `pr-row-${r.displayNumber}`}
-        rowClassName={(r) => (r.urgency === "ARRET_PRODUCTION" && r.status !== "ANNULEE" && r.status !== "REFUSEE" ? "bg-red-50 hover:bg-red-100/70" : undefined)}
+        rowClassName={(r) => (r.priority === 0 ? "bg-red-50 hover:bg-red-100/70" : undefined)}
         emptyTitle={emptyByTab[tab].title}
         emptyDescription={emptyByTab[tab].description}
         toolbarExtra={
@@ -234,6 +237,19 @@ export function RequestsTable({
                   <span className="font-mono font-medium">{r.displayNumber}</span> · {r.department.name}
                 </span>
                 <span className="flex items-center gap-2">
+                  {r.type === "A_DEFINIR" ? (
+                    <select
+                      className="h-11 rounded-md border bg-background px-2 text-sm"
+                      aria-label={`Type de ${r.displayNumber}`}
+                      value={types[r.id] ?? ""}
+                      onChange={(e) => setTypes((p) => ({ ...p, [r.id]: e.target.value as "LOCAL" | "IMPORT" | "" }))}
+                      data-testid={`pr-bulk-type-${r.displayNumber}`}
+                    >
+                      <option value="">Type à définir</option>
+                      <option value="LOCAL">Local</option>
+                      <option value="IMPORT">Import</option>
+                    </select>
+                  ) : null}
                   <UrgencyBadge urgency={r.urgency as PrUrgency} />
                   {showPrices && r.estimatedTotal != null ? <MoneyCell value={r.estimatedTotal} decimals={0} /> : null}
                 </span>
@@ -242,7 +258,7 @@ export function RequestsTable({
           </ul>
           {skipped.length > 0 ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-testid="pr-bulk-skipped">
-              {skipped.length === 1 ? "1 demande sera écartée" : `${skipped.length} demandes seront écartées`} : le type (local ou import) n&apos;est pas défini ({skipped.map((r) => r.displayNumber).join(", ")}). Ouvrez-les pour choisir le type.
+              {skipped.length === 1 ? "1 demande sera écartée" : `${skipped.length} demandes seront écartées`} : le type (local ou import) n&apos;est pas défini ({skipped.map((r) => r.displayNumber).join(", ")}). Choisissez le type ci-dessus, ou ouvrez-les.
             </p>
           ) : null}
           <div className="flex justify-end gap-2">

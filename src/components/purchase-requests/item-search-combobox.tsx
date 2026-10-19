@@ -46,6 +46,12 @@ export function ItemSearchCombobox({
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const seq = useRef(0);
+  // Fermeture différée au blur : annulée si le champ reprend le focus (sinon elle fermerait la liste rouverte entre-temps).
+  const blurTimer = useRef<number | null>(null);
+  const cancelBlur = () => {
+    if (blurTimer.current !== null) window.clearTimeout(blurTimer.current);
+    blurTimer.current = null;
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -117,9 +123,16 @@ export function ItemSearchCombobox({
         placeholder={placeholder}
         className="h-12 pl-9 text-base"
         data-testid={testId}
-        onFocus={() => setOpen(true)}
-        onBlur={() => window.setTimeout(() => setOpen(false), 120)}
+        onFocus={() => {
+          cancelBlur();
+          setOpen(true);
+        }}
+        onBlur={() => {
+          cancelBlur();
+          blurTimer.current = window.setTimeout(() => setOpen(false), 120);
+        }}
         onChange={(e) => {
+          cancelBlur();
           setQ(e.target.value);
           setOpen(true);
         }}

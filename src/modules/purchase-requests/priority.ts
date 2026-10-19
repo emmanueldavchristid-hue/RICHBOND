@@ -6,6 +6,14 @@ export function priorityOf(urgency: PrUrgency): 0 | 1 | 2 {
   return urgency === "ARRET_PRODUCTION" ? 0 : urgency === "URGENTE" ? 1 : 2;
 }
 
+/** Statuts terminaux : la DA ne mobilise plus personne, elle perd sa priorité d'urgence. */
+export const CLOSED_STATUSES = ["REFUSEE", "ANNULEE", "COMMANDEE"] as const;
+
+/** I2 : priorité effective stockée ; une DA close retombe à 2 (jamais « arrêt de production » en tête). */
+export function effectivePriority(urgency: PrUrgency, status: string): 0 | 1 | 2 {
+  return (CLOSED_STATUSES as readonly string[]).includes(status) ? 2 : priorityOf(urgency);
+}
+
 export interface SortableRequest {
   priority: number;
   neededBy: Date | string;

@@ -54,10 +54,16 @@ export function buildRequestWhere(user: RequestViewer, f: ListRequestsFilters): 
 }
 
 /** D5 : l'arrêt de production reste en tête de toutes les listes, quel que soit le tri choisi ensuite. */
-export function buildRequestOrder(f: Pick<ListRequestsFilters, "tri" | "ordre">): Prisma.PurchaseRequestOrderByWithRelationInput[] {
+export function buildRequestOrder(f: Pick<ListRequestsFilters, "tri" | "ordre" | "onglet">): Prisma.PurchaseRequestOrderByWithRelationInput[] {
+  // `priority` vaut 2 pour les DA closes (REFUSEE, ANNULEE, COMMANDEE) : l'arrêt de production ne concerne que les DA ouvertes.
   const order: Prisma.PurchaseRequestOrderByWithRelationInput[] = [{ priority: "asc" }];
   if (f.tri) order.push({ [f.tri]: f.ordre });
-  order.push({ neededBy: "asc" }, { submittedAt: { sort: "asc", nulls: "last" } }, { id: "asc" });
+  if (f.onglet === "a-valider") {
+    order.push({ neededBy: "asc" }, { submittedAt: { sort: "asc", nulls: "last" } }, { id: "asc" });
+  } else {
+    // Hors « À valider » : les plus récentes d'abord (les brouillons non soumis suivent leur date de création).
+    order.push({ createdAt: "desc" }, { id: "asc" });
+  }
   return order;
 }
 
@@ -104,7 +110,7 @@ export async function listRequests(
       },
     }),
     db.purchaseRequest.count({ where }),
-    db.purchaseRequest.count({ where: buildRequestWhere(user, { ...f, onglet: "a-valider", statut: undefined, q: undefined }) }),
+    db.purchaseRequest.count({ where: buildRequestWhere(user, parseInput(listRequestsSchema, { onglet: "a-valider" })) }),
   ]);
   const mapped: RequestRow[] = rows.map((r) => ({
     id: r.id,
@@ -269,4 +275,30 @@ export async function searchItemsForRequest(user: RequestViewer, raw: unknown) {
     select: { id: true, code: true, name: true, category: true, stockUnit: true, purchaseUnit: true, conversionFactor: true, stocked: true },
   });
   return serialize(rows);
+}
+
+export interface HomeRequestSummary {
+  /** DA soumises en attente de validation (Responsable). */
+  toValidate: number;
+  /** Dont arrêts de production (DA ouvertes, priorité 0). */
+  stops: number;
+  /** DA validées assignées à l'utilisateur et encore à traiter (Acheteur). */
+  assignedToMe: number;
+}
+
+/** I1 : pastilles de l'accueil. Les compteurs non pertinents pour le rôle valent 0. */
+export async function homeRequestSummary(user: RequestViewer): Promise<HomeRequestSummary> {
+  if (user.role === "RESPONSABLE_ACHATS") {
+    const base = buildRequestWhere(user, parseInput(listRequestsSchema, { onglet: "a-valider" }));
+    const [toValidate, stops] = await Promise.all([
+      db.purchaseRequest.count({ where: base }),
+      db.purchaseRequest.count({ where: { AND: [base, { priority: 0 }] } }),
+    ]);
+    return { toValidate, stops, assignedToMe: 0 };
+  }
+  if (user.role === "ACHETEUR") {
+    const assignedToMe = await db.purchaseRequest.count({ where: { assignedBuyerId: user.id, status: { in: OPEN_FOR_BUYER } } });
+    return { toValidate: 0, stops: 0, assignedToMe };
+  }
+  return { toValidate: 0, stops: 0, assignedToMe: 0 };
 }

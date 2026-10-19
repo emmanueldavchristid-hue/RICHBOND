@@ -150,7 +150,7 @@ export const approveRequestSchema = requestVersionSchema.extend({
 
 export const approveManySchema = z.object({
   items: z
-    .array(requestVersionSchema)
+    .array(requestVersionSchema.extend({ type: nullable(z.enum(["LOCAL", "IMPORT"], { error: "Choisissez Local ou Import." })) }))
     .min(1, "Sélectionnez au moins une demande.")
     .max(50, "La validation groupée est limitée à 50 demandes."),
 });

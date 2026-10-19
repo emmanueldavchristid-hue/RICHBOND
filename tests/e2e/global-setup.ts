@@ -1,9 +1,11 @@
 import "dotenv/config";
 import { execSync } from "node:child_process";
 import { Client } from "pg";
+import { acquireTestDbLock } from "../setup/db-lock";
 
 /** Réinitialise la base de TEST (jamais la base de dev) puis rejoue le seed fictif. */
 export default async function globalSetup() {
+  const release = acquireTestDbLock("playwright (e2e)");
   if (process.env.NODE_ENV === "production") throw new Error("Les tests e2e sont interdits avec NODE_ENV=production.");
   const url = process.env.DATABASE_URL_TEST;
   if (!url) throw new Error("DATABASE_URL_TEST est absente : les tests e2e exigent une base de test dédiée.");
@@ -42,4 +44,5 @@ export default async function globalSetup() {
     await client.end();
   }
   execSync("npx prisma db seed", { stdio: "inherit", env });
+  return release;
 }
