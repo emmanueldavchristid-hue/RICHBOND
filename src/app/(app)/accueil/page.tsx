@@ -8,7 +8,7 @@ import { requirePageAction } from "@/modules/auth/session";
 export const metadata: Metadata = { title: "Accueil – RICHBOND" };
 
 const DESCRIPTIONS: Record<string, string> = {
-  "/achats": "Demandes d'achat, consultations et bons de commande.",
+  "/achats/demandes": "Demandes d'achat, consultations et bons de commande.",
   "/import": "Dossiers d'import, suivi des expéditions et frais d'approche.",
   "/stock": "Niveaux de stock, réceptions, sorties et inventaires.",
   "/fournisseurs": "Fiches fournisseurs, conditions et évaluations.",
