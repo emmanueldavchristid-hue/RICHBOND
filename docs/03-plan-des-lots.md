@@ -8,7 +8,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 |---|---|---|---|
 | LOT-00 | Initialisation et outillage | – | Terminé |
 | LOT-01 | Authentification, rôles, utilisateurs, journal d'audit, mise en page | EX-01, 02, 04 | Terminé |
-| LOT-02 | Période d'essai, compte à rebours, licence | EX-05 | À faire |
+| LOT-02 | Période d'essai, compte à rebours, licence | EX-05 | Terminé |
 | LOT-03 | Référentiels : articles, fournisseurs, dépôts, services, devises | EX-10, 11 | À faire |
 | LOT-04 | Demandes d'achat et workflow de validation | EX-20, 21 | À faire |
 | LOT-05 | Bons de commande, PDF, suivi des délais et relances | EX-21, 22, 23 | À faire |

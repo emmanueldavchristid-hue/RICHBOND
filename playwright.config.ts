@@ -10,6 +10,8 @@ if (!process.env.DATABASE_URL_TEST) {
 
 export default defineConfig({
   testDir: "tests/e2e",
+  // Scripts jetables de débogage/recette (non suivis par git) : jamais joués par la suite.
+  testIgnore: ["**/_dbg/**", "**/_recette/**"],
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
