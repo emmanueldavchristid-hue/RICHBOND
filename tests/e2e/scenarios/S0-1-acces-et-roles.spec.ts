@@ -10,11 +10,12 @@ const MENUS: Record<E2ERole, { role: string; visible: string[] }> = {
   RESPONSABLE_ACHATS: { role: "Responsable Achats", visible: ALL_ENTRIES },
   ACHETEUR_LOCAL: {
     role: "Acheteur (local)",
-    visible: ["accueil", "achats", "stock", "fournisseurs", "rapports"],
+    // LOT-03 (R14) : « Paramètres » est visible des acheteurs pour la saisie des taux de change.
+    visible: ["accueil", "achats", "stock", "fournisseurs", "rapports", "parametres"],
   },
   ACHETEUR_IMPORT: {
     role: "Acheteur (import)",
-    visible: ["accueil", "achats", "import", "stock", "fournisseurs", "rapports"],
+    visible: ["accueil", "achats", "import", "stock", "fournisseurs", "rapports", "parametres"],
   },
   MAGASINIER: { role: "Magasinier", visible: ["accueil", "achats", "stock", "rapports"] },
 };

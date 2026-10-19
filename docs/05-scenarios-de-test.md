@@ -10,6 +10,44 @@ Un scénario n'est activé qu'une fois son lot terminé ; il doit ensuite rester
 3. Avec `TEST_NOW` après la fin d'essai : connexion OK, bandeau rouge, création de DA refusée, export autorisé.
 4. Le super-admin saisit une clé valide → plus de badge, création de DA possible.
 
+## SR1 à SR6 – Référentiels (LOT-03)
+Joués en desktop et en tablette (`tests/e2e/scenarios/SR-referentiels.spec.ts`). Chaque scénario vérifie l'interface **et** l'effet en base (fiche créée, historique de prix, journal d'audit, statut).
+
+### SR1 – Acheteur import : fournisseur Chine, article PDR et historique de prix
+1. Acheteur import crée le fournisseur « Shenzhen … » (Import, Chine, CNY, FOB, 2 contacts) : code `FRS-xxxxx` généré, 2 contacts en base, trace au journal.
+2. Il crée l'article PDR critique « Roulement 6308 » (équipement « Ligne mousse continue », achat CARTON de 10 U) avec ce fournisseur principal : code `ART-xxxxx`, aperçu « 1 Carton = 10 U », lien fournisseur créé automatiquement.
+3. Il saisit le prix en CNY puis le modifie : l'onglet « Historique des prix » montre les deux prix avec le taux et l'équivalent FCFA ; 2 lignes en base.
+4. La fiche fournisseur liste l'article (« Articles fournis »).
+
+### SR2 – Magasinier sur tablette : consultation sans écriture ni prix (H13)
+1. Tablette. Magasinier filtre les articles « PDR » + « Critique » + équipement « Ligne mousse continue » et ouvre la fiche « Roulement 6308 ».
+2. Aucun bouton d'écriture, fiche en lecture seule, ni onglet de prix, ni prix dans les données envoyées au navigateur ; `/fournisseurs` et l'export des fournisseurs sont refusés.
+3. Le Responsable active « Afficher les prix d'achat au Magasinier » : le Magasinier voit alors les prix ; le réglage est ensuite remis à zéro.
+
+### SR3 – Blocage et déblocage d'un fournisseur
+1. Acheteur : le motif est obligatoire (5 caractères minimum) ; il bloque un fournisseur qui est principal d'articles actifs : avertissement avec la liste des articles, bandeau rouge avec le motif, statut « Bloqué » en base.
+2. L'Acheteur ne peut pas débloquer (message « Seul le Responsable Achats peut débloquer »). Le fournisseur bloqué n'est plus proposé comme fournisseur principal d'un nouvel article.
+3. Responsable : débloque ; statut « Actif », motif effacé de la fiche, blocage et déblocage tracés au journal ; le fournisseur est de nouveau proposé.
+
+### SR4 – Listes : recherche, tri, filtres, pagination, export
+1. Articles : « 1–25 sur N », page 2, tri par désignation (croissant puis décroissant), recherche par désignation et par référence fournisseur, filtres catégorie et famille, résultat vide, réinitialisation, état dans l'URL.
+2. Export Excel des articles avec un filtre : fichier `articles_AAAAMMJJ.xlsx`, lignes = lignes de la liste filtrée.
+3. Fournisseurs : filtres type/pays/statut, tri, export Excel (lignes = liste).
+4. Recherche tapée puis clic immédiat (moins de 300 ms) sur une ligne : la fiche s'ouvre et on n'est pas ramené à la liste.
+
+### SR5 – Essai expiré : consultation et export seulement
+1. `TEST_NOW` après la fin d'essai : listes articles et fournisseurs consultables, export Excel téléchargeable.
+2. « Nouvel article », « Nouveau fournisseur », « Enregistrer », « Bloquer », « Saisir un taux » et « Enregistrer » des réglages sont désactivés.
+
+### SR6 – Devises et taux de change
+1. Le Responsable voit XOF « devise de base » et les taux EUR/USD/CNY du seed, sans alerte.
+2. Taux EUR différent de 655,957 : confirmation demandée ; annuler n'enregistre rien ; confirmer enregistre. Taux USD avec virgule accepté ; doublon de date refusé.
+3. Acheteur : peut saisir un taux mais ni créer une devise ni ouvrir les dépôts.
+4. `TEST_NOW` à +45 jours : alerte « taux ancien » pour chaque devise ; la saisie d'un taux du jour retire l'alerte de cette devise.
+
+## Non-régression S0 (LOT-01, LOT-02)
+La suite `npm run test:e2e` rejoue S0.1 et S0.2 après chaque lot ; elles doivent rester vertes.
+
 ## S1 – Achat local standard (LOT-04, 05, 06)
 1. Magasinier : DA « fourniture de bureau » (Administration), 2 lignes, urgence Normale → soumise.
 2. Responsable : voit la DA dans « À valider », réduit une quantité, valide.
