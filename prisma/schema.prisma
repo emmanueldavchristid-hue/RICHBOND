@@ -38,8 +38,20 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
+  failedLoginCount   Int       @default(0) @map("failed_login_count")
+  lockedUntil        DateTime? @map("locked_until")
+  mustChangePassword Boolean   @default(true) @map("must_change_password")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  sessionVersion     Int       @default(0) @map("session_version")
+  deactivatedAt      DateTime? @map("deactivated_at")
+  createdById        String?   @map("created_by_id")
+
+  createdBy User?  @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  created   User[] @relation("UserCreatedBy")
+
   auditLogs AuditLog[]
 
+  @@index([role, active])
   @@map("users")
 }
 
@@ -61,6 +73,7 @@ model AuditLog {
   entityId  String   @map("entity_id")
   before    Json?
   after     Json?
+  ip        String?
   createdAt DateTime @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
