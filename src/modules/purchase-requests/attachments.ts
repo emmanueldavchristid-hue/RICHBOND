@@ -138,7 +138,7 @@ export async function readAttachment(
 ): Promise<{ bytes: Buffer; mime: string; fileName: string }> {
   const att = await db.purchaseRequestAttachment.findFirst({
     where: { id: attachmentId, requestId, removedAt: null },
-    include: { request: { select: { createdById: true, kind: true } } },
+    include: { request: { select: { createdById: true, kind: true, status: true } } },
   });
   if (!att) throw new BusinessError("NOT_FOUND", "Pièce jointe introuvable.");
   if (!canViewRequest(user, att.request)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à cette pièce jointe.");

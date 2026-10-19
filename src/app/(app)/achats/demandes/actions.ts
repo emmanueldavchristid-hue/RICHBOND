@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { BusinessError } from "@/lib/errors";
 import { getNow } from "@/lib/clock";
-import { db } from "@/lib/db";
 import { getClientIp } from "@/modules/auth/ip";
 import { withAction } from "@/modules/auth/session";
 import {
@@ -21,7 +20,7 @@ import {
   checkDuplicatesSchema,
   commentRequestSchema,
   createRequest,
-  duplicateWarnings,
+  checkDuplicates,
   getRequest,
   getStockSnapshot,
   listAssignableBuyers,
@@ -72,7 +71,7 @@ export const getRequestAction = withAction(
 export const checkDuplicatesAction = withAction(
   "purchaseRequest.view",
   checkDuplicatesSchema,
-  async ({ input }) => serialize(await duplicateWarnings(db, input.itemIds, input.excludeId)),
+  async ({ user, input }) => serialize(await checkDuplicates(input.itemIds, input.excludeId, user)),
   READ,
 );
 

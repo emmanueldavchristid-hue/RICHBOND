@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
 import { formatCommitment, type Commitment } from "./duplicates";
+import { canViewRequest, type RequestActor } from "@/lib/permissions";
 import { PR_OPEN_COMMITMENT_STATUSES } from "./labels";
 
 type Client = Pick<Prisma.TransactionClient, "purchaseRequestLine">;
@@ -10,9 +11,14 @@ export interface ItemCommitment extends Commitment {
   itemId: string;
   /** Identifiant de la pièce (DA ou BC) pour le lien. */
   documentId: string;
+  /** Interne : sert à filtrer selon le lecteur, retiré avant exposition. */
+  ref?: { createdById: string; kind: "STANDARD" | "REAPPRO"; status: string };
 }
 
-/** Brancher les BC en cours (LOT-05) sans toucher au code des DA. */
+/**
+ * Brancher les BC en cours (LOT-05) sans toucher au code des DA.
+ * Contrat : jamais de prix ni de fournisseur dans les engagements renvoyés (numéro, quantité, unité, date seulement).
+ */
 export interface OpenOrderSource {
   findOpenOrders(client: Prisma.TransactionClient | typeof db, itemIds: string[]): Promise<ItemCommitment[]>;
 }
@@ -46,7 +52,7 @@ export async function findOpenCommitments(
       quantity: true,
       approvedQty: true,
       unit: true,
-      request: { select: { id: true, number: true, neededBy: true } },
+      request: { select: { id: true, number: true, neededBy: true, createdById: true, kind: true, status: true } },
     },
     orderBy: [{ request: { neededBy: "asc" } }, { id: "asc" }],
   });
@@ -58,6 +64,7 @@ export async function findOpenCommitments(
     qty: (r.approvedQty ?? r.quantity).toString(),
     unit: r.unit,
     date: r.request.neededBy,
+    ref: { createdById: r.request.createdById, kind: r.request.kind, status: r.request.status },
   }));
   return das;
 }
@@ -73,6 +80,22 @@ export async function findAllOpenCommitments(
   return [...das, ...orders];
 }
 
+/**
+ * Le Magasinier ne voit ni numéro ni identifiant d'une DA qu'il ne peut pas consulter, ni les BC :
+ * l'avertissement reste utile (quantité, date) mais anonymisé.
+ */
+function maskFor(c: ItemCommitment, viewer?: RequestActor): ItemCommitment {
+  const { ref, ...rest } = c;
+  if (!viewer) return rest;
+  const visible = c.source === "DA" && ref ? canViewRequest(viewer, ref) : viewer.role !== "MAGASINIER";
+  return visible ? rest : { ...rest, number: "", documentId: "" };
+}
+
+/** Point d'entrée des actions : avertissements de doublons filtrés selon le lecteur. */
+export function checkDuplicates(itemIds: string[], excludeId: string | null | undefined, user: RequestActor) {
+  return duplicateWarnings(db, itemIds, excludeId, user);
+}
+
 export interface DuplicateWarning {
   itemId: string;
   itemCode: string;
@@ -86,8 +109,9 @@ export async function duplicateWarnings(
   client: Prisma.TransactionClient | typeof db,
   itemIds: string[],
   excludePrId?: string | null,
+  viewer?: RequestActor,
 ): Promise<DuplicateWarning[]> {
-  const commitments = await findAllOpenCommitments(client, itemIds, excludePrId);
+  const commitments = (await findAllOpenCommitments(client, itemIds, excludePrId)).map((c) => maskFor(c, viewer));
   if (commitments.length === 0) return [];
   const byItem = new Map<string, ItemCommitment[]>();
   for (const c of commitments) byItem.set(c.itemId, [...(byItem.get(c.itemId) ?? []), c]);

@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/lib/db";
 import { cleanTestUsers, createTestUser } from "../helpers/db";
 import { cleanReferentials } from "../helpers/referentials";
@@ -363,6 +363,27 @@ describe("validation, refus, retour, annulation", () => {
     expect((await reload(a.id)).status).toBe("VALIDEE");
     expect((await reload(b.id)).status).toBe("SOUMISE");
     expect(await code(approveMany(achLocal, { items: [{ id: a.id, expectedUpdatedAt: a.updatedAt }] }))).toBe("FORBIDDEN");
+  });
+});
+
+describe("validation groupée : erreur technique", () => {
+  it("une erreur inattendue sur une DA renvoie INTERNAL pour elle seule, sans fuite du détail", async () => {
+    const a = await submitted(achLocal);
+    const b = await submitted(achLocal);
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const spy = vi.spyOn(db, "$transaction").mockRejectedValueOnce(new Error("connexion perdue SECRET"));
+    const res = await approveMany(resp, {
+      items: [
+        { id: a.id, expectedUpdatedAt: a.updatedAt },
+        { id: b.id, expectedUpdatedAt: b.updatedAt },
+      ],
+    });
+    spy.mockRestore();
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
+    expect(res.results[0]).toMatchObject({ ok: false, code: "INTERNAL", message: "Erreur technique, réessayez" });
+    expect(res.results[1].ok).toBe(true);
+    expect(res.approved).toBe(1);
   });
 });
 

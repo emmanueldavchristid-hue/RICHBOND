@@ -133,7 +133,8 @@ export async function listRequests(
 export async function exportRequests(user: RequestViewer, raw: ListRequestsInput = {}, opts: { showPrices: boolean }) {
   const f = parseInput(listRequestsSchema, raw);
   const where = buildRequestWhere(user, f);
-  const total = await db.purchaseRequest.count({ where });
+  // Plafond sur le nombre de lignes exportées (une ligne Excel par ligne de DA).
+  const total = await db.purchaseRequestLine.count({ where: { request: where } });
   if (total > EXPORT_MAX_ROWS) {
     throw new BusinessError("EXPORT_TOO_LARGE", `Trop de lignes (${total}) : affinez les filtres (maximum ${EXPORT_MAX_ROWS}).`);
   }

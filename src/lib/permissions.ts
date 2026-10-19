@@ -233,6 +233,8 @@ export interface RequestRef {
  */
 export function canViewRequest(user: RequestActor, pr: RequestRef): boolean {
   if (!can(user, "purchaseRequest.view")) return false;
+  // Brouillon : visible de son seul auteur (cohérent avec la liste).
+  if (pr.status === "BROUILLON" && pr.createdById !== user.id) return false;
   if (user.role !== "MAGASINIER") return true;
   return pr.createdById === user.id || pr.kind === "REAPPRO";
 }

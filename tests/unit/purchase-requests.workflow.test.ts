@@ -63,10 +63,11 @@ describe("transitions autorisées (statut x action)", () => {
 describe("matrice exhaustive statut x action x rôle", () => {
   // Attendu écrit à la main : pour chaque statut, les actions utilisateur permises par rôle (DA créée par l'acheteur a1).
   const EXPECTED: Record<PrStatus, { RESP: PrAction[]; ACH: PrAction[]; ACH2: PrAction[]; MAG: PrAction[]; SUPER: PrAction[] }> = {
+    // Brouillon d'autrui invisible (relecture LOT-04) : ni commentaire ni lecture pour un non-auteur.
     BROUILLON: {
-      RESP: ["edit", "cancel", "comment", "attach"],
+      RESP: ["edit", "cancel", "attach"],
       ACH: ["edit", "submit", "cancel", "comment", "attach"],
-      ACH2: ["comment"],
+      ACH2: [],
       MAG: [],
       SUPER: [],
     },

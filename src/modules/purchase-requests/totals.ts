@@ -1,5 +1,8 @@
 import { BusinessError } from "@/lib/errors";
 
+/** Plafond des colonnes INTEGER PostgreSQL. */
+export const MAX_AMOUNT = 2_147_483_647;
+
 type Qty = number | string | { toString(): string };
 
 /** Quantité décimale (≤ 3 décimales) -> millièmes entiers (exact, sans flottant). */
@@ -21,7 +24,9 @@ export function lineTotal(qty: Qty, unitPrice: number | null | undefined): numbe
   const milli = toMilli(qty);
   const total = (milli * BigInt(unitPrice) * 2n + 1000n) / 2000n;
   const n = Number(total);
-  if (!Number.isSafeInteger(n)) throw new BusinessError("MONTANT_INVALIDE", "Montant trop élevé.");
+  if (!Number.isSafeInteger(n) || n > MAX_AMOUNT) {
+    throw new BusinessError("MONTANT_INVALIDE", "Montant trop élevé (maximum 2 147 483 647 FCFA).");
+  }
   return n;
 }
 
@@ -43,6 +48,7 @@ export function estimatedTotal(lines: TotalLine[]): number | null {
     if (t === null) continue;
     any = true;
     sum += t;
+    if (sum > MAX_AMOUNT) throw new BusinessError("MONTANT_INVALIDE", "Total estimé trop élevé (maximum 2 147 483 647 FCFA).");
   }
   return any ? sum : null;
 }

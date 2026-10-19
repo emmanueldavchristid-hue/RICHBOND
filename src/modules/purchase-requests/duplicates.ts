@@ -20,10 +20,11 @@ const shortDate = (d: Date | string) => formatInTimeZone(new Date(d), APP_TZ, "d
  */
 export function formatCommitment(c: Commitment): string {
   const qty = `${formatQty(c.qty)} ${c.unit}`;
+  const ref = c.number ? `${c.number}, ` : "";
   if (c.source === "DA") {
-    return `Déjà demandé : ${c.number}, ${qty}${c.date ? `, besoin le ${shortDate(c.date)}` : ""}`;
+    return `Déjà demandé : ${ref}${qty}${c.date ? `, besoin le ${shortDate(c.date)}` : ""}`;
   }
-  return `Déjà commandé : ${c.number}, ${qty}${c.date ? ` attendues le ${shortDate(c.date)}` : ""}`;
+  return `Déjà commandé : ${ref}${qty}${c.date ? ` attendues le ${shortDate(c.date)}` : ""}`;
 }
 
 /** Un message par engagement ; liste vide si aucun. */

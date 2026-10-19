@@ -200,6 +200,40 @@ describe("flux complet par les actions", () => {
   });
 });
 
+describe("brouillon d'autrui et doublons (relecture LOT-04)", () => {
+  it("fiche, pièce jointe et commentaire sur un brouillon d'autrui : FORBIDDEN", async () => {
+    const ach = await login("daa-b-ach", "ACHETEUR");
+    const created = data(await da.createRequestAction(input()));
+    const fd = new FormData();
+    fd.set("requestId", created.id);
+    fd.set("file", new File([Buffer.from("%PDF-1.4 test")], "devis.pdf", { type: "application/pdf" }));
+    const att = data(await da.addAttachmentAction(fd));
+    const call = () =>
+      attRoute.GET(new NextRequest(`http://localhost/api/purchase-requests/${created.id}/attachments/${att.id}`), {
+        params: Promise.resolve({ id: created.id, attId: att.id }),
+      });
+    asUser(ach);
+    expect((await call()).status).toBe(200);
+    await login("daa-b-resp", "RESPONSABLE_ACHATS");
+    expect(await da.getRequestAction({ id: created.id })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(await da.addCommentAction({ id: created.id, comment: "Test" })).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect((await call()).status).toBe(403);
+  });
+
+  it("Magasinier : doublons sans numéro ni identifiant d'une DA qu'il ne voit pas", async () => {
+    await login("daa-m-ach", "ACHETEUR");
+    const c1 = data(await da.createRequestAction(input()));
+    const s1 = data(await da.submitRequestAction({ id: c1.id, expectedUpdatedAt: c1.updatedAt }));
+    await login("daa-m-mag", "MAGASINIER");
+    const warnings = data(await da.checkDuplicatesAction({ itemIds: [item.id] }));
+    expect(warnings).toHaveLength(1);
+    const text = JSON.stringify(warnings);
+    expect(text).not.toContain(s1.number!);
+    expect(text).not.toContain(c1.id);
+    expect(warnings[0].messages[0]).toMatch(/^Déjà demandé : 3 U, besoin le \d{2}\/\d{2}$/);
+  });
+});
+
 describe("essai expiré (LOT-02)", () => {
   async function prepare() {
     const ach = await login("daa-x-ach", "ACHETEUR");

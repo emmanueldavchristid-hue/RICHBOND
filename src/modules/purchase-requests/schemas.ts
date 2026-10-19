@@ -37,7 +37,7 @@ export const requestLineSchema = z
         .number({ error: "Prix estimé invalide." })
         .int("Le prix estimé doit être un montant entier en FCFA.")
         .min(0, "Le prix estimé ne peut pas être négatif.")
-        .max(10_000_000_000, "Prix estimé trop élevé."),
+        .max(2_147_483_647, "Prix estimé trop élevé (maximum 2 147 483 647 FCFA)."),
     ),
     note: optionalString(200, "Note"),
   })

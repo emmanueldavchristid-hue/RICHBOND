@@ -2,7 +2,7 @@ import "server-only";
 import { formatInTimeZone } from "date-fns-tz";
 import { db } from "@/lib/db";
 import { now } from "@/lib/clock";
-import { APP_TZ, currentYear } from "@/lib/dates";
+import { APP_TZ, currentYear, formatDateOnly } from "@/lib/dates";
 import { BusinessError } from "@/lib/errors";
 import { requireAction } from "@/lib/permissions";
 import { Prisma, type PurchaseRequestEventType, type PurchaseRequestStatus } from "@/generated/prisma/client";
@@ -439,13 +439,18 @@ export async function approveRequest(actor: RequestUser, raw: unknown, ip?: stri
       },
     });
 
+    const changedItemIds = changed.map((a) => a.line.itemId).filter((x): x is string => !!x);
+    const changedItems = new Map(
+      (await tx.item.findMany({ where: { id: { in: changedItemIds } }, select: { id: true, code: true, name: true } })).map((i) => [i.id, i]),
+    );
     for (const a of changed) {
-      const designation = a.line.freeDesignation ?? a.line.itemId;
+      const it = a.line.itemId ? changedItems.get(a.line.itemId) : undefined;
+      const designation = it ? `${it.code} – ${it.name}` : (a.line.freeDesignation ?? "");
       await recordEvent(tx, {
         requestId: pr.id,
         type: "QTY_CHANGED",
         userId: actor.id,
-        payload: { lineNo: a.line.lineNo, designation, before: a.line.quantity.toString(), after: a.qty.toString(), unit: a.line.unit },
+        payload: { lineNo: a.line.lineNo, code: it?.code ?? null, designation, before: a.line.quantity.toString(), after: a.qty.toString(), unit: a.line.unit },
         at,
       });
       await log(tx, {
@@ -484,7 +489,7 @@ export async function approveRequest(actor: RequestUser, raw: unknown, ip?: stri
         type: "PR_ASSIGNED",
         severity: after.urgency === "ARRET_PRODUCTION" ? "CRITIQUE" : after.urgency === "URGENTE" ? "IMPORTANT" : "INFO",
         title: `${number} validée et assignée à vous`,
-        body: `${PR_URGENCY_LABELS[after.urgency]} – besoin le ${after.neededBy.toISOString().slice(8, 10)}/${after.neededBy.toISOString().slice(5, 7)}`,
+        body: `${PR_URGENCY_LABELS[after.urgency]} – besoin le ${formatDateOnly(after.neededBy)}`,
         link: link(pr.id),
         entity: "PurchaseRequest",
         entityId: pr.id,
@@ -540,8 +545,15 @@ export async function approveMany(actor: RequestUser, raw: unknown, ip?: string 
       const r = await approveRequest(actor, { id: it.id, expectedUpdatedAt: it.expectedUpdatedAt }, ip, at);
       results.push({ id: it.id, number: r.number, ok: true });
     } catch (e) {
-      if (!(e instanceof BusinessError)) throw e;
-      const number = (await db.purchaseRequest.findUnique({ where: { id: it.id }, select: { number: true } }))?.number ?? null;
+      const number = await db.purchaseRequest
+        .findUnique({ where: { id: it.id }, select: { number: true } })
+        .then((r) => r?.number ?? null)
+        .catch(() => null);
+      if (!(e instanceof BusinessError)) {
+        console.error(`[approveMany] erreur technique sur la DA ${it.id}`, e);
+        results.push({ id: it.id, number, ok: false, code: "INTERNAL", message: "Erreur technique, réessayez" });
+        continue;
+      }
       const message = e.code === "TYPE_REQUIRED" ? "Écartée : choisissez Local ou Import (type à définir)." : e.messageFr;
       results.push({ id: it.id, number, ok: false, code: e.code, message });
     }

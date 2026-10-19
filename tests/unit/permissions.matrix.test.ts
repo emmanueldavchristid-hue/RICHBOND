@@ -182,6 +182,14 @@ describe("LOT-04 : demandes d'achat", () => {
     expect(canViewRequest({ ...ACH, id: "a1" }, { createdById: "x", kind: "STANDARD" })).toBe(true);
     expect(canViewRequest({ ...SUPER, id: "s" }, { createdById: "x", kind: "STANDARD" })).toBe(true);
   });
+  it("canViewRequest : un brouillon n'est visible que de son auteur (Responsable compris)", () => {
+    const draft = { createdById: "a1", kind: "STANDARD" as const, status: "BROUILLON" };
+    expect(canViewRequest({ ...ACH, id: "a1" }, draft)).toBe(true);
+    expect(canViewRequest({ ...ACH, id: "a2" }, draft)).toBe(false);
+    expect(canViewRequest({ ...RESP, id: "r1" }, draft)).toBe(false);
+    expect(canViewRequest({ ...MAG, id: "m1" }, { ...draft, kind: "REAPPRO" })).toBe(false);
+    expect(canViewRequest({ ...RESP, id: "r1" }, { ...draft, status: "SOUMISE" })).toBe(true);
+  });
   it("canEditRequest : créateur ou Responsable, en BROUILLON ou A_COMPLETER seulement", () => {
     const a = { ...ACH, id: "a1" };
     const pr = { createdById: "a1", kind: "STANDARD" as const };

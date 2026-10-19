@@ -30,3 +30,7 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Utilisateurs : Responsable Achats (M. DIBI), 2 acheteurs, 1 magasinier ; noms à saisir plus tard.
 - Période d'essai accordée au client : compte à rebours prioritaire (LOT-02).
 - Suite : LOT-00.
+
+## Relecture LOT-04 (corrections)
+- Corrigés : montants plafonnés à 2 147 483 647 (schéma + totals), brouillon d'autrui invisible (canViewRequest), doublons anonymisés pour le Magasinier, approveMany INTERNAL, checkDuplicates dans le module, plafond d'export sur les lignes, commentaire d'en-tête export, payload QTY_CHANGED (code + désignation), date de notification via `formatDateOnly`.
+- Restent à traiter (points 9, 12, 13, 14, non triviaux ou non précisés) : le Responsable peut encore modifier/annuler/joindre sur le brouillon d'autrui par identifiant (la lecture est interdite) ; à confirmer.

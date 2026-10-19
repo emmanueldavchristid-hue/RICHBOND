@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { estimatedTotal, lineTotal, toMilli } from "@/modules/purchase-requests/totals";
+import { BusinessError } from "@/lib/errors";
+import { MAX_AMOUNT, estimatedTotal, lineTotal, toMilli } from "@/modules/purchase-requests/totals";
 
 describe("lineTotal (FCFA entiers)", () => {
   it("quantité entière x prix", () => {
@@ -57,5 +58,24 @@ describe("estimatedTotal", () => {
     const t = estimatedTotal([{ quantity: "0.333", estimatedUnitPrice: 1000 }]);
     expect(Number.isInteger(t)).toBe(true);
     expect(t).toBe(333);
+  });
+});
+
+describe("plafond INTEGER PostgreSQL", () => {
+  it("accepte exactement 2 147 483 647 et refuse au-delà (ligne)", () => {
+    expect(MAX_AMOUNT).toBe(2_147_483_647);
+    expect(lineTotal(1, 2_147_483_647)).toBe(2_147_483_647);
+    expect(() => lineTotal(2, 2_147_483_647)).toThrow(BusinessError);
+    expect(() => lineTotal("1.001", 2_147_483_647)).toThrowError(/trop élevé/);
+    try {
+      lineTotal(2, 2_147_483_647);
+    } catch (e) {
+      expect((e as BusinessError).code).toBe("MONTANT_INVALIDE");
+    }
+  });
+  it("refuse un total qui dépasse la borne alors que chaque ligne passe", () => {
+    const l = { quantity: 1, estimatedUnitPrice: 1_500_000_000 };
+    expect(estimatedTotal([l])).toBe(1_500_000_000);
+    expect(() => estimatedTotal([l, l])).toThrowError(/Total estimé trop élevé/);
   });
 });

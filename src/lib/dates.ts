@@ -40,3 +40,8 @@ export function addBusinessDays(d: Date, days: number): Date {
 export function todayAbidjan(now: Date = new Date()): string {
   return formatInTimeZone(now, APP_TZ, "yyyy-MM-dd");
 }
+
+/** JJ/MM/AAAA d'une date « jour seul » (stockée à minuit UTC, ex. date de besoin) : aucun décalage de fuseau. */
+export function formatDateOnly(d: Date): string {
+  return formatInTimeZone(d, "UTC", "dd/MM/yyyy");
+}

@@ -28,7 +28,8 @@ import { exportSuppliers } from "@/modules/suppliers";
 /**
  * GET /api/export/articles | /fournisseurs | /demandes : mêmes filtres que la liste (query string).
  * Autorisé en lecture seule (essai expiré) : pas de contrôle d'écriture.
- * Les exports ne contiennent aucune colonne de prix d'achat (R15/R18).
+ * Articles et fournisseurs : aucune colonne de prix d'achat (R15/R18). Demandes : prix estimés (FCFA) inclus
+ * uniquement si l'utilisateur a le droit de voir les prix (le Magasinier ne les reçoit pas, sauf réglage explicite).
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: string }> }) {
   const { entity } = await ctx.params;
