@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
@@ -258,13 +257,20 @@ export function DataTable<T extends { id: string }>({
                 );
                 return (
                   <li key={r.id} data-testid={`${rowKey(r)}-card`} className="rounded-lg border bg-card">
-                    {href ? (
-                      <Link href={href} className="block min-h-14 rounded-lg p-4 hover:bg-muted/50">
-                        {body}
-                      </Link>
-                    ) : (
-                      <div className="p-4">{body}</div>
-                    )}
+                    {/* Carte entière cliquable (le lien du code reste le lien accessible : pas d'ancre imbriquée). */}
+                    <div
+                      className={cn("min-h-14 rounded-lg p-4", href && "cursor-pointer hover:bg-muted/50")}
+                      onClick={
+                        href
+                          ? (e) => {
+                              if ((e.target as HTMLElement).closest("a,button,input,select,label")) return;
+                              router.push(href);
+                            }
+                          : undefined
+                      }
+                    >
+                      {body}
+                    </div>
                   </li>
                 );
               })}
