@@ -86,7 +86,11 @@ export interface RequestRow {
   createdBy: { id: string; name: string };
   assignedBuyer: { id: string; name: string } | null;
   submittedAt: Date | null;
+  /** Date de validation (« validée depuis X j », liste « Assignées à moi »). */
+  approvedAt: Date | null;
   lineCount: number;
+  /** LOT-05 : lignes dont il reste une quantité à commander (DA validées, avant commande complète) ; 0 sinon. */
+  linesToOrder: number;
   updatedAt: Date;
 }
 
@@ -108,11 +112,14 @@ export async function listRequests(
         createdBy: { select: { id: true, name: true } },
         assignedBuyer: { select: { id: true, name: true } },
         _count: { select: { lines: true } },
+        lines: { select: { id: true, quantity: true, approvedQty: true } },
       },
     }),
     db.purchaseRequest.count({ where }),
     db.purchaseRequest.count({ where: buildRequestWhere(user, parseInput(listRequestsSchema, { onglet: "a-valider" })) }),
   ]);
+  const openRows = rows.filter((r) => OPEN_FOR_BUYER.includes(r.status));
+  const quantities = await requestOrderQuantities(db, openRows.flatMap((r) => r.lines));
   const mapped: RequestRow[] = rows.map((r) => ({
     id: r.id,
     number: r.number,
@@ -130,7 +137,9 @@ export async function listRequests(
     createdBy: r.createdBy,
     assignedBuyer: r.assignedBuyer,
     submittedAt: r.submittedAt,
+    approvedAt: r.approvedAt,
     lineCount: r._count.lines,
+    linesToOrder: OPEN_FOR_BUYER.includes(r.status) ? r.lines.filter((l) => (quantities.get(l.id)?.remainingQty.gt(0) ?? false) && (l.approvedQty ?? l.quantity).gt(0)).length : 0,
     updatedAt: r.updatedAt,
   }));
   return { ...toPage(mapped, total, f), toValidate };

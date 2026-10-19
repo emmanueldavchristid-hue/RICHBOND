@@ -20,7 +20,7 @@ import { PO_LATE_STATUSES, displayOrderNumber, type PoStatus } from "./labels";
 import { daysLate, isLate, needsReminder, REMINDABLE_STATUSES } from "./lateness";
 import { lastPrices } from "./pricing";
 import { checkPrice, priceAlertMessage } from "./price-check";
-import { mailtoLink, reminderText, whatsappLink } from "./reminder-text";
+import { mailtoLink, reminderText, sendText, whatsappLink } from "./reminder-text";
 import { checkOrderDuplicatesSchema, listOrdersSchema, orderIdSchema, priceCheckSchema, searchOrderableLinesSchema, type ListOrdersFilters, type ListOrdersInput } from "./schemas";
 import { computeTotals } from "./totals";
 import { alreadyOrderedWarnings } from "./warnings";
@@ -544,6 +544,31 @@ export async function getReminderText(user: OrderActor, raw: unknown, at: Date =
     contact: contact ? { name: contact.name, phone: contact.phone, email: contact.email } : null,
     whatsappLink: whatsappLink(phone, text),
     mailtoLink: mailtoLink(contact?.email ?? po.supplier.email, `Relance bon de commande ${label}`, text),
+  };
+}
+
+/** Texte d'accompagnement de l'envoi du PDF (copiable) + liens e-mail et WhatsApp (D17). */
+export async function getSendText(user: OrderActor, raw: unknown) {
+  requireAction(user, "purchaseOrder.view");
+  const { id } = parseInput(orderIdSchema, raw);
+  const po = await db.purchaseOrder.findUnique({
+    where: { id },
+    include: { supplier: { include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] } } } },
+  });
+  if (!po) throw new BusinessError("NOT_FOUND", "Bon de commande introuvable.");
+  if (!canViewOrder(user, po)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
+  const settings = await getSettings();
+  const buyer = await db.user.findUnique({ where: { id: user.id }, select: { name: true } });
+  const contact = po.supplier.contacts[0] ?? null;
+  const label = displayOrderNumber(po);
+  const text = sendText({ orderNumber: label, contactName: contact?.name ?? null, requestedDate: po.requestedDate, buyerName: buyer?.name ?? "", companyName: settings.company.name });
+  const subject = `Bon de commande ${label}`;
+  return {
+    text,
+    subject,
+    contact: contact ? { name: contact.name, phone: contact.phone, email: contact.email } : null,
+    whatsappLink: whatsappLink(contact?.phone ?? po.supplier.phone, text),
+    mailtoLink: mailtoLink(contact?.email ?? po.supplier.email, subject, text),
   };
 }
 

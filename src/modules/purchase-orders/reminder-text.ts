@@ -70,3 +70,28 @@ export function mailtoLink(email: string | null | undefined, subject: string, te
   if (!email) return null;
   return `mailto:${encodeURIComponent(email).replace(/%40/g, "@")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
 }
+
+export interface SendTextInput {
+  orderNumber: string;
+  contactName?: string | null;
+  /** Date de livraison demandée. */
+  requestedDate: Date;
+  buyerName: string;
+  companyName: string;
+}
+
+/** D17 : texte d'accompagnement de l'envoi du PDF au fournisseur (copiable ; aucun envoi réel avant LOT-16). */
+export function sendText(i: SendTextInput): string {
+  return [
+    i.contactName ? `Bonjour ${i.contactName},` : "Bonjour,",
+    "",
+    `Veuillez trouver ci-joint notre bon de commande ${i.orderNumber}.`,
+    `Livraison demandée le ${formatDateOnly(i.requestedDate)}.`,
+    "",
+    "Merci de nous confirmer la bonne réception de ce bon et la date de livraison prévue.",
+    "",
+    "Cordialement,",
+    i.buyerName,
+    i.companyName,
+  ].join("\n");
+}

@@ -824,6 +824,16 @@ describe("fiche, liste, export et PDF", () => {
     if (forMag) expect(forMag.linkedOrders).toHaveLength(0);
   });
 
+  it("liste des DA : ancienneté de validation et lignes restant à commander", async () => {
+    const { listRequests } = await import("@/modules/purchase-requests");
+    const da = await validatedDa([{ item: itemA, qty: 10 }, { item: itemB, qty: 4 }]);
+    const row = async () => (await listRequests(achLocal as RequestUser, { onglet: "assignees" }, { showPrices: true })).rows.find((r) => r.id === da.id)!;
+    expect((await row()).linesToOrder).toBe(2);
+    expect((await row()).approvedAt).toBeInstanceOf(Date);
+    await validatedOrder(da, { qty: 10 }); // solde la ligne 1
+    expect((await row()).linesToOrder).toBe(1);
+  });
+
   it("export : une ligne par ligne de BC, filtres de la liste, reste à recevoir", async () => {
     const da = await validatedDa([{ item: itemA, qty: 30 }, { item: itemB, qty: 4 }]);
     const d = await createDraft(achLocal, ordInput(supLocal.id, {

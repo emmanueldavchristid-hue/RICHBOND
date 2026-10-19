@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mailtoLink, reminderText, whatsappLink, whatsappNumber } from "@/modules/purchase-orders/reminder-text";
+import { mailtoLink, reminderText, sendText, whatsappLink, whatsappNumber } from "@/modules/purchase-orders/reminder-text";
 
 const base = {
   orderNumber: "BC-2026-00042",
@@ -66,5 +66,15 @@ describe("liens de contact", () => {
   it("lien mailto avec objet et corps encodés", () => {
     expect(mailtoLink("achats@fournisseur.ci", "Relance BC", "Ligne 1\nLigne 2")).toBe("mailto:achats@fournisseur.ci?subject=Relance%20BC&body=Ligne%201%0ALigne%202");
     expect(mailtoLink(null, "a", "b")).toBeNull();
+  });
+});
+
+describe("texte d'envoi du PDF (D17)", () => {
+  it("cite le numéro et la date de livraison demandée, signé de l'acheteur", () => {
+    const t = sendText({ orderNumber: "BC-2026-00042 v2", contactName: "M. Koffi", requestedDate: new Date("2026-11-20T00:00:00Z"), buyerName: "Acheteur Local", companyName: "RICHBOND CI" });
+    expect(t).toContain("Bonjour M. Koffi,");
+    expect(t).toContain("notre bon de commande BC-2026-00042 v2");
+    expect(t).toContain("Livraison demandée le 20/11/2026");
+    expect(t.trim().endsWith("Acheteur Local\nRICHBOND CI")).toBe(true);
   });
 });

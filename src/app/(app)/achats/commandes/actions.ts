@@ -28,6 +28,7 @@ import {
   createOrderSchema,
   getOrder,
   getReminderText,
+  getSendText,
   homeOrderSummary,
   listOrderableLines,
   listOrders,
@@ -101,6 +102,9 @@ export const priceCheckAction = withAction("purchaseOrder.view", priceCheckSchem
 
 /** Texte de relance prêt à copier, liens WhatsApp et e-mail. */
 export const reminderTextAction = withAction("purchaseOrder.view", orderIdSchema, async ({ user, input }) => getReminderText(user, input, await at()), READ);
+
+/** Texte d'accompagnement de l'envoi du PDF au fournisseur, liens e-mail et WhatsApp. */
+export const sendTextAction = withAction("purchaseOrder.view", orderIdSchema, async ({ user, input }) => getSendText(user, input), READ);
 
 /** Pastilles de l'accueil : BC à valider (Responsable), en retard / à relancer (acheteur). */
 export const homeOrderSummaryAction = withAction("purchaseOrder.view", z.object({}).optional(), async ({ user }) => homeOrderSummary(user, await at()), READ);

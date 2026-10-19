@@ -187,6 +187,9 @@ describe("flux complet par les actions", () => {
     expect(text.text).toContain(approved.number);
     expect(text.text).toContain("Courroie BC actions");
     expect(text.subject).toContain(approved.number);
+    const send = data(await po.sendTextAction({ id: created.id }));
+    expect(send.text).toContain(approved.number);
+    expect(send.mailtoLink === null || send.mailtoLink.startsWith("mailto:")).toBe(true);
   });
 
   it("conflit de version : CONFLICT ; fournisseur bloqué : SUPPLIER_BLOCKED", async () => {

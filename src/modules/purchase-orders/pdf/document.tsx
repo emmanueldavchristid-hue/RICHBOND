@@ -109,6 +109,8 @@ export function PurchaseOrderDocument({ snapshot: o, company, logo, preview = fa
 
         <View style={s.header}>
           <View style={{ maxWidth: 300 }}>
+            {/* Image de @react-pdf/renderer (pas un <img> HTML) : pas d'attribut alt dans un PDF. */}
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             {logo ? <Image style={s.logo} src={{ data: logo.data, format: logo.format }} /> : null}
             <Text style={s.company}>{company.name}</Text>
             {company.address ? <Text style={s.muted}>{company.address}</Text> : null}
