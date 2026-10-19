@@ -52,7 +52,7 @@ tests/ unit/  e2e/  fixtures/
 - `ItemSupplier` (article ↔ fournisseur : référence fournisseur, dernier prix, délai, minimum de commande)
 - `StockLevel` (article × dépôt : quantité, PMP) – mis à jour uniquement par `StockMovement`
 - `StockMovement` (type ENTREE_RECEPTION|SORTIE|AJUSTEMENT_INVENTAIRE|RETOUR_FOURNISSEUR|TRANSFERT, quantité signée, coût unitaire, référence document)
-- `PurchaseRequest` (DA ; `number` nul au brouillon, `priority` 0/1/2 pour le tri) + `PurchaseRequestLine` (article ou désignation libre, qté demandée / validée, qté en unité de stock) · `PurchaseRequestEvent` (type, auteur, statut avant/après, commentaire, payload JSON) = chronologie de la fiche, **remplace l'`Approval` générique** (même choix prévu pour le BC en LOT-05) · `PurchaseRequestAttachment` (fichiers sous `storage/purchase-requests/<id>/`, hors `public/`)
+- `PurchaseRequest` (DA ; `number` nul au brouillon, `priority` 0/1/2 pour le tri, remise à 2 quand la DA est close) + `PurchaseRequestLine` (article ou désignation libre, qté demandée / validée, qté en unité de stock) · `PurchaseRequestEvent` (type, auteur, statut avant/après, commentaire, payload JSON) = chronologie de la fiche, **remplace l'`Approval` générique** (même choix prévu pour le BC en LOT-05) · `PurchaseRequestAttachment` (fichiers sous `storage/purchase-requests/<id>/`, hors `public/`)
 - `RfqRound` (consultation) + `Quote` + `QuoteLine` + `QuoteScore`
 - `PurchaseOrder` (BC) + lignes (qté commandée, reçue, facturée) · `PurchaseOrderEvent` (envoyé, relancé, confirmé, date promise)
 - `Receipt` + lignes (qté reçue, acceptée, refusée, motif) · `NonConformity`
