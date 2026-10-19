@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { loginAs, logout, submitLogin, type E2ERole } from "../helpers/auth";
+import { dismissTrialDialog, loginAs, logout, submitLogin, type E2ERole } from "../helpers/auth";
 
 /** S0.1 / S0.2 – connexion par rôle, menus, accès refusé, verrouillage, utilisateur créé, mot de passe forcé. */
 
@@ -158,6 +158,7 @@ test.describe("S0.2 – Gestion des comptes", () => {
     await test.step("Première connexion : redirection forcée vers Mon compte, sans menu", async () => {
       await submitLogin(page, email, temporaryPassword);
       await expect(page).toHaveURL(/\/mon-compte/);
+      await dismissTrialDialog(page);
       await expect(page.getByTestId("premiere-connexion")).toContainText(
         "Vous devez définir votre mot de passe",
       );
@@ -188,6 +189,7 @@ test.describe("S0.2 – Gestion des comptes", () => {
       await page.locator("#confirmPassword").fill(newPassword);
       await page.getByTestId("password-submit").click();
       await expect(page).toHaveURL(/\/accueil/);
+      await dismissTrialDialog(page);
       const nav = await openedNav(page);
       await expect(nav.getByTestId("nav-stock")).toBeVisible();
       await expect(nav.getByTestId("nav-parametres")).toHaveCount(0);
@@ -200,6 +202,7 @@ test.describe("S0.2 – Gestion des comptes", () => {
       await expect(page.getByTestId("login-error")).toBeVisible();
       await submitLogin(page, email, newPassword);
       await expect(page).toHaveURL(/\/accueil/);
+      await dismissTrialDialog(page);
       await logout(page);
     });
 
