@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { computeTrialEnd } from "../src/modules/licensing/state";
 import { createPrismaClient } from "../src/lib/prisma-client";
 import { seedReferentials } from "./seed/referentials";
+import { seedPurchaseRequests } from "./seed/purchase-requests";
 import type { PurchaseScope, Role } from "../src/generated/prisma/client";
 
 const prisma = createPrismaClient();
@@ -71,6 +72,7 @@ async function main() {
 async function seedAll() {
   await main();
   await seedReferentials(prisma);
+  await seedPurchaseRequests(prisma);
 }
 
 seedAll()

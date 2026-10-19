@@ -108,6 +108,7 @@ const ACHETEUR: Action[] = [
 const MAGASINIER: Action[] = [
   "purchaseRequest.view",
   "purchaseRequest.createReplenishment",
+  "purchaseRequest.cancel",
   "stock.view",
   "stock.receive",
   "stock.issue",
@@ -212,4 +213,36 @@ export function canSeePurchasePrice(
 ): boolean {
   if (can(user, "price.viewPurchase")) return true;
   return user.role === "MAGASINIER" && settings.showPurchasePriceToWarehouse === true;
+}
+
+// ------------------------------------------------------------------ LOT-04 : demandes d'achat (règles pures)
+
+export interface RequestActor extends PermissionUser {
+  id: string;
+}
+
+export interface RequestRef {
+  createdById: string;
+  kind: "STANDARD" | "REAPPRO";
+  status?: string;
+}
+
+/**
+ * H48 : Responsable, Acheteurs et Super-admin (lecture) voient toutes les DA ;
+ * le Magasinier voit les siennes et les DA de réapprovisionnement.
+ */
+export function canViewRequest(user: RequestActor, pr: RequestRef): boolean {
+  if (!can(user, "purchaseRequest.view")) return false;
+  // Brouillon : visible de son seul auteur (cohérent avec la liste).
+  if (pr.status === "BROUILLON" && pr.createdById !== user.id) return false;
+  if (user.role !== "MAGASINIER") return true;
+  return pr.createdById === user.id || pr.kind === "REAPPRO";
+}
+
+/** Modification du contenu : créateur (ou Responsable) tant que la DA est en BROUILLON ou A_COMPLETER. */
+export function canEditRequest(user: RequestActor, pr: RequestRef & { status: string }): boolean {
+  if (pr.status !== "BROUILLON" && pr.status !== "A_COMPLETER") return false;
+  const mayWrite = can(user, "purchaseRequest.create") || can(user, "purchaseRequest.createReplenishment");
+  if (!mayWrite) return false;
+  return pr.createdById === user.id || user.role === "RESPONSABLE_ACHATS";
 }

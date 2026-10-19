@@ -30,6 +30,16 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   // Types de fournisseur
   LOCAL: { label: "Local", tone: "neutral" },
   IMPORT: { label: "Import", tone: "info" },
+  // Demandes d'achat (LOT-04)
+  BROUILLON: { label: "Brouillon", tone: "neutral" },
+  SOUMISE: { label: "À valider", tone: "info" },
+  A_COMPLETER: { label: "À compléter", tone: "warning" },
+  VALIDEE: { label: "Validée", tone: "success" },
+  REFUSEE: { label: "Refusée", tone: "danger" },
+  EN_CONSULTATION: { label: "En consultation", tone: "info" },
+  PARTIELLEMENT_COMMANDEE: { label: "Partiellement commandée", tone: "warning" },
+  COMMANDEE: { label: "Commandée", tone: "success" },
+  ANNULEE: { label: "Annulée", tone: "neutral" },
 };
 
 export function StatusBadge({

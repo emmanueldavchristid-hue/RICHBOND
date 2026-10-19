@@ -56,6 +56,41 @@ La suite `npm run test:e2e` rejoue S0.1 et S0.2 après chaque lot ; elles doiven
 5. Acheteur : marque le BC envoyé puis confirmé avec une date promise.
 6. Magasinier : réceptionne la totalité → stock augmenté, PMP mis à jour, BC « Reçu ».
 
+### S1 (partie automatisée, LOT-04) – Étapes 1 et 2 + notification de l'étape 3
+Fichier `tests/e2e/scenarios/S1-da.spec.ts`, joué en desktop et en tablette. Les étapes 3 (BC) à 6 seront ajoutées avec les lots 05 et 06.
+1. Magasinier : DA « fourniture de bureau » (Administration, Rame papier A4 ×10, Toner ×2, Normale) ; il ne voit ni prix ni désignation libre ; soumise → numéro `DA-AAAA-NNNNN`, statut « À valider », DA de réappro « À définir », 1 audit `PR_SUBMIT`.
+2. Responsable : notifié (cloche), voit la DA dans « À valider » avec le compteur, ouvre la fiche, choisit le type Local, réduit le toner de 2 à 1, valide → « Validée », quantité validée « modifié », événement `QTY_CHANGED`, audit, acheteur local assigné automatiquement.
+3. Acheteur local (notification seulement) : cloche « DA-… validée et assignée à vous », DA dans « Assignées à moi », aucun bouton de validation.
+
+## SD1 à SD5 – Cas particuliers des demandes d'achat (LOT-04)
+Fichier `tests/e2e/scenarios/SD-demandes.spec.ts`, joué en desktop et en tablette. Chaque scénario vérifie l'interface et l'effet en base (statut, priorité, événements, audit, notifications).
+
+### SD1 – Arrêt de production
+1. Acheteur local : DA « Arrêt de production » (Maintenance, Roulement 6308) ; la date de besoin passe à aujourd'hui ; soumise → priorité 0, alerte rouge sur la fiche.
+2. Responsable : bandeau rouge « Arrêt de production : DA-… à valider » sur toutes les pages, notification de gravité CRITIQUE.
+3. La DA est en tête de « À valider » (ligne surlignée, avant urgentes et normales), même avec un tri par date décroissante.
+4. Le Responsable valide depuis le bandeau : le bandeau de cette DA disparaît ; l'acheteur assigné reçoit une notification CRITIQUE.
+
+### SD2 – Retour « à compléter », resoumission, refus
+1. Acheteur import soumet une DA ; le Responsable la renvoie « à compléter » (commentaire obligatoire) ; l'acheteur est notifié et lit le commentaire.
+2. L'acheteur corrige et resoumet : même numéro DA, une seule DA en base, événements `RETURNED` puis `RESUBMITTED`.
+3. Le Responsable refuse (motif de 5 caractères minimum obligatoire) ; l'acheteur est notifié, le motif est affiché, la DA est définitivement fermée (aucun bouton d'action).
+
+### SD3 – Doublon
+1. Acheteur local soumet 5 « Cutter de découpe ».
+2. Acheteur import saisit une 2e DA avec le même article : avertissement non bloquant « Déjà demandé : DA-…, 5 …, besoin le JJ/MM » avant l'envoi ; la DA peut être soumise.
+3. Le Responsable retrouve le rappel sur la fiche ; une fois la 1re DA annulée, le rappel disparaît.
+
+### SD4 – Validation groupée sur tablette
+1. Acheteur local soumet 3 DA locales.
+2. Responsable (tablette) coche les 3 DA, « Valider la sélection (3) », récapitulatif puis confirmation : « 3 validées, 0 écartée par le contrôle ».
+3. Les 3 DA sont validées, assignées à l'acheteur local, tracées (1 audit chacune), notifiées ; elles quittent « À valider » et apparaissent dans « Assignées à moi ».
+
+### SD5 – Essai expiré : consultation et export seulement
+1. Une DA est soumise avant l'expiration ; `TEST_NOW` après la fin d'essai : connexion OK, bandeau « lecture seule ».
+2. Liste et fiche consultables ; « Nouvelle DA », « Valider », « Refuser », « Renvoyer à compléter » désactivés avec infobulle ; la DA reste « À valider ».
+3. Export Excel `demandes_AAAAMMJJ.xlsx` téléchargeable (contient la DA) ; « Tout marquer lu » dans la cloche reste autorisé.
+
 ## S2 – Réception partielle, refus et facture (LOT-06, 13)
 1. BC de 100 unités. Réception 1 : 60 livrées, 55 acceptées, 5 refusées (« Abîmé ») → non-conformité créée, BC partiellement reçu.
 2. Réception 2 : 40 livrées acceptées → BC reçu.

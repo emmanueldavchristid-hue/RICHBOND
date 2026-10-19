@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_ACTIONS, can, canSeePurchasePrice, visibleNav, type Action, type PermissionUser } from "@/lib/permissions";
+import { ALL_ACTIONS, can, canEditRequest, canSeePurchasePrice, canViewRequest, visibleNav, type Action, type PermissionUser } from "@/lib/permissions";
 
 const SUPER: PermissionUser = { role: "SUPER_ADMIN" };
 const RESP: PermissionUser = { role: "RESPONSABLE_ACHATS" };
@@ -34,6 +34,7 @@ const ACHETEUR_OK: Action[] = [
 const MAGASINIER_OK: Action[] = [
   "purchaseRequest.view",
   "purchaseRequest.createReplenishment",
+  "purchaseRequest.cancel",
   "stock.view",
   "stock.receive",
   "stock.issue",
@@ -159,5 +160,44 @@ describe("LOT-03 : taux de change, prix d'achat, articles", () => {
   });
   it("menu Articles visible pour Magasinier, Acheteur et Responsable", () => {
     for (const u of [MAG, ACH, RESP]) expect(visibleNav(u).map((n) => n.href)).toContain("/stock/articles");
+  });
+});
+
+describe("LOT-04 : demandes d'achat", () => {
+  it("création : Responsable et Acheteurs ; réappro : Magasinier et Responsable", () => {
+    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "purchaseRequest.create"))).toEqual([false, true, true, false]);
+    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "purchaseRequest.createReplenishment"))).toEqual([false, true, false, true]);
+  });
+  it("validation : Responsable seul", () => {
+    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "purchaseRequest.approve"))).toEqual([false, true, false, false]);
+  });
+  it("annulation : Responsable, Acheteurs et Magasinier (restreint par le workflow)", () => {
+    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "purchaseRequest.cancel"))).toEqual([false, true, true, true]);
+  });
+  it("canViewRequest : le Magasinier voit ses DA et le réappro, pas les DA des acheteurs", () => {
+    const mag = { ...MAG, id: "m1" };
+    expect(canViewRequest(mag, { createdById: "m1", kind: "REAPPRO" })).toBe(true);
+    expect(canViewRequest(mag, { createdById: "m2", kind: "REAPPRO" })).toBe(true);
+    expect(canViewRequest(mag, { createdById: "a1", kind: "STANDARD" })).toBe(false);
+    expect(canViewRequest({ ...ACH, id: "a1" }, { createdById: "x", kind: "STANDARD" })).toBe(true);
+    expect(canViewRequest({ ...SUPER, id: "s" }, { createdById: "x", kind: "STANDARD" })).toBe(true);
+  });
+  it("canViewRequest : un brouillon n'est visible que de son auteur (Responsable compris)", () => {
+    const draft = { createdById: "a1", kind: "STANDARD" as const, status: "BROUILLON" };
+    expect(canViewRequest({ ...ACH, id: "a1" }, draft)).toBe(true);
+    expect(canViewRequest({ ...ACH, id: "a2" }, draft)).toBe(false);
+    expect(canViewRequest({ ...RESP, id: "r1" }, draft)).toBe(false);
+    expect(canViewRequest({ ...MAG, id: "m1" }, { ...draft, kind: "REAPPRO" })).toBe(false);
+    expect(canViewRequest({ ...RESP, id: "r1" }, { ...draft, status: "SOUMISE" })).toBe(true);
+  });
+  it("canEditRequest : créateur ou Responsable, en BROUILLON ou A_COMPLETER seulement", () => {
+    const a = { ...ACH, id: "a1" };
+    const pr = { createdById: "a1", kind: "STANDARD" as const };
+    expect(canEditRequest(a, { ...pr, status: "BROUILLON" })).toBe(true);
+    expect(canEditRequest(a, { ...pr, status: "A_COMPLETER" })).toBe(true);
+    expect(canEditRequest(a, { ...pr, status: "SOUMISE" })).toBe(false);
+    expect(canEditRequest({ ...ACH, id: "a2" }, { ...pr, status: "BROUILLON" })).toBe(false);
+    expect(canEditRequest({ ...RESP, id: "r" }, { ...pr, status: "BROUILLON" })).toBe(true);
+    expect(canEditRequest({ ...SUPER, id: "s" }, { createdById: "s", kind: "STANDARD", status: "BROUILLON" })).toBe(false);
   });
 });

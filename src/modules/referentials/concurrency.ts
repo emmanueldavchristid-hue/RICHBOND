@@ -17,6 +17,7 @@ export const LOCKABLE_TABLES = [
   "warehouses",
   "departments",
   "exchange_rates",
+  "purchase_requests",
 ] as const;
 export type LockableTable = (typeof LOCKABLE_TABLES)[number];
 

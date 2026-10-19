@@ -2,6 +2,13 @@
 
 Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 
+## 2026-10-19 · LOT-04 · Demandes d'achat et validation
+- Fait : DA (brouillon, soumission, à compléter, validation à quantités réductibles, refus, annulation), numérotation à la soumission, DA de réapprovisionnement Magasinier, pièces jointes, avertissement de doublon, assignation à l'acheteur du bon périmètre, validation groupée, chronologie (PurchaseRequestEvent), cloche de notifications (Notification), bandeau rouge arrêt de production, seuil de validation en réglage, export. 653 tests, 90 e2e (S1, SD1-SD5 desktop + tablette).
+- Décisions : H37 à H50 (à confirmer), dont auto-validation du Responsable, brouillon d'autrui invisible même au Responsable, priorité remise à normale à la clôture. Relecture corrigée (plafond INTEGER, doublons anonymisés, approveMany, QTY_CHANGED). Recette « accepté avec réserves » (docs/recette/LOT-04.md).
+- Réserves : le Responsable peut encore modifier/annuler/joindre sur un brouillon d'autrui par id (à confirmer) ; DA closes en base avec priorité 0 non migrées ; C2 augmentation de quantité à la validation à confirmer avec M. DIBI ; bandeau rouge rafraîchi seulement à la navigation.
+- Idées : alerte acheteur dès la soumission d'un arrêt de production ; ancienneté des DA ; bouton « Créer le BC » + relance 48 h (LOT-05).
+- Suite : LOT-05 (bons de commande).
+
 ## 2026-10-19 · LOT-03 · Référentiels
 - Fait : articles (fiche à onglets, photo, conversion unité achat/stock, criticité), fournisseurs (contacts, blocage avec motif, coordonnées), dépôts, services, devises et taux datés, réglage prix magasinier, DataTable partagé (URL, cartes tablette, export Excel), seed fictif (40 articles, 25 fournisseurs). 461 tests, 78 e2e.
 - Décisions : prix et MOQ exprimés par unité d'achat ; verrou SELECT FOR UPDATE + expectedUpdatedAt ; code refusé s'il dépasse 17 car. ; écart de taux >20 %% à confirmer. H22 à H36 (à confirmer, dont format du code sur export Sage réel). Recette « accepté avec réserves » (docs/recette/LOT-03.md).
@@ -30,3 +37,7 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Utilisateurs : Responsable Achats (M. DIBI), 2 acheteurs, 1 magasinier ; noms à saisir plus tard.
 - Période d'essai accordée au client : compte à rebours prioritaire (LOT-02).
 - Suite : LOT-00.
+
+## Relecture LOT-04 (corrections)
+- Corrigés : montants plafonnés à 2 147 483 647 (schéma + totals), brouillon d'autrui invisible (canViewRequest), doublons anonymisés pour le Magasinier, approveMany INTERNAL, checkDuplicates dans le module, plafond d'export sur les lignes, commentaire d'en-tête export, payload QTY_CHANGED (code + désignation), date de notification via `formatDateOnly`.
+- Restent à traiter (points 9, 12, 13, 14, non triviaux ou non précisés) : le Responsable peut encore modifier/annuler/joindre sur le brouillon d'autrui par identifiant (la lecture est interdite) ; à confirmer.

@@ -3,14 +3,22 @@ import type { Metadata } from "next";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { requirePageAction } from "@/modules/auth/session";
 import { getSettings } from "@/modules/settings";
-import { SettingsForm } from "./settings-form";
+import { ApprovalThresholdForm, SettingsForm } from "./settings-form";
 
 export const metadata: Metadata = { title: "Réglages – RICHBOND" };
 
 async function SettingsContent() {
   await requirePageAction("settings.manage");
   const settings = await getSettings();
-  return <SettingsForm key={String(settings.showPurchasePriceToWarehouse)} showPurchasePrice={settings.showPurchasePriceToWarehouse} />;
+  return (
+    <div className="space-y-6">
+      <SettingsForm
+        key={String(settings.showPurchasePriceToWarehouse)}
+        showPurchasePrice={settings.showPurchasePriceToWarehouse}
+      />
+      <ApprovalThresholdForm key={settings.purchaseRequestApprovalThreshold} approvalThreshold={settings.purchaseRequestApprovalThreshold} />
+    </div>
+  );
 }
 
 export default function ReglagesPage() {

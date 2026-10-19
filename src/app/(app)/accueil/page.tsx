@@ -2,8 +2,9 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
-import { roleLabel, visibleNav } from "@/lib/permissions";
+import { can, roleLabel, visibleNav } from "@/lib/permissions";
 import { requirePageAction } from "@/modules/auth/session";
+import { homeRequestSummary } from "@/modules/purchase-requests/queries";
 
 export const metadata: Metadata = { title: "Accueil – RICHBOND" };
 
@@ -19,8 +20,24 @@ const DESCRIPTIONS: Record<string, string> = {
 async function AccueilContent() {
   const user = await requirePageAction(null);
   const links = visibleNav(user).filter((n) => n.href !== "/accueil");
+  const sum = can(user, "purchaseRequest.view") ? await homeRequestSummary(user) : null;
   return (
     <>
+      {sum && (sum.toValidate > 0 || sum.assignedToMe > 0) ? (
+        <Link
+          href="/achats/demandes"
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-base font-medium text-amber-950 shadow-sm"
+          data-testid="accueil-a-valider"
+        >
+          {sum.toValidate > 0 ? (
+            <span>
+              À valider : {sum.toValidate} DA
+              {sum.stops > 0 ? <span className="ml-2 rounded bg-red-700 px-2 py-0.5 text-sm text-white">{sum.stops} arrêt{sum.stops > 1 ? "s" : ""} de production</span> : null}
+            </span>
+          ) : null}
+          {sum.assignedToMe > 0 ? <span>{sum.assignedToMe === 1 ? "1 DA vous est assignée" : `${sum.assignedToMe} DA vous sont assignées`}</span> : null}
+        </Link>
+      ) : null}
       <p className="mb-4 text-sm text-muted-foreground" data-testid="accueil-bonjour">
         Bonjour {user.name}. Connecté en tant que {roleLabel(user)}.
       </p>

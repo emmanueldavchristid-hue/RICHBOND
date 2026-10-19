@@ -15,12 +15,21 @@ import {
   SUPPLIER_STATUS_LABELS,
   SUPPLIER_TYPE_LABELS,
 } from "@/modules/referentials/labels";
+import { exportRequests } from "@/modules/purchase-requests/queries";
+import {
+  PR_KIND_LABELS,
+  PR_STATUS_LABELS,
+  PR_TYPE_LABELS,
+  PR_URGENCY_LABELS,
+} from "@/modules/purchase-requests/labels";
+import { viewerCanSeePrices } from "@/modules/settings";
 import { exportSuppliers } from "@/modules/suppliers";
 
 /**
- * GET /api/export/articles | /api/export/fournisseurs : mêmes filtres que la liste (query string).
+ * GET /api/export/articles | /fournisseurs | /demandes : mêmes filtres que la liste (query string).
  * Autorisé en lecture seule (essai expiré) : pas de contrôle d'écriture.
- * Les exports ne contiennent aucune colonne de prix d'achat (R15/R18).
+ * Articles et fournisseurs : aucune colonne de prix d'achat (R15/R18). Demandes : prix estimés (FCFA) inclus
+ * uniquement si l'utilisateur a le droit de voir les prix (le Magasinier ne les reçoit pas, sauf réglage explicite).
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: string }> }) {
   const { entity } = await ctx.params;
@@ -86,6 +95,39 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
       ];
       file = await buildWorkbook("Fournisseurs", cols, rows);
       name = `fournisseurs_${stamp}.xlsx`;
+    } else if (entity === "demandes") {
+      if (!can(user, "purchaseRequest.view")) return forbidden();
+      const showPrices = await viewerCanSeePrices(user);
+      const rows = await exportRequests(user, filters, { showPrices });
+      type R = (typeof rows)[number];
+      const cols: ExcelColumn<R>[] = [
+        { header: "N° DA", width: 18, value: (r) => r.number },
+        { header: "Statut", width: 18, value: (r) => PR_STATUS_LABELS[r.status] },
+        { header: "Urgence", width: 18, value: (r) => PR_URGENCY_LABELS[r.urgency] },
+        { header: "Type", value: (r) => PR_TYPE_LABELS[r.type] },
+        { header: "Nature", width: 20, value: (r) => PR_KIND_LABELS[r.kind] },
+        { header: "Service", width: 20, value: (r) => r.department },
+        { header: "Demandeur", width: 22, value: (r) => r.requesterName },
+        { header: "Motif", width: 40, value: (r) => r.reason },
+        { header: "Date de besoin", value: (r) => r.neededBy },
+        { header: "Créée par", width: 22, value: (r) => r.createdBy },
+        { header: "Acheteur assigné", width: 22, value: (r) => r.assignedBuyer },
+        { header: "Ligne", value: (r) => r.lineNo },
+        { header: "Code article", value: (r) => r.itemCode },
+        { header: "Désignation", width: 40, value: (r) => r.designation },
+        { header: "Quantité demandée", format: "0.###", value: (r) => r.quantity },
+        { header: "Quantité validée", format: "0.###", value: (r) => r.approvedQty },
+        { header: "Unité", value: (r) => r.unit },
+        ...(showPrices
+          ? ([
+              { header: "Prix estimé unitaire (FCFA)", format: "#,##0", value: (r) => r.unitPrice },
+              { header: "Montant ligne (FCFA)", format: "#,##0", value: (r) => r.lineTotal },
+              { header: "Total estimé DA (FCFA)", format: "#,##0", value: (r) => r.estimatedTotal },
+            ] satisfies ExcelColumn<R>[])
+          : []),
+      ];
+      file = await buildWorkbook("Demandes d'achat", cols, rows);
+      name = `demandes_${stamp}.xlsx`;
     } else {
       return NextResponse.json({ code: "NOT_FOUND", message: "Export inconnu." }, { status: 404 });
     }

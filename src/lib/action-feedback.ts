@@ -32,7 +32,25 @@ export const ERROR_MESSAGES: Record<string, string> = {
   PHOTO_TOO_LARGE: "La photo dépasse 2 Mo : réduisez-la avant de l'envoyer.",
   EXPORT_TOO_LARGE: "Trop de lignes à exporter : affinez les filtres.",
   CONVERSION_INVALID: "Le coefficient de conversion doit être strictement positif.",
-  INTERNAL: "Une erreur technique est survenue. Réessayez ou contactez l'administrateur.",
+  // Demandes d'achat (LOT-04)
+  INVALID_STATUS: "Cette action n'est pas possible dans le statut actuel de la demande. Rechargez la page.",
+  SELF_APPROVAL: "Vous ne pouvez pas valider votre propre demande d'achat.",
+  NO_LINES: "Ajoutez au moins une ligne avant de soumettre la demande.",
+  NEEDED_BY_PAST: "La date de besoin ne peut pas être dans le passé.",
+  DEPARTMENT_INVALID: "Service inconnu ou désactivé.",
+  ITEM_NOT_ACTIVE: "Un article de la demande est bloqué ou obsolète : retirez-le.",
+  ITEM_NOT_STOCKED: "Une DA de réapprovisionnement ne porte que sur des articles stockés.",
+  UNIT_INVALID: "L'unité choisie n'est pas autorisée pour cet article (unité d'achat ou de stock).",
+  QTY_INVALID: "Quantité invalide.",
+  TYPE_REQUIRED: "Choisissez Local ou Import avant de valider cette demande.",
+  BUYER_INVALID: "L'acheteur choisi est introuvable ou inactif.",
+  BUYER_OUT_OF_SCOPE: "Cet acheteur n'est pas habilité pour ce type d'achat (local ou import).",
+  QTY_ABOVE_REQUEST: "La quantité validée ne peut pas dépasser la quantité demandée.",
+  ALL_LINES_REMOVED: "Au moins une ligne doit rester à une quantité supérieure à 0. Refusez la demande sinon.",
+  ATTACHMENT_INVALID: "Format non accepté : PDF, image JPEG ou PNG, fichier Excel (.xlsx) ou Word (.docx).",
+  ATTACHMENT_TOO_LARGE: "La pièce jointe dépasse 5 Mo : réduisez-la avant de l'envoyer.",
+  ATTACHMENT_LIMIT: "Une demande ne peut pas dépasser 5 pièces jointes.",
+  INTERNAL:"Une erreur technique est survenue. Réessayez ou contactez l'administrateur.",
 };
 
 export type ActionFailure = Extract<ActionResult<unknown>, { ok: false }>;
