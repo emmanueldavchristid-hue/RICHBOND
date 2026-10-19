@@ -92,6 +92,10 @@ model License {
   licensedTo     String?       @map("licensed_to")
   activatedAt    DateTime?     @map("activated_at")
   keyFingerprint String?       @map("key_fingerprint")
+  /// Garantit une seule ligne : valeur true unique (NULL autorisé pour d'éventuels doublons historiques).
+  singleton      Boolean?      @unique @default(true)
+  /// Plus grande heure serveur observée (anti-recul d'horloge).
+  lastSeenAt     DateTime?     @map("last_seen_at")
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
