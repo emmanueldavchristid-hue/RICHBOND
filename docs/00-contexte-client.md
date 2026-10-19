@@ -44,4 +44,5 @@ Correspondance avec le cahier des charges : « assistant achat local » et « as
 | H10 | Emails seed `@richbond.test` (spec LOT-01) ; nom du Responsable en seed = « Responsable Achats (démo) » et non le vrai nom du client (règle 9) | à confirmer |
 | H11 | Mot de passe de démo non écrit dans le dépôt : le README renvoie à `SEED_DEFAULT_PASSWORD` | à confirmer |
 | H12 | Session de 8 h ; verrouillage 15 min après 5 échecs consécutifs ; déverrouillage anticipé par le Responsable | à confirmer |
+| H14 | Le message « Compte désactivé, contactez le Responsable Achats » s'affiche à la connexion même avec un mauvais mot de passe (révèle l'existence de l'email ; risque faible en interne). Laissé tel quel (recette LOT-01 C4) ; envisager de ne l'afficher qu'après un mot de passe correct | à confirmer |
 | H13 | Le Magasinier ne voit pas les prix d'achat mais voit le PMP ; réglage modifiable en LOT-03 | à confirmer |

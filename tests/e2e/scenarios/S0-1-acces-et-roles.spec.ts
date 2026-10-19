@@ -10,7 +10,7 @@ const MENUS: Record<E2ERole, { role: string; visible: string[] }> = {
   RESPONSABLE_ACHATS: { role: "Responsable Achats", visible: ALL_ENTRIES },
   ACHETEUR_LOCAL: {
     role: "Acheteur (local)",
-    visible: ["accueil", "achats", "import", "stock", "fournisseurs", "rapports"],
+    visible: ["accueil", "achats", "stock", "fournisseurs", "rapports"],
   },
   ACHETEUR_IMPORT: {
     role: "Acheteur (import)",
@@ -111,6 +111,12 @@ test.describe("S0.1 – Accès direct à une URL interdite", () => {
   test("l'acheteur ne peut pas ouvrir la gestion des utilisateurs", async ({ page }) => {
     await loginAs(page, "ACHETEUR_LOCAL");
     await page.goto("/parametres/utilisateurs");
+    await expect(page).toHaveURL(/\/acces-refuse/);
+  });
+
+  test("l'acheteur local ne peut pas ouvrir Import (périmètre)", async ({ page }) => {
+    await loginAs(page, "ACHETEUR_LOCAL");
+    await page.goto("/import");
     await expect(page).toHaveURL(/\/acces-refuse/);
   });
 

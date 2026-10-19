@@ -115,11 +115,19 @@ describe("périmètre acheteur : cas limites", () => {
 });
 
 describe("menu : Acheteur et Super-admin", () => {
-  it("un acheteur IMPORT voit le même menu qu'un acheteur LOCAL (le filtre est dans les actions)", () => {
-    const l = visibleNav({ role: "ACHETEUR", purchaseScope: "LOCAL" }).map((n) => n.href);
-    const i = visibleNav({ role: "ACHETEUR", purchaseScope: "IMPORT" }).map((n) => n.href);
-    expect(i).toEqual(l);
-    expect(l).not.toContain("/parametres");
+  it("le menu Import suit le périmètre : LOCAL ne le voit pas, IMPORT et ALL le voient", () => {
+    const hrefs = (purchaseScope: "LOCAL" | "IMPORT" | "ALL") =>
+      visibleNav({ role: "ACHETEUR", purchaseScope }).map((n) => n.href);
+    expect(hrefs("LOCAL")).not.toContain("/import");
+    expect(hrefs("IMPORT")).toContain("/import");
+    expect(hrefs("ALL")).toContain("/import");
+    expect(hrefs("LOCAL")).toContain("/achats");
+    expect(hrefs("LOCAL")).not.toContain("/parametres");
+    expect(visibleNav(RESP).map((n) => n.href)).toContain("/import");
+    expect(visibleNav(MAG).map((n) => n.href)).not.toContain("/import");
+  });
+  it("sans périmètre défini, l'Acheteur ne voit pas Import", () => {
+    expect(visibleNav({ role: "ACHETEUR", purchaseScope: null }).map((n) => n.href)).not.toContain("/import");
   });
   it("le Super-admin voit Paramètres mais pas la liste des actions d'écriture métier", () => {
     expect(visibleNav(SUPER).map((n) => n.label)).toContain("Paramètres");

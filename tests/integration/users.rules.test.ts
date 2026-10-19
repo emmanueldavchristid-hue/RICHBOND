@@ -33,6 +33,32 @@ describe("règles utilisateurs complémentaires", () => {
     expect(await db.auditLog.count({ where: { entityId: sa.id, action: "USER_DEACTIVATE" } })).toBe(0);
   });
 
+  it("réinitialiser son propre mot de passe est refusé (SELF_RESET), rien n'est modifié", async () => {
+    const r = await createTestUser("r-selfreset", { role: "RESPONSABLE_ACHATS" });
+    const before = await db.user.findUniqueOrThrow({ where: { id: r.id } });
+    expect(await code(resetPassword(r, r.id))).toBe("SELF_RESET");
+    const after = await db.user.findUniqueOrThrow({ where: { id: r.id } });
+    expect(after.passwordHash).toBe(before.passwordHash);
+    expect(after.sessionVersion).toBe(before.sessionVersion);
+    expect(await db.auditLog.count({ where: { entityId: r.id, action: "USER_PASSWORD_RESET" } })).toBe(0);
+  });
+
+  it("journal : connexions/déconnexions masquées par défaut, libellé lisible de l'utilisateur concerné", async () => {
+    const r = await createTestUser("r-journal", { role: "RESPONSABLE_ACHATS" });
+    const t = await createTestUser("r-journal-t", { role: "MAGASINIER" });
+    await db.$transaction(async (tx) => {
+      await log(tx, { userId: r.id, action: "LOGIN_SUCCESS", entity: "User", entityId: r.id });
+      await log(tx, { userId: r.id, action: "USER_UNLOCK", entity: "User", entityId: t.id });
+    });
+    const def = await listAudit({ userId: r.id }, "RESPONSABLE_ACHATS");
+    expect(def.items.map((i) => i.action)).not.toContain("LOGIN_SUCCESS");
+    const unlock = def.items.find((i) => i.action === "USER_UNLOCK");
+    expect(unlock?.entityRef).toContain(t.email);
+    expect(unlock?.entityRef).not.toBe(t.id);
+    const all = await listAudit({ userId: r.id, showAuth: "1" }, "RESPONSABLE_ACHATS");
+    expect(all.items.map((i) => i.action)).toContain("LOGIN_SUCCESS");
+  });
+
   it("changer son propre rôle est refusé", async () => {
     const r = await createTestUser("r-self", { role: "RESPONSABLE_ACHATS" });
     await createTestUser("r-other", { role: "RESPONSABLE_ACHATS" });

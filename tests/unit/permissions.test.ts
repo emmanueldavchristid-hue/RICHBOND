@@ -110,7 +110,7 @@ describe("menu par rôle", () => {
     expect(labels(RESP)).toEqual(["Accueil", "Achats", "Import", "Stock", "Fournisseurs", "Rapports", "Paramètres"]);
   });
   it("Acheteur", () => {
-    expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Import", "Stock", "Fournisseurs", "Rapports"]);
+    expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Stock", "Fournisseurs", "Rapports"]);
   });
   it("Magasinier : Accueil, Achats, Stock, Rapports", () => {
     expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Rapports"]);

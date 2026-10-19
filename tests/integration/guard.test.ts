@@ -84,6 +84,19 @@ describe("withAction", () => {
     expect(await sensitive({ n: 1 })).toMatchObject({ ok: false, code: "LICENSE_READ_ONLY" });
   });
 
+  it("licence expirée : le Super-admin et les actions de sécurité restent possibles (A9, I1)", async () => {
+    await setLicense("EXPIRED", -1);
+    const gestion = withAction("users.manage", schema, run, {
+      writable: (u) => u.role !== "SUPER_ADMIN",
+    });
+    const securite = withAction("users.manage", schema, run, { writable: false });
+    await login("g-lic-resp", { role: "RESPONSABLE_ACHATS" });
+    expect(await gestion({ n: 1 })).toMatchObject({ ok: false, code: "LICENSE_READ_ONLY" });
+    expect(await securite({ n: 1 })).toEqual({ ok: true, data: 2 });
+    await login("g-lic-sa", { role: "SUPER_ADMIN" });
+    expect(await gestion({ n: 1 })).toEqual({ ok: true, data: 2 });
+  });
+
   it("session invalidée : compte désactivé ou sessionVersion périmée", async () => {
     const u = await login("g-cur", { role: "RESPONSABLE_ACHATS" });
     expect(await sensitive({ n: 1 })).toMatchObject({ ok: true });
