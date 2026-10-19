@@ -7,7 +7,9 @@ export const E2E_LICENSE_SECRET = "e2e-only-license-secret-0123456789abcdef";
 /** Jour de fin d'essai (AAAA-MM-JJ, Abidjan = UTC) après `resetLicense(days)`. */
 export function trialEndDay(days = 30): string {
   const t = new Date();
-  return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + days)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate() + days))
+    .toISOString()
+    .slice(0, 10);
 }
 
 /** Compte des lignes sensibles (aucune ne doit disparaître à l'expiration). */

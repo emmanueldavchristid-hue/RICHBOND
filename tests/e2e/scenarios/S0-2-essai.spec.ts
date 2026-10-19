@@ -38,7 +38,10 @@ async function expectBadge(page: Page, tone: "neutral" | "warning" | "danger", t
 }
 
 test.describe("S0.2 – Fenêtre « Version d'essai » à la connexion", () => {
-  test("chaque rôle voit la fenêtre une seule fois par session, le badge la rouvre", async ({ page, context }) => {
+  test("chaque rôle voit la fenêtre une seule fois par session, le badge la rouvre", async ({
+    page,
+    context,
+  }) => {
     await setTestNow(context, simulatedAt(endDay, 12)); // J-12 : pas un jour de rappel
     for (const email of Object.values(SEED_EMAILS)) {
       await test.step(`Connexion ${email} : la fenêtre s'affiche`, async () => {
@@ -46,7 +49,9 @@ test.describe("S0.2 – Fenêtre « Version d'essai » à la connexion", () => {
         const dialog = page.getByTestId("trial-dialog");
         await expect(dialog).toBeVisible();
         await expect(page.getByTestId("trial-dialog-title")).toHaveText("Version d'essai");
-        await expect(page.getByTestId("trial-dialog-text")).toContainText("Merci de tester l'application RICHBOND Achats & Stocks");
+        await expect(page.getByTestId("trial-dialog-text")).toContainText(
+          "Merci de tester l'application RICHBOND Achats & Stocks",
+        );
         await expect(page.getByTestId("trial-end-date")).toContainText(/\d{4}/);
         await expect(page.getByTestId("trial-countdown")).toContainText(/^12 j \d{2} h \d{2} min$/);
         await expect(page.getByTestId("trial-progress")).toBeVisible();
@@ -68,7 +73,10 @@ test.describe("S0.2 – Fenêtre « Version d'essai » à la connexion", () => {
     }
   });
 
-  test("la date de fin est affichée en toutes lettres (jour de la semaine, mois)", async ({ page, context }) => {
+  test("la date de fin est affichée en toutes lettres (jour de la semaine, mois)", async ({
+    page,
+    context,
+  }) => {
     await setTestNow(context, simulatedAt(endDay, 12));
     await loginKeepingDialog(page, SEED_EMAILS.RESPONSABLE_ACHATS);
     await expect(page.getByTestId("trial-end-date")).toHaveText(
@@ -78,14 +86,26 @@ test.describe("S0.2 – Fenêtre « Version d'essai » à la connexion", () => {
 });
 
 test.describe("S0.2 – Badge selon la date simulée (cookie rb-test-now)", () => {
-  const cases: { label: string; days: number; time?: string; tone: "neutral" | "warning" | "danger"; text: RegExp }[] = [
+  const cases: {
+    label: string;
+    days: number;
+    time?: string;
+    tone: "neutral" | "warning" | "danger";
+    text: RegExp;
+  }[] = [
     { label: "J-30", days: 30, tone: "neutral", text: /Essai : 30 j restants/ },
     { label: "J-8", days: 8, tone: "neutral", text: /Essai : 8 j restants/ },
     { label: "J-7", days: 7, tone: "warning", text: /Essai : 7 j restants/ },
     { label: "J-3", days: 3, tone: "warning", text: /Essai : 3 j restants/ },
     { label: "J-2", days: 2, tone: "danger", text: /Essai : 2 j restants/ },
     { label: "J-1", days: 1, tone: "danger", text: /Essai : 1 j restant$/ },
-    { label: "dernier jour 18:00 (heures restantes)", days: 0, time: "18:00", tone: "danger", text: /se termine dans 5 h 59 min/ },
+    {
+      label: "dernier jour 18:00 (heures restantes)",
+      days: 0,
+      time: "18:00",
+      tone: "danger",
+      text: /se termine dans 5 h 59 min/,
+    },
   ];
   for (const c of cases) {
     test(`${c.label} : badge ${c.tone}`, async ({ page, context }) => {
@@ -103,7 +123,10 @@ test.describe("S0.2 – Badge selon la date simulée (cookie rb-test-now)", () =
     });
   }
 
-  test("le cookie rb-test-now est lu côté serveur (HTML rendu par le serveur, sans JavaScript)", async ({ page, context }) => {
+  test("le cookie rb-test-now est lu côté serveur (HTML rendu par le serveur, sans JavaScript)", async ({
+    page,
+    context,
+  }) => {
     await test.step("Connexion à l'heure réelle : badge à 30 j", async () => {
       await loginAs(page, "RESPONSABLE_ACHATS");
       const html = await (await page.request.get("/accueil")).text();
@@ -129,7 +152,10 @@ test.describe("S0.2 – Badge selon la date simulée (cookie rb-test-now)", () =
 });
 
 test.describe("S0.2 – Rappels J-7, J-3, J-1 et dernier jour", () => {
-  test("la fenêtre se réaffiche automatiquement les jours de rappel, une seule fois par jour", async ({ page, context }) => {
+  test("la fenêtre se réaffiche automatiquement les jours de rappel, une seule fois par jour", async ({
+    page,
+    context,
+  }) => {
     await test.step("Connexion à J-9 : première fenêtre, fermée", async () => {
       await setTestNow(context, simulatedAt(endDay, 9));
       await loginKeepingDialog(page, SEED_EMAILS.RESPONSABLE_ACHATS);
@@ -165,7 +191,10 @@ test.describe("S0.2 – Rappels J-7, J-3, J-1 et dernier jour", () => {
     });
   });
 
-  test("le dernier jour, la fenêtre s'affiche à chaque connexion avec les heures restantes", async ({ page, context }) => {
+  test("le dernier jour, la fenêtre s'affiche à chaque connexion avec les heures restantes", async ({
+    page,
+    context,
+  }) => {
     await setTestNow(context, simulatedAt(endDay, 0, "20:00"));
     for (let i = 0; i < 2; i++) {
       await test.step(`Connexion n°${i + 1} le dernier jour`, async () => {
@@ -252,9 +281,12 @@ test.describe("S0.2 – Expiration : consultation seule", () => {
       const hint = page.getByTestId("write-disabled-hint").first();
       await page.waitForLoadState("networkidle"); // hydratation avant survol
       await expect(async () => {
-        if (testInfo.project.name === "tablette") await hint.tap(); // toucher sur tablette
+        if (testInfo.project.name === "tablette")
+          await hint.tap(); // toucher sur tablette
         else await hint.hover();
-        await expect(page.getByTestId("write-disabled-tooltip")).toContainText(READ_ONLY_MESSAGE, { timeout: 1500 });
+        await expect(page.getByTestId("write-disabled-tooltip")).toContainText(READ_ONLY_MESSAGE, {
+          timeout: 1500,
+        });
       }).toPass({ timeout: 10_000 });
     });
 
@@ -295,7 +327,10 @@ test.describe("S0.2 – Expiration : consultation seule", () => {
     });
   });
 
-  test("à la seconde exacte de la fin : encore en essai, 1 ms après : lecture seule", async ({ page, context }) => {
+  test("à la seconde exacte de la fin : encore en essai, 1 ms après : lecture seule", async ({
+    page,
+    context,
+  }) => {
     await setTestNow(context, `${endDay}T23:59:59.000Z`);
     await loginKeepingDialog(page, SEED_EMAILS.RESPONSABLE_ACHATS);
     await dismissTrialDialog(page);
@@ -307,7 +342,10 @@ test.describe("S0.2 – Expiration : consultation seule", () => {
 });
 
 test.describe("S0.2 – Activation et prolongation par le Super-admin", () => {
-  test("clé invalide refusée, clé valide active la licence, tout disparaît pour les utilisateurs", async ({ page, context }) => {
+  test("clé invalide refusée, clé valide active la licence, tout disparaît pour les utilisateurs", async ({
+    page,
+    context,
+  }) => {
     await test.step("Essai expiré : le Super-admin ouvre la page Licence (activation exemptée de la garde)", async () => {
       await setTestNow(context, simulatedAt(endDay, -1, "08:00"));
       await loginAs(page, "SUPER_ADMIN");
@@ -328,7 +366,9 @@ test.describe("S0.2 – Activation et prolongation par le Super-admin", () => {
 
     await test.step("L'échec est tracé au journal", async () => {
       await page.goto("/parametres/journal?action=LICENSE_ACTIVATION_FAILED");
-      await expect(page.getByTestId("journal-row").first().getByTestId("journal-action")).toHaveText("Échec d'activation");
+      await expect(page.getByTestId("journal-row").first().getByTestId("journal-action")).toHaveText(
+        "Échec d'activation",
+      );
     });
 
     await test.step("Clé valide (générée avec le secret de test) : licence active", async () => {
@@ -339,7 +379,9 @@ test.describe("S0.2 – Activation et prolongation par le Super-admin", () => {
       await page.getByTestId("activate-key").fill(key);
       await page.getByTestId("activate-submit").click();
       await page.getByTestId("activate-confirm").getByRole("button", { name: "Activer" }).click();
-      await expect(page.getByTestId("licence-active")).toContainText("Licence active – RICHBOND CI – activée le");
+      await expect(page.getByTestId("licence-active")).toContainText(
+        "Licence active – RICHBOND CI – activée le",
+      );
       await expect(page.getByTestId("licence-active")).toContainText(/\d{2}\/\d{2}\/\d{4}/);
     });
 
@@ -371,8 +413,13 @@ test.describe("S0.2 – Activation et prolongation par le Super-admin", () => {
     await expect(page).toHaveURL(/\/acces-refuse/);
   });
 
-  test("prolongation de l'essai : tracée au journal (avant/après), le statut repasse en essai", async ({ page, context }) => {
-    const newDay = new Date(new Date(`${endDay}T00:00:00Z`).getTime() + 15 * 86_400_000).toISOString().slice(0, 10);
+  test("prolongation de l'essai : tracée au journal (avant/après), le statut repasse en essai", async ({
+    page,
+    context,
+  }) => {
+    const newDay = new Date(new Date(`${endDay}T00:00:00Z`).getTime() + 15 * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
     await test.step("Essai expiré, le Super-admin prolonge de 15 jours", async () => {
       await setTestNow(context, simulatedAt(endDay, -1, "08:00"));
       await loginAs(page, "SUPER_ADMIN");
