@@ -51,6 +51,12 @@ model User {
 
   auditLogs AuditLog[]
 
+  purchaseRequestsCreated  PurchaseRequest[]      @relation("PurchaseRequestCreator")
+  purchaseRequestsApproved PurchaseRequest[]      @relation("PurchaseRequestApprover")
+  purchaseRequestsAssigned PurchaseRequest[]      @relation("PurchaseRequestBuyer")
+  purchaseRequestEvents    PurchaseRequestEvent[]
+  notifications            Notification[]
+
   @@index([role, active])
   @@map("users")
 }
@@ -188,6 +194,8 @@ model Department {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  purchaseRequests PurchaseRequest[]
+
   @@map("departments")
 }
 
@@ -310,10 +318,11 @@ model Item {
   createdAt          DateTime     @default(now()) @map("created_at")
   updatedAt          DateTime     @updatedAt @map("updated_at")
 
-  defaultWarehouse Warehouse?         @relation(fields: [defaultWarehouseId], references: [id])
-  mainSupplier     Supplier?          @relation(fields: [mainSupplierId], references: [id])
+  defaultWarehouse Warehouse?            @relation(fields: [defaultWarehouseId], references: [id])
+  mainSupplier     Supplier?             @relation(fields: [mainSupplierId], references: [id])
   suppliers        ItemSupplier[]
   priceHistory     ItemPriceHistory[]
+  requestLines     PurchaseRequestLine[]
 
   @@index([category, status])
   @@index([criticality])
@@ -376,4 +385,181 @@ model Setting {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+// ---------------------------------------------------------------- LOT-04 : demandes d'achat
+
+enum PurchaseRequestStatus {
+  BROUILLON
+  SOUMISE
+  A_COMPLETER
+  VALIDEE
+  REFUSEE
+  EN_CONSULTATION
+  PARTIELLEMENT_COMMANDEE
+  COMMANDEE
+  ANNULEE
+}
+
+enum PurchaseRequestUrgency {
+  NORMALE
+  URGENTE
+  ARRET_PRODUCTION
+}
+
+enum PurchaseRequestType {
+  LOCAL
+  IMPORT
+  A_DEFINIR
+}
+
+enum PurchaseRequestKind {
+  STANDARD
+  REAPPRO
+}
+
+enum PurchaseRequestEventType {
+  CREATED
+  UPDATED
+  SUBMITTED
+  RESUBMITTED
+  APPROVED
+  REJECTED
+  RETURNED
+  CANCELLED
+  ASSIGNED
+  QTY_CHANGED
+  COMMENT
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  STATUS_SYNC
+}
+
+enum NotificationSeverity {
+  INFO
+  IMPORTANT
+  CRITIQUE
+}
+
+model PurchaseRequest {
+  id              String                 @id @default(cuid())
+  /// Null au brouillon ; DA-AAAA-NNNNN attribué à la première soumission, jamais réattribué.
+  number          String?                @unique
+  status          PurchaseRequestStatus  @default(BROUILLON)
+  kind            PurchaseRequestKind    @default(STANDARD)
+  urgency         PurchaseRequestUrgency @default(NORMALE)
+  /// 0 arrêt de production, 1 urgente, 2 normale : tri sans dépendre de l'ordre d'un enum.
+  priority        Int                    @default(2)
+  type            PurchaseRequestType    @default(A_DEFINIR)
+  departmentId    String                 @map("department_id")
+  requesterName   String                 @map("requester_name")
+  reason          String
+  neededBy        DateTime               @map("needed_by") @db.Date
+  /// FCFA entiers, somme des lignes chiffrées.
+  estimatedTotal  Int?                   @map("estimated_total")
+  createdById     String                 @map("created_by_id")
+  submittedAt     DateTime?              @map("submitted_at")
+  approvedAt      DateTime?              @map("approved_at")
+  approvedById    String?                @map("approved_by_id")
+  rejectedReason  String?                @map("rejected_reason")
+  cancelledReason String?                @map("cancelled_reason")
+  cancelledAt     DateTime?              @map("cancelled_at")
+  cancelledById   String?                @map("cancelled_by_id")
+  assignedBuyerId String?                @map("assigned_buyer_id")
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+
+  department    Department                  @relation(fields: [departmentId], references: [id])
+  createdBy     User                        @relation("PurchaseRequestCreator", fields: [createdById], references: [id])
+  approvedBy    User?                       @relation("PurchaseRequestApprover", fields: [approvedById], references: [id])
+  assignedBuyer User?                       @relation("PurchaseRequestBuyer", fields: [assignedBuyerId], references: [id])
+  lines         PurchaseRequestLine[]
+  events        PurchaseRequestEvent[]
+  attachments   PurchaseRequestAttachment[]
+
+  @@index([status, priority, neededBy])
+  @@index([createdById])
+  @@index([assignedBuyerId, status])
+  @@index([departmentId])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestLine {
+  id                 String   @id @default(cuid())
+  requestId          String   @map("request_id")
+  lineNo             Int      @map("line_no")
+  itemId             String?  @map("item_id")
+  freeDesignation    String?  @map("free_designation")
+  /// Quantité demandée (unité saisie).
+  quantity           Decimal  @db.Decimal(14, 3)
+  /// Quantité validée par le Responsable (0 = ligne retirée) ; null avant décision.
+  approvedQty        Decimal? @map("approved_qty") @db.Decimal(14, 3)
+  unit               String
+  /// Quantité demandée convertie en unité de stock.
+  stockQty           Decimal? @map("stock_qty") @db.Decimal(14, 3)
+  /// FCFA par unité saisie.
+  estimatedUnitPrice Int?     @map("estimated_unit_price")
+  note               String?
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item    Item?           @relation(fields: [itemId], references: [id])
+
+  @@unique([requestId, lineNo])
+  @@index([itemId])
+  @@map("purchase_request_lines")
+}
+
+model PurchaseRequestEvent {
+  id         String                   @id @default(cuid())
+  requestId  String                   @map("request_id")
+  type       PurchaseRequestEventType
+  userId     String                   @map("user_id")
+  fromStatus PurchaseRequestStatus?   @map("from_status")
+  toStatus   PurchaseRequestStatus?   @map("to_status")
+  comment    String?
+  payload    Json?
+  createdAt  DateTime                 @default(now()) @map("created_at")
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@index([requestId, createdAt])
+  @@map("purchase_request_events")
+}
+
+model PurchaseRequestAttachment {
+  id           String    @id @default(cuid())
+  requestId    String    @map("request_id")
+  fileName     String    @map("file_name")
+  mimeType     String    @map("mime_type")
+  size         Int
+  /// Nom de fichier généré côté serveur (jamais saisi par l'utilisateur).
+  path         String
+  uploadedById String    @map("uploaded_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  removedAt    DateTime? @map("removed_at")
+
+  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("purchase_request_attachments")
+}
+
+model Notification {
+  id          String               @id @default(cuid())
+  recipientId String               @map("recipient_id")
+  type        String
+  severity    NotificationSeverity @default(INFO)
+  title       String
+  body        String?
+  link        String
+  entity      String?
+  entityId    String?              @map("entity_id")
+  readAt      DateTime?            @map("read_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt, createdAt])
+  @@map("notifications")
 }
