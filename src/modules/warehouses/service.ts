@@ -11,11 +11,26 @@ import { requiredCodeSchema } from "@/modules/referentials/codes";
 
 const nameSchema = z.string().trim().min(2, "Le nom du dépôt est obligatoire.").max(80, "Nom trop long.");
 
-export const createWarehouseSchema = z.object({ code: requiredCodeSchema, name: nameSchema });
+/** Adresse de livraison des bons de commande ; vide = aucune. */
+const addressSchema = z
+  .string()
+  .trim()
+  .max(300, "Adresse trop longue (300 caractères maximum).")
+  .nullish()
+  .transform((v) => (v ? v : null));
+
+export const createWarehouseSchema = z.object({ code: requiredCodeSchema, name: nameSchema, address: addressSchema });
 export const updateWarehouseSchema = z.object({
   id: idSchema,
   expectedUpdatedAt: expectedUpdatedAtSchema,
   name: nameSchema,
+  /** `undefined` : adresse inchangée ; chaîne vide : adresse effacée. */
+  address: z
+    .string()
+    .trim()
+    .max(300, "Adresse trop longue (300 caractères maximum).")
+    .nullish()
+    .transform((v) => (v === undefined ? undefined : v ? v : null)),
 });
 export const setWarehouseActiveSchema = z.object({
   id: idSchema,
@@ -31,7 +46,7 @@ export async function listWarehouses(opts: { activeOnly?: boolean } = {}) {
   return db.warehouse.findMany({
     where: opts.activeOnly ? { active: true } : undefined,
     orderBy: [{ active: "desc" }, { name: "asc" }],
-    select: { id: true, code: true, name: true, active: true, updatedAt: true },
+    select: { id: true, code: true, name: true, address: true, active: true, updatedAt: true },
   });
 }
 
@@ -54,7 +69,7 @@ export async function updateWarehouse(actor: Actor, raw: UpdateWarehouseInput, i
     const before = await tx.warehouse.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Dépôt introuvable.");
     await lockFresh(tx, "warehouses", before.id, input.expectedUpdatedAt);
-    const after = await tx.warehouse.update({ where: { id: before.id }, data: { name: input.name } });
+    const after = await tx.warehouse.update({ where: { id: before.id }, data: { name: input.name, ...(input.address !== undefined ? { address: input.address } : {}) } });
     await log(tx, { userId: actor.id, ip, action: "WAREHOUSE_UPDATE", entity: "Warehouse", entityId: after.id, before, after });
     return after;
   });

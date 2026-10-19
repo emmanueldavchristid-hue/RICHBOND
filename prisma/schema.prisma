@@ -57,6 +57,10 @@ model User {
   purchaseRequestEvents    PurchaseRequestEvent[]
   notifications            Notification[]
 
+  purchaseOrdersCreated  PurchaseOrder[]      @relation("PurchaseOrderCreator")
+  purchaseOrdersApproved PurchaseOrder[]      @relation("PurchaseOrderApprover")
+  purchaseOrderEvents    PurchaseOrderEvent[]
+
   @@index([role, active])
   @@map("users")
 }
@@ -175,12 +179,15 @@ model Warehouse {
   id          String   @id @default(cuid())
   code        String   @unique
   name        String
+  /// Adresse de livraison imprimée sur les bons de commande.
+  address     String?
   active      Boolean  @default(true)
   createdById String?  @map("created_by_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  items Item[]
+  items          Item[]
+  purchaseOrders PurchaseOrder[]
 
   @@map("warehouses")
 }
@@ -210,8 +217,9 @@ model Currency {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  rates     ExchangeRate[]
-  suppliers Supplier[]
+  rates          ExchangeRate[]
+  suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
 
   @@map("currencies")
 }
@@ -262,10 +270,11 @@ model Supplier {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
-  currency  Currency          @relation(fields: [currencyCode], references: [code])
-  contacts  SupplierContact[]
-  items     ItemSupplier[]
-  mainItems Item[]
+  currency       Currency          @relation(fields: [currencyCode], references: [code])
+  contacts       SupplierContact[]
+  items          ItemSupplier[]
+  mainItems      Item[]
+  purchaseOrders PurchaseOrder[]
 
   @@index([status, type])
   @@index([name])
@@ -323,6 +332,7 @@ model Item {
   suppliers        ItemSupplier[]
   priceHistory     ItemPriceHistory[]
   requestLines     PurchaseRequestLine[]
+  orderLines       PurchaseOrderLine[]
 
   @@index([category, status])
   @@index([criticality])
@@ -501,8 +511,9 @@ model PurchaseRequestLine {
   estimatedUnitPrice Int?     @map("estimated_unit_price")
   note               String?
 
-  request PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  item    Item?           @relation(fields: [itemId], references: [id])
+  request     PurchaseRequest               @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  item        Item?                         @relation(fields: [itemId], references: [id])
+  allocations PurchaseOrderLineAllocation[]
 
   @@unique([requestId, lineNo])
   @@index([itemId])
@@ -562,4 +573,223 @@ model Notification {
 
   @@index([recipientId, readAt, createdAt])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------- LOT-05 : bons de commande
+
+enum PurchaseOrderStatus {
+  BROUILLON
+  A_VALIDER
+  VALIDE
+  ENVOYE
+  CONFIRME
+  PARTIELLEMENT_RECU
+  RECU
+  CLOTURE
+  REFUSE
+  ANNULE
+}
+
+enum PurchaseOrderType {
+  LOCAL
+  IMPORT
+}
+
+enum PurchaseOrderOrigin {
+  DA
+  DIRECT
+  OFFRE
+}
+
+enum ContactChannel {
+  EMAIL
+  WHATSAPP
+  TELEPHONE
+  REMIS_EN_MAIN
+  AUTRE
+}
+
+enum PurchaseOrderEventType {
+  CREATED
+  UPDATED
+  SUBMITTED
+  APPROVED
+  REJECTED
+  RETURNED
+  CANCELLED
+  SENT
+  CONFIRMED
+  PROMISED_DATE_CHANGED
+  REMINDED
+  AMENDMENT_STARTED
+  AMENDMENT_ABANDONED
+  CLOSED
+  COMMENT
+  STATUS_SYNC
+}
+
+model PurchaseOrder {
+  id                  String               @id @default(cuid())
+  /// Null jusqu'à la validation ; BC-AAAA-NNNNN attribué à la validation, jamais réattribué (un avenant garde le numéro).
+  number              String?              @unique
+  version             Int                  @default(1)
+  /// Pendant un avenant : statut à retrouver si l'avenant est refusé ou abandonné.
+  resumeStatus        PurchaseOrderStatus? @map("resume_status")
+  status              PurchaseOrderStatus  @default(BROUILLON)
+  type                PurchaseOrderType
+  origin              PurchaseOrderOrigin  @default(DA)
+  directReason        String?              @map("direct_reason")
+  supplierId          String               @map("supplier_id")
+  createdById         String               @map("created_by_id")
+  currencyCode        String               @map("currency_code")
+  /// FCFA pour 1 unité de devise : indicatif en brouillon, figé à la validation.
+  exchangeRate        Decimal?             @map("exchange_rate") @db.Decimal(14, 6)
+  rateDate            DateTime?            @map("rate_date") @db.Date
+  paymentTerm         PaymentTerm          @map("payment_term")
+  paymentTermNote     String?              @map("payment_term_note")
+  incoterm            Incoterm?
+  incotermPlace       String?              @map("incoterm_place")
+  warehouseId         String               @map("warehouse_id")
+  deliveryAddress     String               @default("") @map("delivery_address")
+  requestedDate       DateTime             @map("requested_date") @db.Date
+  promisedDate        DateTime?            @map("promised_date") @db.Date
+  firstPromisedDate   DateTime?            @map("first_promised_date") @db.Date
+  promisedDateChanges Int                  @default(0) @map("promised_date_changes")
+  /// promisedDate ?? requestedDate, recalculé à chaque écriture (filtre et tri des retards).
+  expectedDate        DateTime             @map("expected_date") @db.Date
+  supplierRef         String?              @map("supplier_ref")
+  notes               String?
+  internalNote        String?              @map("internal_note")
+  /// Montants dans la devise du BC.
+  totalHt             Decimal              @default(0) @map("total_ht") @db.Decimal(16, 2)
+  totalVat            Decimal              @default(0) @map("total_vat") @db.Decimal(16, 2)
+  totalTtc            Decimal              @default(0) @map("total_ttc") @db.Decimal(16, 2)
+  /// Équivalents FCFA entiers (null si aucun taux connu).
+  totalHtXof          Int?                 @map("total_ht_xof")
+  totalTtcXof         Int?                 @map("total_ttc_xof")
+  submittedAt         DateTime?            @map("submitted_at")
+  approvedAt          DateTime?            @map("approved_at")
+  approvedById        String?              @map("approved_by_id")
+  rejectedReason      String?              @map("rejected_reason")
+  sentAt              DateTime?            @map("sent_at")
+  sentChannel         ContactChannel?      @map("sent_channel")
+  confirmedAt         DateTime?            @map("confirmed_at")
+  lastRemindedAt      DateTime?            @map("last_reminded_at")
+  reminderCount       Int                  @default(0) @map("reminder_count")
+  cancelledAt         DateTime?            @map("cancelled_at")
+  cancelledById       String?              @map("cancelled_by_id")
+  cancelledReason     String?              @map("cancelled_reason")
+  closedAt            DateTime?            @map("closed_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  supplier   Supplier               @relation(fields: [supplierId], references: [id])
+  createdBy  User                   @relation("PurchaseOrderCreator", fields: [createdById], references: [id])
+  approvedBy User?                  @relation("PurchaseOrderApprover", fields: [approvedById], references: [id])
+  currency   Currency               @relation(fields: [currencyCode], references: [code])
+  warehouse  Warehouse              @relation(fields: [warehouseId], references: [id])
+  lines      PurchaseOrderLine[]
+  charges    PurchaseOrderCharge[]
+  events     PurchaseOrderEvent[]
+  versions   PurchaseOrderVersion[]
+
+  @@index([status, expectedDate])
+  @@index([supplierId, status])
+  @@index([createdById, status])
+  @@index([type, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              String   @id @default(cuid())
+  orderId         String   @map("order_id")
+  lineNo          Int      @map("line_no")
+  itemId          String?  @map("item_id")
+  freeDesignation String?  @map("free_designation")
+  supplierRef     String?  @map("supplier_ref")
+  /// Quantité commandée, en unité d'achat.
+  quantity        Decimal  @db.Decimal(14, 3)
+  unit            String
+  stockQty        Decimal? @map("stock_qty") @db.Decimal(14, 3)
+  /// Prix unitaire en devise du BC (entier si XOF).
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(14, 2)
+  discountPct     Decimal  @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  vatRate         Decimal  @map("vat_rate") @db.Decimal(5, 2)
+  netAmount       Decimal  @map("net_amount") @db.Decimal(16, 2)
+  /// Dernier prix d'achat connu (FCFA par unité d'achat) au moment de la soumission.
+  lastPriceXof    Int?     @map("last_price_xof")
+  priceDeltaPct   Decimal? @map("price_delta_pct") @db.Decimal(7, 2)
+  receivedQty     Decimal  @default(0) @map("received_qty") @db.Decimal(14, 3)
+  invoicedQty     Decimal  @default(0) @map("invoiced_qty") @db.Decimal(14, 3)
+  note            String?
+
+  order       PurchaseOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item        Item?                         @relation(fields: [itemId], references: [id])
+  allocations PurchaseOrderLineAllocation[]
+
+  @@unique([orderId, lineNo])
+  @@index([itemId])
+  @@map("purchase_order_lines")
+}
+
+/// Rattachement d'une ligne de BC au besoin (ligne de DA) qu'elle couvre ; quantité dans l'unité de la ligne de DA.
+model PurchaseOrderLineAllocation {
+  id            String  @id @default(cuid())
+  orderLineId   String  @map("order_line_id")
+  requestLineId String  @map("request_line_id")
+  qty           Decimal @db.Decimal(14, 3)
+
+  orderLine   PurchaseOrderLine   @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  requestLine PurchaseRequestLine @relation(fields: [requestLineId], references: [id])
+
+  @@unique([orderLineId, requestLineId])
+  @@index([requestLineId])
+  @@map("purchase_order_line_allocations")
+}
+
+model PurchaseOrderCharge {
+  id      String  @id @default(cuid())
+  orderId String  @map("order_id")
+  label   String
+  amount  Decimal @db.Decimal(14, 2)
+  vatRate Decimal @map("vat_rate") @db.Decimal(5, 2)
+
+  order PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("purchase_order_charges")
+}
+
+model PurchaseOrderEvent {
+  id         String                 @id @default(cuid())
+  orderId    String                 @map("order_id")
+  version    Int                    @default(1)
+  type       PurchaseOrderEventType
+  userId     String                 @map("user_id")
+  fromStatus PurchaseOrderStatus?   @map("from_status")
+  toStatus   PurchaseOrderStatus?   @map("to_status")
+  comment    String?
+  payload    Json?
+  createdAt  DateTime               @default(now()) @map("created_at")
+
+  order PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User          @relation(fields: [userId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@map("purchase_order_events")
+}
+
+/// Instantané JSON de chaque version validée : PDF de toute version régénérable, restauration après un avenant refusé.
+model PurchaseOrderVersion {
+  id           String   @id @default(cuid())
+  orderId      String   @map("order_id")
+  version      Int
+  snapshot     Json
+  approvedAt   DateTime @map("approved_at")
+  approvedById String   @map("approved_by_id")
+
+  order PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, version])
+  @@map("purchase_order_versions")
 }
