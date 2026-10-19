@@ -57,7 +57,42 @@ La suite `npm run test:e2e` rejoue S0.1 et S0.2 après chaque lot ; elles doiven
 6. Magasinier : réceptionne la totalité → stock augmenté, PMP mis à jour, BC « Reçu ».
 
 ### S1 (partie automatisée, LOT-04) – Étapes 1 et 2 + notification de l'étape 3
-Fichier `tests/e2e/scenarios/S1-da.spec.ts`, joué en desktop et en tablette. Les étapes 3 (BC) à 6 seront ajoutées avec les lots 05 et 06.
+Fichier `tests/e2e/scenarios/S1-da.spec.ts`, joué en desktop et en tablette. Les étapes 3 (BC) à 5 sont automatisées par le LOT-05 (ci-dessous) ; l'étape 6 (réception) sera ajoutée avec le LOT-06.
+
+### S1 étendu (partie automatisée, LOT-05) – Étapes 3 à 5 : du BC à la confirmation
+Fichier `tests/e2e/scenarios/S1-bc.spec.ts`, joué en desktop et en tablette. Il rejoue d'abord les étapes 1 et 2 (DA du Magasinier validée par le Responsable, toner réduit à 1) pour partir d'une DA neuve.
+3. Acheteur local : notification, fiche DA (aucun BC lié, bouton « Créer le BC ») puis écran « À commander » avec les 2 lignes pré-cochées et le fournisseur principal (PAPETERIE MODERNE ABIDJAN), puis brouillon : lignes en cartons, allocations rattachées à la DA, adresse du dépôt reprise. Prix saisis (toner +30 % par rapport au dernier prix connu), « Enregistrer et soumettre » : BC « À valider » libellé `BC-BROUILLON-…`, sans numéro, DA toujours « Validée » et affichant le BC dans « Commandes liées ».
+4. Responsable : notification et pastille d'accueil « BC à valider », onglet « À valider », alerte de prix visible sur la fiche, aperçu PDF filigrané « NON VALIDÉ » sans numéro. Il valide : numéro `BC-AAAA-NNNNN` attribué (unique), statut « Validé », DA « Commandée », historique de prix alimenté, audit `PO_APPROVE`. Le PDF `BC-AAAA-NNNNN-v1.pdf` est téléchargeable et son texte contient le numéro, le fournisseur et le total TTC (calculé sur les prix saisis). Le créateur de la DA et celui du BC sont notifiés ; l'acheteur ne voit aucun bouton de validation.
+5. Acheteur local : « Marquer comme envoyé » (PDF et texte d'accompagnement citant le numéro), envoi par WhatsApp enregistré. La confirmation exige une date promise (refus sans date), puis le BC passe à « Confirmé » ; date promise, 1re date promise et date attendue enregistrées, audits `PO_SEND` et `PO_CONFIRM` ; le BC apparaît dans « En cours » sans badge de retard.
+
+## SC1 à SC6 – Cas particuliers des bons de commande (LOT-05)
+Fichier `tests/e2e/scenarios/SC-commandes.spec.ts`, joué en desktop et en tablette. Chaque scénario vérifie l'interface et l'effet en base (statut, numéro, DA, événements, audit, notifications).
+
+### SC1 – Fournisseur bloqué refusé
+1. Une DA locale de rame de papier est validée ; le fournisseur principal est bloqué : « À commander » affiche l'avertissement et désactive « Créer le BC » ; le formulaire ne propose plus ce fournisseur.
+2. Débloqué, l'acheteur crée et soumet le BC ; le fournisseur est bloqué entre-temps : la validation du Responsable est refusée (« … est bloqué : aucun bon de commande possible »), le BC reste « À valider » sans numéro, la DA reste « Validée ».
+
+### SC2 – Regroupement de 2 DA, commande partielle, annulation
+1. Deux DA (10 et 6 cartons) validées ; « À commander » les regroupe chez le même fournisseur ; la 2e est commandée à hauteur de 2 seulement : une ligne de BC de 12 cartons rattachée aux deux DA (allocations 10 + 2).
+2. Validation : DA A « Commandée », DA B « Partiellement commandée » (2 commandés, 4 restants).
+3. Le Responsable annule le BC validé (motif obligatoire) : numéro conservé, les 2 DA redeviennent « Validée », l'acheteur est notifié « DA-… rouverte : BC-… annulé ».
+
+### SC3 – BC en retard, relance, report de la date promise (`TEST_NOW`)
+1. Le Responsable passe une commande directe (motif), la valide, l'envoie ; le fournisseur confirme à J+2 : le BC n'est pas en retard.
+2. `TEST_NOW` à J+6 : onglet « En retard » (« En retard de 4 j »), bandeau de retard sur la fiche, pastille d'accueil, indicateur « À relancer ».
+3. L'acheteur local relance : texte prêt à copier (numéro, retard, quantité restante), moyen obligatoire, texte copié dans le presse-papiers, relance enregistrée (compteur, événement `REMINDED`, audit `PO_REMIND`), l'indicateur « À relancer » disparaît.
+4. Le Responsable reporte la date promise : motif obligatoire, 1re date conservée, glissement compté (« Reportée 1 fois »), le BC sort de « En retard ».
+
+### SC4 – Avenant et abandon d'avenant
+1. BC validé et envoyé ; « Créer un avenant » (motif obligatoire) : version 2 en brouillon, même numéro, fournisseur verrouillé.
+2. Quantité 5 puis 8, soumission, validation : « BC-AAAA-NNNNN v2 », statut « Validé » (à renvoyer au fournisseur), versions 1 et 2 listées ; PDF v1 (77 500 FCFA) et v2 (124 000 FCFA) distincts avec le même numéro.
+3. Un second avenant (20 cartons) est abandonné : le BC retrouve exactement la version 2 validée (quantité 8), événement `AMENDMENT_ABANDONED`.
+
+### SC5 – Magasinier sans accès aux BC
+Le Magasinier n'a ni lien de menu ni pastille d'accueil ; liste, fiche, « À commander » et « Nouveau BC » mènent à « Accès refusé » ; le PDF et l'export Excel des BC répondent 403 ; sa fiche DA n'a ni « Créer le BC » ni lien vers un BC.
+
+### SC6 – Essai expiré : consultation, PDF et export seulement
+Après la fin d'essai (`TEST_NOW`) : liste et fiche des BC consultables ; « Nouveau BC », « Valider », « Refuser », « Renvoyer », « Confirmer », « Créer un avenant », « Commenter » et « Relancer » désactivés ; PDF et export Excel des commandes servis (200) ; aucun changement en base.
 1. Magasinier : DA « fourniture de bureau » (Administration, Rame papier A4 ×10, Toner ×2, Normale) ; il ne voit ni prix ni désignation libre ; soumise → numéro `DA-AAAA-NNNNN`, statut « À valider », DA de réappro « À définir », 1 audit `PR_SUBMIT`.
 2. Responsable : notifié (cloche), voit la DA dans « À valider » avec le compteur, ouvre la fiche, choisit le type Local, réduit le toner de 2 à 1, valide → « Validée », quantité validée « modifié », événement `QTY_CHANGED`, audit, acheteur local assigné automatiquement.
 3. Acheteur local (notification seulement) : cloche « DA-… validée et assignée à vous », DA dans « Assignées à moi », aucun bouton de validation.

@@ -188,3 +188,32 @@ export async function emailOf(userId: string | null): Promise<string | null> {
 
 /** Élément visible portant ce data-testid (Next garde les pages précédentes masquées dans le DOM). */
 export const t = (page: Page, id: string) => page.locator(`[data-testid="${id}"]:visible`);
+
+/**
+ * Acheteur local : DA locale soumise, puis validée par le Responsable (qté inchangées) ; renvoie son numéro.
+ * L'utilisateur courant est déconnecté puis reconnecté en acheteur local à la fin si `backToBuyer`.
+ */
+export async function createValidatedLocalPr(
+  page: Page,
+  o: { reason: string; lines: LineInput[]; department?: string },
+  login: (role: "ACHETEUR_LOCAL" | "RESPONSABLE_ACHATS") => Promise<void>,
+  logoutFn: () => Promise<void>,
+): Promise<string> {
+  await login("ACHETEUR_LOCAL");
+  const number = await createAndSubmitPr(page, {
+    department: o.department ?? "Administration",
+    reason: o.reason,
+    neededBy: dayOffset(7),
+    type: "LOCAL",
+    lines: o.lines,
+  });
+  await logoutFn();
+  await login("RESPONSABLE_ACHATS");
+  await openPr(page, number, "a-valider");
+  await t(page, "pr-action-approve").click();
+  await expect(t(page, "pr-approve-dialog")).toBeVisible();
+  await t(page, "pr-approve-confirm").click();
+  await expect(t(page, "status-VALIDEE")).toBeVisible();
+  await logoutFn();
+  return number;
+}
