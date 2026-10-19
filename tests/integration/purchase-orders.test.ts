@@ -280,6 +280,13 @@ describe("workflow et droits (service)", () => {
     expect((await listOrders(achLocal)).rows.map((r) => r.id)).toContain(d.id);
   });
 
+  it("recherche : le libellé d'un brouillon (BC-BROUILLON-…) retrouve ce brouillon, sans numéro", async () => {
+    const da = await validatedDa([{ item: itemA, qty: 5 }]);
+    const d = await draftOrder(achLocal, da);
+    const hit = await listOrders(achLocal, { onglet: "tous", q: d.displayNumber });
+    expect(hit.rows.map((r) => r.id)).toEqual([d.id]);
+  });
+
   it("les acheteurs voient tous les BC soumis (H26), même hors périmètre", async () => {
     const da = await validatedDa([{ item: itemA, qty: 5 }]);
     const d = await draftOrder(achLocal, da);
@@ -844,7 +851,8 @@ describe("fiche, liste, export et PDF", () => {
     }));
     await toValidate(achLocal, d.id);
     await validate(d.id);
-    const rows = await exportOrders(resp, { onglet: "en-cours" });
+    // La base de test peut contenir des BC d'autres suites (e2e) : on ne regarde que ceux du fournisseur de ce test.
+    const rows = (await exportOrders(resp, { onglet: "en-cours" })).filter((r) => r.supplierCode === "IT-PO-L");
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({ status: "VALIDE", quantity: 5, receivedQty: 0, remainingQty: 5, netAmount: 50000, netAmountXof: 50000, currency: "XOF" });
     expect(await code(exportOrders(mag))).toBe("FORBIDDEN");

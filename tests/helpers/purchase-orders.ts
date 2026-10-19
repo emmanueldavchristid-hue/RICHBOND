@@ -3,22 +3,14 @@ import path from "node:path";
 import { db } from "@/lib/db";
 
 /**
- * Supprime les BC créés par les tests (comptes `it-*`) et ceux du seed (événement portant `seedKey`),
+ * Supprime tous les BC de la base de test (comptes `it-*`, seed, scénarios e2e),
  * avec leurs notifications, journaux, compteurs BC et réglages `purchaseOrder.*`. Base de test uniquement.
  * À appeler AVANT de nettoyer DA, référentiels et comptes (clés étrangères).
  */
 export async function cleanPurchaseOrders() {
   const users = (await db.user.findMany({ where: { email: { startsWith: "it-" } }, select: { id: true } })).map((u) => u.id);
-  const orders = await db.purchaseOrder.findMany({
-    where: {
-      OR: [
-        { createdById: { in: users } },
-        { events: { some: { payload: { path: ["seedKey"], string_starts_with: "lot05:" } } } },
-        { supplier: { code: { startsWith: "IT-" } } },
-      ],
-    },
-    select: { id: true },
-  });
+  // Tous les BC de la base de test : ceux des scénarios e2e (comptes du seed) fausseraient sinon les compteurs et les listes.
+  const orders = await db.purchaseOrder.findMany({ select: { id: true } });
   const ids = orders.map((o) => o.id);
   await db.notification.deleteMany({ where: { OR: [{ recipientId: { in: users } }, { entityId: { in: ids } }] } });
   await db.auditLog.deleteMany({ where: { entity: "PurchaseOrder", entityId: { in: ids } } });
