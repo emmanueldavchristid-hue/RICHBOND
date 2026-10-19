@@ -44,6 +44,19 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   EXCHANGE_RATE_CREATE: "Saisie d'un taux de change",
   EXCHANGE_RATE_UPDATE: "Modification d'un taux de change",
   SETTING_UPDATE: "Modification d'un réglage",
+  PR_CREATE: "Création d'une demande d'achat",
+  PR_UPDATE: "Modification d'une demande d'achat",
+  PR_SUBMIT: "Soumission d'une demande d'achat",
+  PR_APPROVE: "Validation d'une demande d'achat",
+  PR_REJECT: "Refus d'une demande d'achat",
+  PR_RETURN: "Demande d'achat renvoyée pour complément",
+  PR_CANCEL: "Annulation d'une demande d'achat",
+  PR_ASSIGN: "Assignation d'une demande d'achat",
+  PR_QTY_CHANGE: "Quantité modifiée à la validation",
+  PR_COMMENT: "Commentaire sur une demande d'achat",
+  PR_ATTACHMENT_ADD: "Pièce jointe ajoutée à une demande d'achat",
+  PR_ATTACHMENT_REMOVE: "Pièce jointe retirée d'une demande d'achat",
+  PR_STATUS_SYNC: "Statut de demande d'achat mis à jour",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
@@ -58,6 +71,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   Currency: "Devise",
   ExchangeRate: "Taux de change",
   Setting: "Réglage",
+  PurchaseRequest: "Demande d'achat",
 };
 
 export function auditActionLabel(action: string): string {

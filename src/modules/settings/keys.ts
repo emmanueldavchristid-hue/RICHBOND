@@ -3,6 +3,15 @@ import { z } from "zod";
 /** Réglages connus (clé -> schéma de valeur + défaut). */
 export const SETTING_DEFS = {
   "warehouse.showPurchasePrice": { schema: z.boolean({ error: "Valeur invalide." }), default: false },
+  /** D12 : seuil (FCFA entiers) au-delà duquel une validation « direction » est prévue ; 0 = désactivé. */
+  "purchaseRequest.approvalThreshold": {
+    schema: z
+      .number({ error: "Le seuil doit être un nombre entier de FCFA." })
+      .int("Le seuil doit être un nombre entier de FCFA.")
+      .min(0, "Le seuil ne peut pas être négatif.")
+      .max(10_000_000_000, "Seuil trop élevé."),
+    default: 0,
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFS;
@@ -19,4 +28,6 @@ export const updateSettingSchema = z
 
 export interface AppSettings {
   showPurchasePriceToWarehouse: boolean;
+  /** FCFA, 0 = désactivé. */
+  purchaseRequestApprovalThreshold: number;
 }
