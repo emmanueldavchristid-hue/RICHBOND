@@ -28,6 +28,9 @@ export const addExchangeRateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide (AAAA-MM-JJ)."),
   rate: rateValue,
   note: nullable(z.string().trim().min(1).max(200, "Note trop longue.")),
+  /** Confirmation d'un taux EUR hors parité ou d'un écart de plus de 20 % avec le dernier taux. */
+  confirmDeviation: z.boolean().default(false),
+  /** Ancien nom, conservé pour compatibilité. */
   confirmEurDeviation: z.boolean().default(false),
 });
 
@@ -36,6 +39,9 @@ export const updateExchangeRateSchema = z.object({
   expectedUpdatedAt: expectedUpdatedAtSchema,
   rate: rateValue,
   note: nullable(z.string().trim().min(1).max(200, "Note trop longue.")),
+  /** Confirmation d'un taux EUR hors parité ou d'un écart de plus de 20 % avec le dernier taux. */
+  confirmDeviation: z.boolean().default(false),
+  /** Ancien nom, conservé pour compatibilité. */
   confirmEurDeviation: z.boolean().default(false),
 });
 

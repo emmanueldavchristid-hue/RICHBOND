@@ -20,3 +20,21 @@ export function isRateStale(rateDate: Date, now: Date, maxDays = RATE_STALE_DAYS
 export function isEurParity(rate: string | number | Prisma.Decimal): boolean {
   return new Prisma.Decimal(rate).eq(EUR_FIXED_RATE);
 }
+
+/** Écart relatif toléré entre deux taux successifs d'une même devise avant confirmation (20 %). */
+export const RATE_DEVIATION_MAX = 0.2;
+
+/** Écart relatif |nouveau - précédent| / précédent. Précédent nul => Infinity. */
+export function rateDeviation(previous: string | number | Prisma.Decimal, next: string | number | Prisma.Decimal): number {
+  const prev = new Prisma.Decimal(previous);
+  if (prev.lte(0)) return Number.POSITIVE_INFINITY;
+  return new Prisma.Decimal(next).minus(prev).abs().div(prev).toNumber();
+}
+
+export function isRateDeviationAbove(
+  previous: string | number | Prisma.Decimal,
+  next: string | number | Prisma.Decimal,
+  max = RATE_DEVIATION_MAX,
+): boolean {
+  return rateDeviation(previous, next) > max;
+}

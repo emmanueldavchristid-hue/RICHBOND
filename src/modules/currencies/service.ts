@@ -5,9 +5,9 @@ import { now } from "@/lib/clock";
 import { Prisma } from "@/generated/prisma/client";
 import { log } from "@/modules/audit";
 import type { Actor } from "@/modules/referentials/actor";
-import { assertFresh } from "@/modules/referentials/concurrency";
+import { lockFresh } from "@/modules/referentials/concurrency";
 import { rethrowUnique } from "@/modules/referentials/db-errors";
-import { dayKey, isEurParity, isRateStale } from "./rate";
+import { dayKey, isEurParity, isRateDeviationAbove, isRateStale, RATE_DEVIATION_MAX } from "./rate";
 import {
   addExchangeRateSchema,
   listRatesSchema,
@@ -57,13 +57,13 @@ export interface CurrencyDto {
   latestRate: (RateDto & { stale: boolean }) | null;
 }
 
-export async function listCurrencies(opts: { activeOnly?: boolean } = {}): Promise<CurrencyDto[]> {
+export async function listCurrencies(opts: { activeOnly?: boolean; at?: Date } = {}): Promise<CurrencyDto[]> {
   const rows = await db.currency.findMany({
     where: opts.activeOnly ? { active: true } : undefined,
     orderBy: [{ isBase: "desc" }, { code: "asc" }],
     include: { rates: { orderBy: { date: "desc" }, take: 1 } },
   });
-  const t = now();
+  const t = opts.at ?? now();
   return rows.map((c) => {
     const r = c.rates[0];
     return {
@@ -89,9 +89,15 @@ export async function listExchangeRates(raw: { currencyCode: string; limit?: num
   return rows.map(toRateDto);
 }
 
+/** Les devises n'ont pas de version côté écran (réglage idempotent) : on sérialise les écritures concurrentes. */
+async function lockCurrency(tx: Prisma.TransactionClient, code: string) {
+  await tx.$queryRaw`SELECT code FROM currencies WHERE code = ${code} FOR UPDATE`;
+}
+
 export async function upsertCurrency(actor: Actor, raw: UpsertCurrencyInput, ip?: string | null) {
   const input = upsertCurrencySchema.parse(raw);
   return db.$transaction(async (tx) => {
+    await lockCurrency(tx, input.code);
     const before = await tx.currency.findUnique({ where: { code: input.code } });
     if (before?.isBase) {
       throw new BusinessError("BASE_CURRENCY", "Le FCFA (XOF) est la devise de base : elle ne se modifie pas.");
@@ -126,6 +132,7 @@ export async function upsertCurrency(actor: Actor, raw: UpsertCurrencyInput, ip?
 export async function setCurrencyActive(actor: Actor, raw: { code: string; active: boolean }, ip?: string | null) {
   const input = setCurrencyActiveSchema.parse(raw);
   return db.$transaction(async (tx) => {
+    await lockCurrency(tx, input.code);
     const before = await tx.currency.findUnique({ where: { code: input.code } });
     if (!before) throw new BusinessError("NOT_FOUND", "Devise introuvable.");
     if (before.active === input.active) return before;
@@ -154,29 +161,51 @@ export async function setCurrencyActive(actor: Actor, raw: { code: string; activ
   });
 }
 
-function assertEurRule(currencyCode: string, rate: string, confirm: boolean) {
-  if (currencyCode === "EUR" && !isEurParity(rate) && !confirm) {
+const DEVIATION_PCT = Math.round(RATE_DEVIATION_MAX * 100);
+
+/**
+ * R11 : EUR hors parité fixe, ou toute devise à plus de 20 % du dernier taux connu : confirmation explicite.
+ * `previous` = dernier taux de la devise à la date saisie (hors le taux modifié).
+ */
+function assertRateRules(currencyCode: string, rate: string, previous: Prisma.Decimal | null, confirm: boolean) {
+  if (confirm) return;
+  if (currencyCode === "EUR" && !isEurParity(rate)) {
     throw new BusinessError(
       "EUR_PARITY_CONFIRM",
       "Le taux EUR/FCFA est fixe (655,957). Confirmez pour enregistrer une valeur différente.",
     );
   }
+  if (previous && isRateDeviationAbove(previous, rate)) {
+    throw new BusinessError(
+      "RATE_DEVIATION_CONFIRM",
+      `Ce taux s'écarte de plus de ${DEVIATION_PCT} % du dernier taux connu (${previous.toString()}). Confirmez pour l'enregistrer.`,
+    );
+  }
 }
 
-export async function addExchangeRate(actor: Actor, raw: AddExchangeRateInput, ip?: string | null) {
+async function previousRate(tx: Prisma.TransactionClient, currencyCode: string, date: Date, excludeId?: string) {
+  const r = await tx.exchangeRate.findFirst({
+    where: { currencyCode, date: { lte: date }, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    orderBy: { date: "desc" },
+  });
+  return r?.rate ?? null;
+}
+
+export async function addExchangeRate(actor: Actor, raw: AddExchangeRateInput, ip?: string | null, at: Date = now()) {
   const input = addExchangeRateSchema.parse(raw);
   const date = new Date(`${input.date}T00:00:00.000Z`);
   if (Number.isNaN(date.getTime())) throw new BusinessError("VALIDATION", "Date invalide.");
-  if (date.getTime() > dayKey(now()).getTime()) {
+  if (date.getTime() > dayKey(at).getTime()) {
     throw new BusinessError("RATE_FUTURE", "La date du taux ne peut pas être dans le futur.");
   }
-  assertEurRule(input.currencyCode, input.rate, input.confirmEurDeviation);
+  const confirm = input.confirmDeviation || input.confirmEurDeviation;
   try {
     return await db.$transaction(async (tx) => {
       const cur = await tx.currency.findUnique({ where: { code: input.currencyCode } });
       if (!cur) throw new BusinessError("NOT_FOUND", "Devise introuvable.");
       if (cur.isBase) throw new BusinessError("BASE_CURRENCY", "Le FCFA (XOF) est la devise de base : aucun taux à saisir.");
       if (!cur.active) throw new BusinessError("CURRENCY_INACTIVE", "Cette devise est désactivée.");
+      assertRateRules(cur.code, input.rate, await previousRate(tx, cur.code, date), confirm);
       const created = await tx.exchangeRate.create({
         data: { currencyCode: cur.code, date, rate: input.rate, note: input.note, createdById: actor.id },
       });
@@ -201,8 +230,13 @@ export async function updateExchangeRate(actor: Actor, raw: UpdateExchangeRateIn
   return db.$transaction(async (tx) => {
     const before = await tx.exchangeRate.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Taux introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
-    assertEurRule(before.currencyCode, input.rate, input.confirmEurDeviation);
+    await lockFresh(tx, "exchange_rates", before.id, input.expectedUpdatedAt);
+    assertRateRules(
+      before.currencyCode,
+      input.rate,
+      await previousRate(tx, before.currencyCode, before.date, before.id),
+      input.confirmDeviation || input.confirmEurDeviation,
+    );
     const after = await tx.exchangeRate.update({
       where: { id: before.id },
       data: { rate: input.rate, note: input.note },

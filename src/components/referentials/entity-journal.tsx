@@ -5,8 +5,16 @@ import { listEntityAudit } from "@/modules/audit/list";
 import { AuditDetailButton } from "@/app/(app)/parametres/journal/audit-detail";
 
 /** Onglet « Journal » d'une fiche : qui a fait quoi, et quand (réservé aux utilisateurs ayant `audit.view`). */
-export async function EntityJournal({ entity, entityId }: { entity: string; entityId: string }) {
-  const entries = await listEntityAudit(entity, entityId);
+export async function EntityJournal({
+  entity,
+  entityId,
+  related = [],
+}: {
+  entity: string;
+  entityId: string;
+  related?: { entity: string; ids: string[] }[];
+}) {
+  const entries = await listEntityAudit(entity, entityId, 50, related);
   if (entries.length === 0) {
     return <EmptyState title="Aucune opération enregistrée" description="Les créations et modifications de cette fiche apparaîtront ici." />;
   }

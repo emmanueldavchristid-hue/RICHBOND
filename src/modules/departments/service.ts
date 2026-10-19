@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { BusinessError } from "@/lib/errors";
 import { log } from "@/modules/audit";
 import type { Actor } from "@/modules/referentials/actor";
-import { assertFresh } from "@/modules/referentials/concurrency";
+import { lockFresh } from "@/modules/referentials/concurrency";
 import { codeExists, rethrowUnique } from "@/modules/referentials/db-errors";
 import { expectedUpdatedAtSchema, idSchema } from "@/modules/referentials/schemas";
 import { requiredCodeSchema } from "@/modules/referentials/codes";
@@ -53,7 +53,7 @@ export async function updateDepartment(actor: Actor, raw: UpdateDepartmentInput,
   return db.$transaction(async (tx) => {
     const before = await tx.department.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Service introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "departments", before.id, input.expectedUpdatedAt);
     const after = await tx.department.update({ where: { id: before.id }, data: { name: input.name } });
     await log(tx, { userId: actor.id, ip, action: "DEPARTMENT_UPDATE", entity: "Department", entityId: after.id, before, after });
     return after;
@@ -66,7 +66,7 @@ export async function setDepartmentActive(actor: Actor, raw: SetDepartmentActive
   return db.$transaction(async (tx) => {
     const before = await tx.department.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Service introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "departments", before.id, input.expectedUpdatedAt);
     if (before.active === input.active) return before;
     const after = await tx.department.update({ where: { id: before.id }, data: { active: input.active } });
     await log(tx, {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { addExchangeRate, addExchangeRateSchema, listCurrencies, listExchangeRates, listRatesSchema, setCurrencyActive, setCurrencyActiveSchema, updateExchangeRate, updateExchangeRateSchema, upsertCurrency, upsertCurrencySchema } from "@/modules/currencies";
+import { getNow } from "@/lib/clock";
 import { getClientIp } from "@/modules/auth/ip";
 import { withAction } from "@/modules/auth/session";
 import { serialize } from "@/modules/referentials/serialize";
@@ -11,7 +12,7 @@ const READ = { writable: false } as const;
 const touch = () => revalidatePath("/parametres/devises");
 
 /** Lecture : tout utilisateur connecté. `latestRate.stale` = taux de plus de 30 jours. */
-export const listCurrenciesAction = withAction(null, z.object({ activeOnly: z.boolean().optional() }), ({ input }) => listCurrencies(input), READ);
+export const listCurrenciesAction = withAction(null, z.object({ activeOnly: z.boolean().optional() }), async ({ input }) => listCurrencies({ ...input, at: (await getNow()).now }), READ);
 
 export const listExchangeRatesAction = withAction(null, listRatesSchema, ({ input }) => listExchangeRates(input), READ);
 
@@ -29,7 +30,7 @@ export const setCurrencyActiveAction = withAction("settings.manage", setCurrency
 
 /** Responsable et Acheteurs (`exchangeRate.manage`). EUR != 655,957 : `confirmEurDeviation: true` requis (code EUR_PARITY_CONFIRM). */
 export const addExchangeRateAction = withAction("exchangeRate.manage", addExchangeRateSchema, async ({ user, input }) => {
-  const r = await addExchangeRate(user, input, await getClientIp());
+  const r = await addExchangeRate(user, input, await getClientIp(), (await getNow()).now);
   touch();
   return r;
 });

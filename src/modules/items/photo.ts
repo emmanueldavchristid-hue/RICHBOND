@@ -1,11 +1,13 @@
 import "server-only";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { db } from "@/lib/db";
 import { BusinessError } from "@/lib/errors";
 import { log } from "@/modules/audit";
 import type { Actor } from "@/modules/referentials/actor";
-import { assertFresh } from "@/modules/referentials/concurrency";
+import { lockFresh } from "@/modules/referentials/concurrency";
+import { idSchema } from "@/modules/referentials/schemas";
 import { detectImageType, PHOTO_MAX_BYTES } from "./photo-type";
 
 /** Stockage hors `public/` (R19) ; dossier ignoré par git. */
@@ -17,6 +19,14 @@ function safeFile(photoPath: string): string {
   return path.join(ROOT(), file);
 }
 
+/**
+ * Remplace la photo. Garanties :
+ * - la version (`updatedAt`) est contrôlée dans la transaction, ligne verrouillée ;
+ * - le fichier est d'abord écrit sous un nom temporaire unique puis renommé sous un nom définitif unique
+ *   (jamais le nom de l'ancienne photo) : l'ancienne photo n'est donc jamais écrasée ;
+ * - l'ancienne photo n'est supprimée qu'après validation de la transaction ; en cas d'échec, seul le nouveau
+ *   fichier est retiré.
+ */
 export async function setItemPhoto(
   actor: Actor,
   input: { id: string; expectedUpdatedAt: Date; bytes: Uint8Array },
@@ -28,14 +38,22 @@ export async function setItemPhoto(
   }
   const type = detectImageType(input.bytes);
   if (!type) throw new BusinessError("PHOTO_INVALID", "Format non accepté : utilisez une image JPEG, PNG ou WebP.");
-  const before = await db.item.findUnique({ where: { id: input.id }, select: { id: true, updatedAt: true, photoPath: true } });
-  if (!before) throw new BusinessError("NOT_FOUND", "Article introuvable.");
-  assertFresh(before.updatedAt, input.expectedUpdatedAt);
-  const file = `${before.id}.${type.ext}`;
+  const id = idSchema.parse(input.id);
+
+  const token = randomUUID().replace(/-/g, "");
+  const tmp = path.join(ROOT(), `.${token}.tmp`);
+  const file = `${id}-${token.slice(0, 12)}.${type.ext}`;
+  const finalPath = path.join(ROOT(), file);
   await mkdir(ROOT(), { recursive: true });
-  await writeFile(path.join(ROOT(), file), input.bytes);
+  await writeFile(tmp, input.bytes);
+
+  let oldPhoto: string | null = null;
   try {
     await db.$transaction(async (tx) => {
+      const before = await tx.item.findUnique({ where: { id }, select: { id: true, updatedAt: true, photoPath: true } });
+      if (!before) throw new BusinessError("NOT_FOUND", "Article introuvable.");
+      await lockFresh(tx, "items", before.id, input.expectedUpdatedAt);
+      await rename(tmp, finalPath);
       const after = await tx.item.update({ where: { id: before.id }, data: { photoPath: file } });
       await log(tx, {
         userId: actor.id,
@@ -46,12 +64,20 @@ export async function setItemPhoto(
         after: { photoPath: after.photoPath },
         ip,
       });
+      oldPhoto = before.photoPath;
     });
   } catch (e) {
-    if (!before.photoPath) await rm(path.join(ROOT(), file), { force: true });
+    await rm(tmp, { force: true });
+    await rm(finalPath, { force: true });
     throw e;
   }
-  if (before.photoPath && before.photoPath !== file) await rm(safeFile(before.photoPath), { force: true });
+  if (oldPhoto && oldPhoto !== file) {
+    try {
+      await rm(safeFile(oldPhoto), { force: true });
+    } catch {
+      /* fichier orphelin sans conséquence : la base référence déjà la nouvelle photo */
+    }
+  }
   return { photoPath: file };
 }
 
@@ -59,7 +85,7 @@ export async function removeItemPhoto(actor: Actor, input: { id: string; expecte
   const photoPath = await db.$transaction(async (tx) => {
     const before = await tx.item.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Article introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "items", before.id, input.expectedUpdatedAt);
     if (!before.photoPath) return null;
     await tx.item.update({ where: { id: before.id }, data: { photoPath: null } });
     await log(tx, {

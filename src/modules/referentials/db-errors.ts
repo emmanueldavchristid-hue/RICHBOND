@@ -15,12 +15,24 @@ export function uniqueTargets(e: unknown): string[] | null {
   return c?.index ? [c.index] : [];
 }
 
+/** `itemId` / `item_id` / `ItemId` => `item_id` : les cibles Prisma sont tantôt en camelCase, tantôt en snake_case. */
+export function toSnake(s: string): string {
+  return s.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
+/** Vrai si la cible (champ ou nom de contrainte) correspond au champ, quelle que soit la casse utilisée. */
+export function targetMatches(target: string, field: string): boolean {
+  const t = toSnake(target);
+  const f = toSnake(field);
+  return t === f || t.includes(`_${f}_`);
+}
+
 /** Traduit P2002 en BusinessError selon un dictionnaire champ -> erreur. */
 export function rethrowUnique(e: unknown, map: Record<string, BusinessError>, fallback?: BusinessError): never {
   const targets = uniqueTargets(e);
   if (targets) {
     for (const [field, err] of Object.entries(map)) {
-      if (targets.some((t) => t === field || t.includes(`_${field}_`))) throw err;
+      if (targets.some((t) => targetMatches(t, field))) throw err;
     }
     if (fallback) throw fallback;
   }

@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { BusinessError } from "@/lib/errors";
 import { log } from "@/modules/audit";
 import type { Actor } from "@/modules/referentials/actor";
-import { assertFresh } from "@/modules/referentials/concurrency";
+import { lockFresh } from "@/modules/referentials/concurrency";
 import { codeExists, rethrowUnique } from "@/modules/referentials/db-errors";
 import { expectedUpdatedAtSchema, idSchema } from "@/modules/referentials/schemas";
 import { requiredCodeSchema } from "@/modules/referentials/codes";
@@ -53,7 +53,7 @@ export async function updateWarehouse(actor: Actor, raw: UpdateWarehouseInput, i
   return db.$transaction(async (tx) => {
     const before = await tx.warehouse.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Dépôt introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "warehouses", before.id, input.expectedUpdatedAt);
     const after = await tx.warehouse.update({ where: { id: before.id }, data: { name: input.name } });
     await log(tx, { userId: actor.id, ip, action: "WAREHOUSE_UPDATE", entity: "Warehouse", entityId: after.id, before, after });
     return after;
@@ -66,7 +66,7 @@ export async function setWarehouseActive(actor: Actor, raw: SetWarehouseActiveIn
   return db.$transaction(async (tx) => {
     const before = await tx.warehouse.findUnique({ where: { id: input.id } });
     if (!before) throw new BusinessError("NOT_FOUND", "Dépôt introuvable.");
-    assertFresh(before.updatedAt, input.expectedUpdatedAt);
+    await lockFresh(tx, "warehouses", before.id, input.expectedUpdatedAt);
     if (before.active === input.active) return before;
     if (!input.active) {
       const n = await tx.item.count({ where: { defaultWarehouseId: before.id, status: "ACTIF" } });

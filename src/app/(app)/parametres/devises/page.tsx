@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { formatInTimeZone } from "date-fns-tz";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
-import { now } from "@/lib/clock";
+import { getNow } from "@/lib/clock";
 import { APP_TZ } from "@/lib/dates";
 import { can } from "@/lib/permissions";
 import { requirePageAction } from "@/modules/auth/session";
@@ -19,9 +19,9 @@ async function CurrenciesContent() {
   // Responsable : devises et taux ; Acheteurs : saisie des taux (l'import en a besoin chaque jour).
   if (!canManageCurrencies && !canEnterRates) redirect("/acces-refuse");
 
-  const t = now();
+  const t = (await getNow()).now;
   const today = dayKey(t);
-  const list = await listCurrencies();
+  const list = await listCurrencies({ at: t });
   const currencies: CurrencyView[] = list.map((c) => ({
     ...c,
     ageDays: c.latestRate ? Math.round((today.getTime() - dayKey(c.latestRate.date).getTime()) / 86_400_000) : null,

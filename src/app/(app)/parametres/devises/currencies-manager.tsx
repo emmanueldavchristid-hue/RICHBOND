@@ -68,9 +68,10 @@ function RateDialog({
   const [note, setNote] = useState(target?.note ?? "");
   const [errors, setErrors] = useState<{ date?: string; rate?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [confirmEur, setConfirmEur] = useState(false);
+  const [confirmCode, setConfirmCode] = useState<"EUR_PARITY_CONFIRM" | "RATE_DEVIATION_CONFIRM" | null>(null);
+  const [confirmMessage, setConfirmMessage] = useState("");
 
-  async function save(confirmEurDeviation: boolean) {
+  async function save(confirmDeviation: boolean) {
     setFormError(null);
     const next: { date?: string; rate?: string } = {};
     if (!target && !date) next.date = "La date est obligatoire.";
@@ -81,19 +82,22 @@ function RateDialog({
     await run(
       () =>
         target
-          ? updateExchangeRateAction({ id: target.id, expectedUpdatedAt: target.updatedAt.toISOString(), rate: cleanRate, note, confirmEurDeviation })
-          : addExchangeRateAction({ currencyCode: currency.code, date, rate: cleanRate, note, confirmEurDeviation }),
+          ? updateExchangeRateAction({ id: target.id, expectedUpdatedAt: target.updatedAt.toISOString(), rate: cleanRate, note, confirmDeviation })
+          : addExchangeRateAction({ currencyCode: currency.code, date, rate: cleanRate, note, confirmDeviation }),
       {
         success: target ? "Taux modifié." : "Taux enregistré.",
-        silentCodes: ["EUR_PARITY_CONFIRM"],
+        silentCodes: ["EUR_PARITY_CONFIRM", "RATE_DEVIATION_CONFIRM"],
         onSuccess: () => {
-          setConfirmEur(false);
+          setConfirmCode(null);
           onSaved();
         },
         onError: (f) => {
-          if (f.code === "EUR_PARITY_CONFIRM") setConfirmEur(true);
+          if (f.code === "EUR_PARITY_CONFIRM" || f.code === "RATE_DEVIATION_CONFIRM") {
+            setConfirmMessage(f.message);
+            setConfirmCode(f.code);
+          }
           else {
-            setConfirmEur(false);
+            setConfirmCode(null);
             if (f.code === "RATE_EXISTS" || f.code === "RATE_FUTURE" || f.code === "INVALID_DATE") setErrors({ date: f.message });
             else setFormError(f.message);
           }
@@ -137,7 +141,7 @@ function RateDialog({
           label={`Taux (FCFA pour 1 ${currency.code})`}
           required
           error={errors.rate}
-          hint={currency.code === "EUR" ? `Parité fixe : ${EUR_FIXED}. Une autre valeur demande confirmation.` : "Jusqu'à 6 décimales, virgule acceptée."}
+          hint={currency.code === "EUR" ? `Parité fixe : ${EUR_FIXED}. Une autre valeur demande confirmation.` : "Jusqu'à 6 décimales, virgule acceptée. Un écart de plus de 20 % avec le dernier taux demande confirmation."}
         >
           <Input
             id="rate-value"
@@ -164,10 +168,10 @@ function RateDialog({
         </div>
       </form>
       <ConfirmDialog
-        open={confirmEur}
-        onOpenChange={setConfirmEur}
-        title="Taux EUR différent de la parité fixe"
-        description={`Le taux EUR/FCFA est fixe (${EUR_FIXED}). Vous êtes sur le point d'enregistrer ${rate || "une autre valeur"}. Confirmer cette valeur ?`}
+        open={confirmCode !== null}
+        onOpenChange={(o) => (!o ? setConfirmCode(null) : undefined)}
+        title={confirmCode === "RATE_DEVIATION_CONFIRM" ? "Taux très différent du dernier taux" : "Taux EUR différent de la parité fixe"}
+        description={`${confirmMessage} Valeur saisie : ${rate || "–"}.`}
         confirmLabel="Oui, enregistrer ce taux"
         pending={pending}
         testId="rate-eur-confirm"

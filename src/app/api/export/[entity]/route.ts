@@ -4,7 +4,7 @@ import { APP_TZ } from "@/lib/dates";
 import { isBusinessError } from "@/lib/errors";
 import { buildWorkbook, XLSX_MIME, type ExcelColumn } from "@/lib/excel";
 import { can } from "@/lib/permissions";
-import { now } from "@/lib/clock";
+import { getNow } from "@/lib/clock";
 import { getCurrentUser } from "@/modules/auth/session";
 import { exportItems } from "@/modules/items";
 import {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
     return NextResponse.json({ code: "PASSWORD_CHANGE_REQUIRED", message: "Définissez d'abord votre mot de passe." }, { status: 403 });
   }
   const filters = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const stamp = formatInTimeZone(now(), APP_TZ, "yyyyMMdd");
+  const stamp = formatInTimeZone((await getNow()).now, APP_TZ, "yyyyMMdd");
   try {
     let file: Buffer;
     let name: string;
@@ -51,8 +51,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
         { header: "Statut", value: (r) => ITEM_STATUS_LABELS[r.status] },
         { header: "Équipement", width: 28, value: (r) => r.equipment },
         { header: "Dépôt par défaut", value: (r) => r.defaultWarehouse?.name },
-        { header: "Stock de sécurité", format: "0.###", value: (r) => (r.safetyStock ? Number(r.safetyStock) : null) },
-        { header: "Point de commande", format: "0.###", value: (r) => (r.reorderPoint ? Number(r.reorderPoint) : null) },
+        { header: "Stock de sécurité (unité de stock)", format: "0.###", value: (r) => (r.safetyStock ? Number(r.safetyStock) : null) },
+        { header: "Point de commande (unité de stock)", format: "0.###", value: (r) => (r.reorderPoint ? Number(r.reorderPoint) : null) },
         { header: "Délai (jours)", value: (r) => r.leadTimeDays },
         { header: "Fournisseur principal", width: 30, value: (r) => r.mainSupplier?.name },
         { header: "Code-barres", value: (r) => r.barcode },
@@ -69,6 +69,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
         { header: "Type", value: (r) => SUPPLIER_TYPE_LABELS[r.type] },
         { header: "Pays", value: (r) => r.country },
         { header: "Ville", value: (r) => r.city },
+        { header: "Adresse", width: 36, value: (r) => r.address },
+        { header: "Téléphone général", value: (r) => r.phone },
+        { header: "Email général", width: 28, value: (r) => r.email },
         { header: "Devise", value: (r) => r.currencyCode },
         { header: "NCC", value: (r) => r.ncc },
         { header: "RCCM", value: (r) => r.rccm },
@@ -78,8 +81,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
         { header: "Catégories", width: 30, value: (r) => r.categories.map((c) => ITEM_CATEGORY_LABELS[c]).join(", ") },
         { header: "Statut", value: (r) => SUPPLIER_STATUS_LABELS[r.status] },
         { header: "Contact principal", value: (r) => r.contacts[0]?.name },
-        { header: "Téléphone", value: (r) => r.contacts[0]?.phone },
-        { header: "Email", width: 28, value: (r) => r.contacts[0]?.email },
+        { header: "Téléphone du contact", value: (r) => r.contacts[0]?.phone },
+        { header: "Email du contact", width: 28, value: (r) => r.contacts[0]?.email },
       ];
       file = await buildWorkbook("Fournisseurs", cols, rows);
       name = `fournisseurs_${stamp}.xlsx`;

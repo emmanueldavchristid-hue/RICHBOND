@@ -24,6 +24,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   RATE_FUTURE: "La date du taux ne peut pas être dans le futur.",
   RATE_MISSING: "Aucun taux de change disponible : saisissez-le dans Paramètres > Devises.",
   EUR_PARITY_CONFIRM: "Le taux EUR/FCFA est fixe (655,957). Confirmez pour enregistrer une valeur différente.",
+  RATE_DEVIATION_CONFIRM: "Ce taux s'écarte de plus de 20 % du dernier taux connu. Confirmez pour l'enregistrer.",
+  PURCHASE_UNIT_LOCKED: "L'unité d'achat ne peut plus changer : des prix fournisseurs sont exprimés dans l'unité actuelle.",
   WAREHOUSE_INVALID: "Dépôt inconnu ou désactivé.",
   WAREHOUSE_IN_USE: "Ce dépôt est le dépôt par défaut d'articles actifs.",
   PHOTO_INVALID: "Format non accepté : utilisez une image JPEG, PNG ou WebP.",
