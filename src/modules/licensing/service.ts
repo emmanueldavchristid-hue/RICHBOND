@@ -5,12 +5,11 @@ import { getNow, now as clockNow } from "@/lib/clock";
 import { BusinessError } from "@/lib/errors";
 import * as audit from "@/modules/audit";
 import type { Prisma } from "@/generated/prisma/client";
-import { fingerprint, getLicenseSecret, verifyLicenseKey } from "./key";
+import { fingerprint, getLicenseSecret, normalizeLicensedTo, verifyLicenseKey } from "./key";
 import type { ActivateLicenseInput, ExtendTrialInput } from "./schemas";
 import { computeLicenseState, computeTrialEnd, effectiveNow, endOfDayAbidjan, type LicenseState } from "./state";
 
-type Tx = Pick<Prisma.TransactionClient, "license" | "auditLog">;
-type Actor = { id: string };
+type Tx = Pick<Prisma.TransactionClient, "license" | "auditLog">;type Actor = { id: string };
 
 const MAX_FAILURES = 5;
 const FAILURE_WINDOW_MS = 15 * 60_000;
@@ -69,7 +68,7 @@ export async function extendTrial(user: Actor, input: ExtendTrialInput) {
     if (license.status === "ACTIVE") {
       throw new BusinessError("LICENSE_ALREADY_ACTIVE", "La licence est déjà active : aucune prolongation possible.");
     }
-    const today = formatInTimeZone(now, "Africa/Abidjan", "yyyy-MM-dd");
+    const today = formatInTimeZone(effectiveNow(now, license.lastSeenAt), "Africa/Abidjan", "yyyy-MM-dd");
     if (input.date <= today) {
       throw new BusinessError("INVALID_DATE", "La nouvelle date de fin doit être postérieure à aujourd'hui.");
     }
@@ -82,7 +81,7 @@ export async function extendTrial(user: Actor, input: ExtendTrialInput) {
     }
     const updated = await tx.license.update({
       where: { id: license.id },
-      data: { status: "TRIAL", trialEndsAt },
+      data: { status: "TRIAL", trialEndsAt, lastSeenAt: null },
     });
     await audit.log(tx, {
       userId: user.id,
@@ -105,32 +104,32 @@ export async function activateLicense(user: Actor, input: ActivateLicenseInput) 
       "Activation impossible : clé serveur non configurée. Contactez Christ-Emmanuel Mouhi.",
     );
   }
-  const license = await ensureLicense();
-  if (license.status === "ACTIVE") {
-    throw new BusinessError("LICENSE_ALREADY_ACTIVE", "La licence est déjà active.");
-  }
-  const recent = await db.auditLog.count({
-    where: {
-      action: "LICENSE_ACTIVATION_FAILED",
-      createdAt: { gte: new Date(Date.now() - FAILURE_WINDOW_MS) },
-    },
-  });
-  if (recent >= MAX_FAILURES) {
-    throw new BusinessError("LICENSE_TOO_MANY_ATTEMPTS", "Trop de tentatives, réessayez dans 15 min.");
-  }
-  const licensedTo = input.licensedTo.trim();
-  if (!verifyLicenseKey(secret, licensedTo, input.key)) {
-    await audit.log(db, {
-      userId: user.id,
-      action: "LICENSE_ACTIVATION_FAILED",
-      entity: "License",
-      entityId: license.id,
-      after: { licensedTo },
-    });
-    throw new BusinessError("LICENSE_KEY_INVALID", "Clé de licence invalide.");
-  }
+  await ensureLicense();
+  const licensedTo = normalizeLicensedTo(input.licensedTo);
   const { now } = await getNow();
-  return db.$transaction(async (tx) => {
+  // Verrou de ligne : comptage des échecs, vérification, activation et audit sont sérialisés.
+  // L'échec est renvoyé (et non levé) pour que son audit soit validé avec la transaction.
+  const outcome = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM licenses WHERE singleton = true FOR UPDATE`;
+    const license = await tx.license.findFirstOrThrow({ where: { singleton: true } });
+    if (license.status === "ACTIVE") return { error: "ACTIVE" as const };
+    const recent = await tx.auditLog.count({
+      where: {
+        action: "LICENSE_ACTIVATION_FAILED",
+        createdAt: { gte: new Date(Date.now() - FAILURE_WINDOW_MS) },
+      },
+    });
+    if (recent >= MAX_FAILURES) return { error: "TOO_MANY" as const };
+    if (!verifyLicenseKey(secret, licensedTo, input.key)) {
+      await audit.log(tx, {
+        userId: user.id,
+        action: "LICENSE_ACTIVATION_FAILED",
+        entity: "License",
+        entityId: license.id,
+        after: { licensedTo },
+      });
+      return { error: "INVALID" as const };
+    }
     const updated = await tx.license.update({
       where: { id: license.id },
       data: { status: "ACTIVE", licensedTo, activatedAt: now, keyFingerprint: fingerprint(input.key) },
@@ -143,6 +142,17 @@ export async function activateLicense(user: Actor, input: ActivateLicenseInput) 
       before: { status: license.status },
       after: { status: "ACTIVE", licensedTo, activatedAt: now, keyFingerprint: updated.keyFingerprint },
     });
-    return updated;
+    return { updated };
   });
+  if (outcome.updated) return outcome.updated;
+  if (outcome.error === "ACTIVE") {
+    throw new BusinessError("LICENSE_ALREADY_ACTIVE", "La licence est déjà active.");
+  }
+  if (outcome.error === "TOO_MANY") {
+    throw new BusinessError("LICENSE_TOO_MANY_ATTEMPTS", "Trop de tentatives, réessayez dans 15 min.");
+  }
+  throw new BusinessError(
+    "LICENSE_KEY_INVALID",
+    "Clé de licence invalide. Vérifiez la clé et le nom du bénéficiaire (RICHBOND CI).",
+  );
 }

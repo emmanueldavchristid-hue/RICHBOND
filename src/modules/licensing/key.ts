@@ -26,26 +26,34 @@ function base32(buf: Buffer): string {
 }
 
 /**
- * Secret serveur. Production : obligatoire (>= 32 car.), sinon null (activation impossible).
- * Hors production : secret de repli constant, uniquement pour dev/tests.
+ * Secret serveur (>= 32 car.), sinon null (activation impossible).
+ * Secret de repli constant uniquement si NODE_ENV === "test" ou ALLOW_TEST_NOW === "1".
  */
 export function getLicenseSecret(env: Record<string, string | undefined> = process.env): string | null {
   const s = env.LICENSE_SECRET;
   if (s && s.length >= MIN_SECRET_LENGTH) return s;
-  if (env.NODE_ENV === "production") return null;
-  return DEV_FALLBACK_SECRET;
+  if (env.NODE_ENV === "test" || env.ALLOW_TEST_NOW === "1") return DEV_FALLBACK_SECRET;
+  return null;
+}
+
+/** Bénéficiaire canonique : espaces rognés et réduits, majuscules (insensible à la casse). */
+export function normalizeLicensedTo(input: string): string {
+  return input.trim().replace(/\s+/g, " ").toUpperCase();
 }
 
 export function generateLicenseKey(secret: string, licensedTo: string): string {
-  const mac = createHmac("sha256", secret).update(`${licensedTo.trim()}|ACTIVE`).digest();
+  const mac = createHmac("sha256", secret).update(`${normalizeLicensedTo(licensedTo)}|ACTIVE`).digest();
   const chars = base32(mac).slice(0, KEY_CHARS);
   return `RB-${chars.match(/.{5}/g)!.join("-")}`;
 }
 
-/** Majuscules, sans espaces ; tirets optionnels et préfixe `RB-` facultatif. */
+/** Majuscules, sans espaces ; tirets optionnels ; préfixe initial `RB-`/`RB` retiré une seule fois. */
 export function normalizeKey(input: string): string {
-  const raw = input.toUpperCase().replace(/[\s-]/g, "");
-  const body = raw.startsWith("RB") ? raw.slice(2) : raw;
+  const upper = input.trim().toUpperCase();
+  const compact = upper.replace(/[\s-]/g, "");
+  let body = compact;
+  const explicitPrefix = /^RB[\s-]/.test(upper);
+  if (compact.startsWith("RB") && (explicitPrefix || compact.length === KEY_CHARS + 2)) body = compact.slice(2);
   return body.length === KEY_CHARS ? `RB-${body.match(/.{5}/g)!.join("-")}` : `RB-${body}`;
 }
 

@@ -128,7 +128,11 @@ describe("activation", () => {
     await login("lic-sa2", { role: "SUPER_ADMIN" });
     await setLicense("EXPIRED", -1);
     const r = await activateLicenseAction({ licensedTo: "RICHBOND CI", key: "RB-AAAAA-BBBBB-CCCCC-DDDDD" });
-    expect(r).toEqual({ ok: false, code: "LICENSE_KEY_INVALID", message: "Clé de licence invalide." });
+    expect(r).toEqual({
+      ok: false,
+      code: "LICENSE_KEY_INVALID",
+      message: "Clé de licence invalide. Vérifiez la clé et le nom du bénéficiaire (RICHBOND CI).",
+    });
     const l = await db.license.findFirstOrThrow();
     expect(l.status).toBe("EXPIRED");
     expect(l.keyFingerprint).toBeNull();
@@ -149,6 +153,29 @@ describe("activation", () => {
       message: "Trop de tentatives, réessayez dans 15 min.",
     });
     expect((await db.license.findFirstOrThrow()).status).toBe("TRIAL");
+  });
+
+  it("bénéficiaire saisi avec casse/espaces différents : accepté", async () => {
+    await login("lic-sa5", { role: "SUPER_ADMIN" });
+    const key = generateLicenseKey(SECRET, "RICHBOND CI");
+    const r = await activateLicenseAction({ licensedTo: "  richbond   ci ", key });
+    expect(r.ok).toBe(true);
+    expect((await db.license.findFirstOrThrow()).licensedTo).toBe("RICHBOND CI");
+  });
+
+  it("concurrence : 8 tentatives invalides parallèles => 5 échecs comptés ; 1 seule activation", async () => {
+    await login("lic-sa4", { role: "SUPER_ADMIN" });
+    const bad = "RB-AAAAA-BBBBB-CCCCC-DDDDD";
+    await Promise.all(Array.from({ length: 8 }, () => activateLicenseAction({ licensedTo: "RICHBOND CI", key: bad })));
+    expect(await db.auditLog.count({ where: { action: "LICENSE_ACTIVATION_FAILED" } })).toBe(5);
+
+    await cleanLicenseAudit();
+    const good = generateLicenseKey(SECRET, "RICHBOND CI");
+    const rs = await Promise.all(
+      Array.from({ length: 6 }, () => activateLicenseAction({ licensedTo: "RICHBOND CI", key: good })),
+    );
+    expect(rs.filter((r) => r.ok)).toHaveLength(1);
+    expect(await db.auditLog.count({ where: { action: "LICENSE_ACTIVATE" } })).toBe(1);
   });
 
   it("refusée aux autres rôles", async () => {
@@ -182,6 +209,18 @@ describe("prolongation", () => {
     expect(log.before).toMatchObject({ status: "EXPIRED" });
     expect(log.after).toMatchObject({ status: "TRIAL" });
     expect((await getLicenseState()).writable).toBe(true);
+  });
+
+  it("horloge future puis corrigée puis prolongation => TRIAL", async () => {
+    await login("lic-ext5", { role: "SUPER_ADMIN" });
+    const l = await setLicense("TRIAL", 1);
+    await db.license.update({ where: { id: l.id }, data: { lastSeenAt: new Date(Date.now() + 2 * DAY) } });
+    expect((await getLicenseState()).status).toBe("EXPIRED");
+    expect(await extendTrialAction({ date: dateIn(1) })).toMatchObject({ code: "INVALID_DATE" });
+    expect((await extendTrialAction({ date: dateIn(15) })).ok).toBe(true);
+    const after = await db.license.findFirstOrThrow();
+    expect(after.lastSeenAt).toBeNull();
+    expect((await getLicenseState()).status).toBe("TRIAL");
   });
 
   it("raccourcir exige une confirmation", async () => {
