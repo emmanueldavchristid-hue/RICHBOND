@@ -13,6 +13,7 @@ export const authConfig = {
         token.role = user.role;
         token.purchaseScope = user.purchaseScope ?? null;
         token.sessionVersion = user.sessionVersion;
+        token.loginAt = Date.now();
       }
       return token;
     },
@@ -22,6 +23,7 @@ export const authConfig = {
         session.user.role = token.role;
         session.user.purchaseScope = token.purchaseScope ?? null;
         session.user.sessionVersion = token.sessionVersion;
+        session.user.loginAt = token.loginAt ?? 0;
       }
       return session;
     },

@@ -1,31 +1,25 @@
 import "server-only";
-import { db } from "@/lib/db";
 import { BusinessError } from "@/lib/errors";
+import { computeLicenseState, READ_ONLY_MESSAGE, type LicenseLike } from "./state";
+import { getLicenseState } from "./service";
 
-/** Pure : l'état de licence autorise-t-il l'écriture ? */
+/** Pure : l'état de licence autorise-t-il l'écriture ? (borne stricte now < trialEndsAt) */
 export function isWritable(
-  license: { status: "TRIAL" | "ACTIVE" | "EXPIRED"; trialEndsAt: Date } | null,
+  license: Pick<LicenseLike, "status" | "trialEndsAt"> | null,
   now: Date,
 ): boolean {
   if (!license) return false;
-  if (license.status === "ACTIVE") return true;
-  if (license.status === "EXPIRED") return false;
-  return license.trialEndsAt >= now;
+  return computeLicenseState({ ...license, trialStartsAt: license.trialEndsAt }, now).writable;
 }
 
 /** Version non bloquante pour l'interface : boutons d'écriture désactivés si faux. */
-export async function isWritableNow(now: Date = new Date()): Promise<boolean> {
-  const license = await db.license.findFirst({ orderBy: { createdAt: "desc" } });
-  return isWritable(license, now);
+export async function isWritableNow(): Promise<boolean> {
+  return (await getLicenseState()).writable;
 }
 
-/** Refuse toute écriture si l'essai est expiré (enrichi en LOT-02). */
-export async function requireWritable(now: Date = new Date()): Promise<void> {
-  const license = await db.license.findFirst({ orderBy: { createdAt: "desc" } });
-  if (!isWritable(license, now)) {
-    throw new BusinessError(
-      "LICENSE_READ_ONLY",
-      "La période d'essai est terminée : l'application est en lecture seule.",
-    );
+/** Refuse toute écriture si l'essai est expiré. */
+export async function requireWritable(): Promise<void> {
+  if (!(await getLicenseState()).writable) {
+    throw new BusinessError("LICENSE_READ_ONLY", READ_ONLY_MESSAGE);
   }
 }

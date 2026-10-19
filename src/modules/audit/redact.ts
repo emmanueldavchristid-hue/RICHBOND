@@ -1,4 +1,4 @@
-const SECRET_KEY = /(password|passwd|secret|token)/i;
+const SECRET_KEY = /(password|passwd|secret|token)|^(key|licenseKey)$/i;
 
 /** Retire récursivement tout champ sensible (passwordHash, password*…) avant écriture dans l'audit. */
 export function redactSecrets<T>(value: T): T {

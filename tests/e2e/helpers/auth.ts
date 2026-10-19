@@ -26,10 +26,23 @@ export async function submitLogin(page: Page, email: string, password: string): 
   await page.getByTestId("login-submit").click();
 }
 
+/** Ferme la fenêtre « Version d'essai » si elle s'affiche (une fois par session). */
+export async function dismissTrialDialog(page: Page): Promise<void> {
+  const continuer = page.getByTestId("trial-continue");
+  try {
+    await continuer.waitFor({ state: "visible", timeout: 4000 });
+    await continuer.click();
+    await expect(page.getByTestId("trial-dialog")).toBeHidden();
+  } catch {
+    // Pas de fenêtre (licence active ou déjà vue).
+  }
+}
+
 /** Connexion par rôle (comptes du seed) ; attend l'arrivée sur l'accueil. */
 export async function loginAs(page: Page, role: E2ERole): Promise<void> {
   await submitLogin(page, SEED_EMAILS[role], seedPassword());
   await expect(page).toHaveURL(/\/accueil/);
+  await dismissTrialDialog(page);
 }
 
 /** Déconnexion via le menu utilisateur. */

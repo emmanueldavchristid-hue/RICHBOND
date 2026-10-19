@@ -23,3 +23,15 @@ Créés (fictifs) par le seed `npx prisma db seed`. Mot de passe de tous les com
 | Acheteur local | `acheteur.local@richbond.test` |
 | Acheteur import | `acheteur.import@richbond.test` |
 | Magasinier | `magasinier@richbond.test` |
+
+## Période d'essai et licence (LOT-02)
+
+Variables d'environnement (à ajouter à `.env`) :
+
+- `TRIAL_END_DATE=AAAA-MM-JJ` : date de fin de l'essai (23:59 heure d'Abidjan), appliquée à la création de la licence seulement.
+- `TRIAL_DAYS=30` : durée de l'essai si `TRIAL_END_DATE` est absente (1 à 365).
+- `LICENSE_SECRET` : secret serveur d'au moins 32 caractères (`npm run license:secret` en génère un). Obligatoire en production pour activer une licence. Ne jamais le versionner.
+- `ALLOW_TEST_NOW=1` : tests uniquement, jamais en production. Autorise `TEST_NOW` / cookie `rb-test-now` à simuler l'heure.
+
+Génération d'une clé d'activation (Jason uniquement) : `npm run license:generate -- "RICHBOND CI"`.
+Prolonger ou activer : page `/parametres/licence` (Super-admin).

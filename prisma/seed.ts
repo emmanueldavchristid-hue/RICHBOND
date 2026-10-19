@@ -1,5 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
+import { computeTrialEnd } from "../src/modules/licensing/state";
 import { createPrismaClient } from "../src/lib/prisma-client";
 import type { PurchaseScope, Role } from "../src/generated/prisma/client";
 
@@ -44,13 +45,23 @@ async function main() {
     data: { active: false, deactivatedAt: new Date(), sessionVersion: { increment: 1 } },
   });
 
-  if ((await prisma.license.count()) === 0) {
-    const now = new Date();
-    await prisma.license.create({
+  // Licence unique (idempotent) : même règle que ensureLicense() (B4/B5), sans server-only.
+  const start = new Date();
+  const { trialEndsAt, warnings } = computeTrialEnd(process.env, start);
+  for (const w of warnings) console.warn(w);
+  const created = await prisma.license.createMany({
+    data: [{ status: "TRIAL", trialStartsAt: start, trialEndsAt }],
+    skipDuplicates: true,
+  });
+  if (created.count === 1) {
+    const license = await prisma.license.findFirstOrThrow({ where: { singleton: true } });
+    await prisma.auditLog.create({
       data: {
-        status: "TRIAL",
-        trialStartsAt: now,
-        trialEndsAt: new Date(now.getTime() + 30 * 24 * 3600 * 1000),
+        userId: null,
+        action: "LICENSE_INIT",
+        entity: "License",
+        entityId: license.id,
+        after: { status: "TRIAL", trialStartsAt: start.toISOString(), trialEndsAt: trialEndsAt.toISOString() },
       },
     });
   }

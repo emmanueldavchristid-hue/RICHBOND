@@ -15,6 +15,7 @@ async function ParametresContent() {
   const links = [
     { href: "/parametres/utilisateurs", label: "Utilisateurs", text: "Comptes, rôles, mots de passe", ok: can(user, "users.manage") },
     { href: "/parametres/journal", label: "Journal d'activité", text: "Qui a fait quoi, et quand", ok: can(user, "audit.view") },
+    { href: "/parametres/licence", label: "Licence", text: "Période d'essai et activation", ok: can(user, "license.manage") },
   ].filter((l) => l.ok);
   return (
     <>

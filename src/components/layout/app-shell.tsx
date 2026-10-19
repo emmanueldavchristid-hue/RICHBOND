@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/modules/auth/session";
 import { roleLabel, visibleNav } from "@/lib/permissions";
+import { ReadOnlyBanner } from "@/components/license/read-only-banner";
+import { TrialDialog } from "@/components/license/trial-dialog";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 
@@ -15,11 +17,13 @@ export async function AppShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-slate-50">
       {minimal ? null : <AppSidebar items={items} />}
       <div className="flex min-w-0 flex-1 flex-col">
+        <ReadOnlyBanner />
         <AppHeader items={items} name={user.name} roleLabel={roleLabel(user)} minimal={minimal} />
         <main className="flex-1 p-4 md:p-6" data-testid="page-content">
           {children}
         </main>
       </div>
+      <TrialDialog sessionId={`${user.id}:${user.sessionKey}`} />
     </div>
   );
 }

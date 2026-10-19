@@ -10,6 +10,8 @@ if (!process.env.DATABASE_URL_TEST) {
 
 export default defineConfig({
   testDir: "tests/e2e",
+  // Scripts jetables de débogage/recette (non suivis par git) : jamais joués par la suite.
+  testIgnore: ["**/_dbg/**", "**/_recette/**"],
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
@@ -23,6 +25,9 @@ export default defineConfig({
       DATABASE_URL: process.env.DATABASE_URL_TEST,
       AUTH_URL: "http://localhost:3100",
       NEXTAUTH_URL: "http://localhost:3100",
+      ALLOW_TEST_NOW: "1",
+      // TEST UNIQUEMENT : secret fictif, jamais utilisé hors tests.
+      LICENSE_SECRET: "e2e-only-license-secret-0123456789abcdef",
     },
     reuseExistingServer: false,
     timeout: 120_000,

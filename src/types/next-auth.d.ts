@@ -13,6 +13,8 @@ declare module "next-auth" {
       role: RoleCode;
       purchaseScope: ScopeCode | null;
       sessionVersion: number;
+      /** Horodatage (ms) de la connexion : identifie la session pour la fenêtre d'essai. */
+      loginAt: number;
     } & DefaultSession["user"];
   }
 }
@@ -23,5 +25,6 @@ declare module "@auth/core/jwt" {
     role: RoleCode;
     purchaseScope?: ScopeCode | null;
     sessionVersion: number;
+    loginAt?: number;
   }
 }

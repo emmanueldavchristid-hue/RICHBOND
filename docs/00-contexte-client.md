@@ -46,3 +46,10 @@ Correspondance avec le cahier des charges : « assistant achat local » et « as
 | H12 | Session de 8 h ; verrouillage 15 min après 5 échecs consécutifs ; déverrouillage anticipé par le Responsable | à confirmer |
 | H14 | Le message « Compte désactivé, contactez le Responsable Achats » s'affiche à la connexion même avec un mauvais mot de passe (révèle l'existence de l'email ; risque faible en interne). Laissé tel quel (recette LOT-01 C4) ; envisager de ne l'afficher qu'après un mot de passe correct | à confirmer |
 | H13 | Le Magasinier ne voit pas les prix d'achat mais voit le PMP ; réglage modifiable en LOT-03 | à confirmer |
+| H15 | Statut de licence calculé à chaque lecture avec l'heure serveur (EXPIRED non persisté) ; fin d'essai à 23:59 heure d'Abidjan ; `TRIAL_END_DATE`/`TRIAL_DAYS` lus seulement à la création de la licence | à confirmer |
+| H16 | Protection contre le recul de l'horloge du serveur : l'application retient la dernière heure vue et ne revient jamais en arrière | à confirmer |
+| H17 | Fenêtre d'essai affichée à tous les rôles, une fois par session, et à nouveau aux jours de rappel J-7, J-3, J-1 et le dernier jour | à confirmer |
+| H18 | Clé de licence de 20 caractères (`RB-XXXXX-XXXXX-XXXXX-XXXXX`) ; 5 essais d'activation max par 15 min | à confirmer |
+| H19 | Activation définitive : pas de révocation dans l'application ; changement de bénéficiaire = nouvelle clé par Jason | à confirmer |
+| H20 | Si la ligne de licence est supprimée en base, un nouvel essai est recréé automatiquement (durée par défaut) | à confirmer |
+| H21 | Les boutons Désactiver / Réinitialiser (comptes) restent actifs en consultation seule (essai expiré) | à confirmer |

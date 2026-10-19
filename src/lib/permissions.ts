@@ -192,6 +192,7 @@ export const NAV_ITEMS: NavEntry[] = [
     icon: "Settings",
     anyOf: ["users.manage", "settings.manage"],
   },
+  { label: "Licence", href: "/parametres/licence", icon: "KeyRound", anyOf: ["license.manage"] },
 ];
 
 export function visibleNav(user: PermissionUser): NavEntry[] {
