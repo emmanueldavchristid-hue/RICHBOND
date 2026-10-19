@@ -56,7 +56,15 @@ export function DebouncedInput({
     return () => window.clearTimeout(t);
   }, [text, committed, onCommit]);
 
-  return <Input {...props} value={text} onChange={(e) => setText(e.target.value)} />;
+  // Perte de focus (clic sur une ligne, un lien, un bouton) : on valide tout de suite la saisie en attente,
+  // sinon le délai de 300 ms ramènerait à la liste après l'ouverture d'une fiche.
+  function flush() {
+    if (text === committed) return;
+    setCommitted(text);
+    onCommit(text.trim());
+  }
+
+  return <Input {...props} value={text} onChange={(e) => setText(e.target.value)} onBlur={flush} />;
 }
 
 /** Téléchargement Excel : mêmes filtres que la liste ; l'erreur (ex. trop de lignes) s'affiche en toast. */
