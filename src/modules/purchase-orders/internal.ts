@@ -3,8 +3,8 @@ import { Prisma, type PurchaseOrderEventType, type PurchaseOrderStatus } from "@
 import { BusinessError } from "@/lib/errors";
 import { dayKey } from "@/modules/currencies/rate";
 import { lockFresh } from "@/modules/referentials/concurrency";
+import { FULL_INCLUDE, type FullOrder } from "./include";
 import { PO_COUNTED_STATUSES, PO_RELEASED_STATUSES, displayOrderNumber } from "./labels";
-import { expectedDateOf } from "./lateness";
 import type { WorkflowOrder } from "./workflow";
 
 export type Tx = Prisma.TransactionClient;
@@ -63,18 +63,7 @@ export async function recordEvent(
   });
 }
 
-/** Chargement complet d'un BC (lignes, allocations, frais, fournisseur). */
-export const FULL_INCLUDE = {
-  lines: { orderBy: { lineNo: "asc" as const }, include: { allocations: true, item: true } },
-  charges: { orderBy: { id: "asc" as const } },
-  supplier: { include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" as const }, { name: "asc" as const }] } } },
-  warehouse: true,
-  currency: true,
-  createdBy: { select: { id: true, name: true } },
-  approvedBy: { select: { id: true, name: true } },
-} satisfies Prisma.PurchaseOrderInclude;
-
-export type FullOrder = Prisma.PurchaseOrderGetPayload<{ include: typeof FULL_INCLUDE }>;
+export { FULL_INCLUDE, type FullOrder } from "./include";
 
 /** Verrouille la ligne (FOR UPDATE), contrôle la version puis charge le BC complet. */
 export async function loadLocked(tx: Tx, id: string, expectedUpdatedAt: Date): Promise<FullOrder> {
@@ -162,10 +151,7 @@ export async function sourceRequests(tx: Tx, po: { lines: { allocations: { reque
   return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** Colonne `expectedDate` : date promise, sinon date demandée. */
-export function expectedDateColumn(po: { promisedDate?: Date | null; requestedDate: Date }): Date {
-  return new Date(`${expectedDateOf(po)}T00:00:00.000Z`);
-}
+export { dateOnly, expectedDateColumn, isoDay } from "./day";
 
 /** Dernier taux connu au plus tard le jour de `at` (FCFA pour 1 unité de devise) ; le FCFA vaut 1 sans ligne de taux. */
 export async function latestRate(tx: Pick<Tx, "exchangeRate">, currencyCode: string, at: Date): Promise<{ rate: Prisma.Decimal; date: Date } | null> {
@@ -177,7 +163,3 @@ export async function latestRate(tx: Pick<Tx, "exchangeRate">, currencyCode: str
   });
   return r ? { rate: r.rate, date: r.date } : null;
 }
-
-/** Date jour seul (colonne DATE) depuis `yyyy-MM-dd`. */
-export const dateOnly = (iso: string): Date => new Date(`${iso.slice(0, 10)}T00:00:00.000Z`);
-export const isoDay = (d: Date): string => d.toISOString().slice(0, 10);

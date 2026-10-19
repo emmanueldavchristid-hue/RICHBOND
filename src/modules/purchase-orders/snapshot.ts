@@ -1,6 +1,7 @@
-import { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
+import { expectedDateColumn, isoDay } from "./day";
+import type { FullOrder } from "./include";
 import { computeTotals } from "./totals";
-import { expectedDateColumn, isoDay, type FullOrder, type Tx } from "./internal";
 
 /**
  * Instantané d'une version de BC (JSON) : sert au PDF de toute version validée et à la restauration exacte quand un
@@ -164,7 +165,7 @@ export function buildSnapshot(
  * Remet le BC dans l'état exact de la version `snap` (avenant refusé ou abandonné) : en-tête, lignes, allocations,
  * frais. Le statut, la version et les événements sont gérés par l'appelant.
  */
-export async function restoreFromSnapshot(tx: Tx, orderId: string, snap: OrderSnapshot): Promise<void> {
+export async function restoreFromSnapshot(tx: Prisma.TransactionClient, orderId: string, snap: OrderSnapshot): Promise<void> {
   await tx.purchaseOrderLine.deleteMany({ where: { orderId } });
   await tx.purchaseOrderCharge.deleteMany({ where: { orderId } });
   const promisedDate = (await tx.purchaseOrder.findUniqueOrThrow({ where: { id: orderId }, select: { promisedDate: true } })).promisedDate;
@@ -222,6 +223,3 @@ export async function restoreFromSnapshot(tx: Tx, orderId: string, snap: OrderSn
     });
   }
 }
-
-/** Quantités reçues et facturées de chaque ligne (par numéro) : conservées quand on remplace les lignes. */
-export type LineCounters = Map<number, { receivedQty: Prisma.Decimal; invoicedQty: Prisma.Decimal }>;

@@ -35,6 +35,8 @@ export default defineConfig({
           env: {
             DATABASE_URL: process.env.DATABASE_URL_TEST ?? "",
             BCRYPT_COST: "4",
+            // Logo de test : jamais le dossier réel storage/branding.
+            BRANDING_DIR: path.resolve(__dirname, "storage/branding-test"),
             LICENSE_SECRET: TEST_LICENSE_SECRET,
           },
         },

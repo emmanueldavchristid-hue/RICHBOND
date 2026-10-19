@@ -27,5 +27,6 @@ export async function cleanPurchaseOrders() {
   await db.counter.deleteMany({ where: { key: "BC" } });
   await db.setting.deleteMany({ where: { key: { startsWith: "purchaseOrder." } } });
   await db.setting.deleteMany({ where: { key: { startsWith: "company." } } });
-  await rm(path.resolve(process.cwd(), "storage", "branding"), { recursive: true, force: true });
+  // Logo de test (BRANDING_DIR défini par vitest.config.ts) : jamais le dossier réel.
+  if (process.env.BRANDING_DIR) await rm(path.resolve(process.env.BRANDING_DIR), { recursive: true, force: true });
 }

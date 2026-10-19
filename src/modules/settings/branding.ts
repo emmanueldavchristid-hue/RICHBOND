@@ -12,7 +12,8 @@ import type { Actor } from "@/modules/referentials/actor";
 export const LOGO_MAX_BYTES = 1024 * 1024;
 
 /** Dossier hors `public/` et hors git ; les noms de fichiers sont fixes (aucun chemin n'est saisi par l'utilisateur). */
-const ROOT = () => path.resolve(process.cwd(), "storage", "branding");
+/** `BRANDING_DIR` (tests) : dossier distinct pour ne jamais toucher au logo réel. Jamais saisi par un utilisateur. */
+const ROOT = () => (process.env.BRANDING_DIR ? path.resolve(process.env.BRANDING_DIR) : path.resolve(process.cwd(), "storage", "branding"));
 const FILES = { png: "logo.png", jpg: "logo.jpg" } as const;
 const MIME = { png: "image/png", jpg: "image/jpeg" } as const;
 
