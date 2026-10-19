@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ComponentProps } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { WriteButton } from "@/components/license/write-button";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DateCell } from "@/components/date-cell";
 import { EmptyState } from "@/components/empty-state";
@@ -42,32 +42,14 @@ export interface UserRow {
 
 type Confirm = { kind: "deactivate" | "reset"; user: UserRow } | null;
 
-/** Bouton d'écriture : désactivé avec infobulle si la licence est en lecture seule. */
-function WriteButton({
-  readOnly,
-  ...props
-}: ComponentProps<typeof Button> & { readOnly: boolean }) {
-  if (!readOnly) return <Button {...props} />;
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<span className="inline-flex" tabIndex={0} />}>
-        <Button {...props} disabled />
-      </TooltipTrigger>
-      <TooltipContent>Période d&apos;essai terminée : l&apos;application est en lecture seule.</TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function UsersManager({
   users,
   currentUserId,
   canAssignAdmin,
-  readOnly,
 }: {
   users: UserRow[];
   currentUserId: string;
   canAssignAdmin: boolean;
-  readOnly: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -169,7 +151,7 @@ export function UsersManager({
           <option value="actif">Actifs</option>
           <option value="desactive">Désactivés</option>
         </NativeSelect>
-        <WriteButton readOnly={readOnly} className="h-11 px-4" onClick={openCreate} data-testid="user-create">
+        <WriteButton exempt={canAssignAdmin} className="h-11 px-4" onClick={openCreate} data-testid="user-create">
           <Plus /> Nouvel utilisateur
         </WriteButton>
       </div>
@@ -207,7 +189,7 @@ export function UsersManager({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
-                  <WriteButton readOnly={readOnly} variant="outline" className="h-10 px-3" onClick={() => openEdit(u)} data-testid="user-edit">
+                  <WriteButton exempt={canAssignAdmin} variant="outline" className="h-10 px-3" onClick={() => openEdit(u)} data-testid="user-edit">
                     Modifier
                   </WriteButton>
                   {u.active && !isSelf ? (
