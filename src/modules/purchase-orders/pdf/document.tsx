@@ -31,7 +31,7 @@ export interface OrderDocumentProps {
   preview?: boolean;
 }
 
-const NBSP = " ";
+const NBSP = " ";
 
 /** Nombre au nombre de décimales de la devise : « 1 250 000 » ou « 1 250,50 ». */
 export function fixed(value: string | number, decimals: number): string {

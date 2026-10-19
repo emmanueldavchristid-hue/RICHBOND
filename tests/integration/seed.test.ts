@@ -11,6 +11,8 @@ describe("seed idempotent", () => {
     // Base de test uniquement (DATABASE_URL forcé à DATABASE_URL_TEST par vitest.config.ts).
     await db.auditLog.deleteMany();
     await db.notification.deleteMany();
+    await db.purchaseOrder.deleteMany(); // cascade : lignes, allocations, frais, événements, versions
+    await db.counter.deleteMany({ where: { key: "BC" } });
     await db.purchaseRequest.deleteMany(); // cascade : lignes, événements, pièces jointes
     await db.counter.deleteMany({ where: { key: "DA" } });
     await db.user.deleteMany();

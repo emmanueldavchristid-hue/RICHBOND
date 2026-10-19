@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { PurchaseOrderDocument, fixed, moneyText, type CompanyInfo } from "@/modules/purchase-orders/pdf/document";
 import type { OrderSnapshot } from "@/modules/purchase-orders/snapshot";
 
-const NBSP = " ";
+const NBSP = " ";
 
 const company: CompanyInfo = {
   name: "RICHBOND CI (fictif)",
@@ -59,7 +59,7 @@ async function textOf(snap: OrderSnapshot, preview = false): Promise<string> {
   const bytes = await renderToBuffer(doc);
   const pdf = await getDocumentProxy(new Uint8Array(bytes));
   const { text } = await extractText(pdf, { mergePages: true });
-  return text;
+  return text.replace(/ /g, " "); // l'extraction restitue l'espace insécable en espace simple
 }
 
 describe("PDF du bon de commande (D28)", () => {
@@ -69,7 +69,7 @@ describe("PDF du bon de commande (D28)", () => {
     expect(t).toContain("BC-2026-00042");
     expect(t).toContain("05/11/2026");
     expect(t).toContain("Quincaillerie Générale d'Abidjan");
-    expect(t).toContain(`114${NBSP}460${NBSP}FCFA`);
+    expect(t).toContain("114 460 FCFA");
     expect(t).toContain("RICHBOND CI (fictif)");
     expect(t).toContain("M. Dibi (fictif)");
     expect(t).not.toContain("NON VALIDÉ");
@@ -105,11 +105,11 @@ describe("PDF du bon de commande (D28)", () => {
         totals: { totalHt: "4998", totalVat: "0", totalTtc: "4998", chargesTotal: "0", totalHtXof: 3_024_990, totalTtcXof: 3_024_990, vat: [{ rate: 0, base: "4998", vat: "0" }] },
       }),
     );
-    expect(t).toContain(`4${NBSP}998,00${NBSP}USD`);
+    expect(t).toContain("4 998,00 USD");
     expect(t).toContain("FOB");
     expect(t).toContain("Shanghai");
     expect(t).toContain("605,25");
-    expect(t).toContain(`3${NBSP}024${NBSP}990${NBSP}FCFA`);
+    expect(t).toContain("3 024 990 FCFA");
   });
 
   it("nombreuses lignes : plusieurs pages, pagination « Page x/y »", async () => {
