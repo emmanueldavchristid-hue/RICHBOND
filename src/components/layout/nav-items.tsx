@@ -10,6 +10,7 @@ import {
   Ship,
   ShoppingCart,
   Truck,
+  Package,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -22,7 +23,7 @@ export interface NavLink {
   icon: string;
 }
 
-const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Truck, BarChart3, Settings, KeyRound };
+const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Package, Truck, BarChart3, Settings, KeyRound };
 
 export function NavItems({ items, onNavigate }: { items: NavLink[]; onNavigate?: () => void }) {
   const pathname = usePathname();

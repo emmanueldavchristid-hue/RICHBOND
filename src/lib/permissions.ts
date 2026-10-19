@@ -43,6 +43,7 @@ export const ALL_ACTIONS = [
   "users.manage",
   "audit.view",
   "settings.manage",
+  "exchangeRate.manage",
   "license.manage",
   "maintenance.run",
   "sage.sync",
@@ -101,6 +102,7 @@ const ACHETEUR: Action[] = [
   "price.viewPurchase",
   "price.viewPmp",
   "report.purchasing",
+  "exchangeRate.manage",
 ];
 
 const MAGASINIER: Action[] = [
@@ -179,6 +181,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { label: "Achats", href: "/achats", icon: "ShoppingCart", anyOf: ["purchaseRequest.view"] },
   { label: "Import", href: "/import", icon: "Ship", anyOf: ["importFile.view"], scope: "IMPORT" },
   { label: "Stock", href: "/stock", icon: "Warehouse", anyOf: ["stock.view"] },
+  { label: "Articles", href: "/stock/articles", icon: "Package", anyOf: ["item.view"] },
   { label: "Fournisseurs", href: "/fournisseurs", icon: "Truck", anyOf: ["supplier.view"] },
   {
     label: "Rapports",
@@ -190,11 +193,23 @@ export const NAV_ITEMS: NavEntry[] = [
     label: "Paramètres",
     href: "/parametres",
     icon: "Settings",
-    anyOf: ["users.manage", "settings.manage"],
+    anyOf: ["users.manage", "settings.manage", "exchangeRate.manage"],
   },
   { label: "Licence", href: "/parametres/licence", icon: "KeyRound", anyOf: ["license.manage"] },
 ];
 
 export function visibleNav(user: PermissionUser): NavEntry[] {
   return NAV_ITEMS.filter((n) => n.anyOf.length === 0 || n.anyOf.some((a) => can(user, a, n.scope ? { scope: n.scope } : undefined)));
+}
+
+/**
+ * H13 / R15 : le prix d'achat est visible pour tous sauf le Magasinier, qui le voit
+ * seulement si le réglage `warehouse.showPurchasePrice` est activé. Pur : le réglage est passé en argument.
+ */
+export function canSeePurchasePrice(
+  user: PermissionUser,
+  settings: { showPurchasePriceToWarehouse?: boolean },
+): boolean {
+  if (can(user, "price.viewPurchase")) return true;
+  return user.role === "MAGASINIER" && settings.showPurchasePriceToWarehouse === true;
 }
