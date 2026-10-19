@@ -16,4 +16,9 @@ describe("redactSecrets", () => {
     expect(out.nested.list[0]).toEqual({ ok: true });
     expect(out.at).toBeInstanceOf(Date);
   });
+
+  it("retire key et licenseKey mais conserve keyFingerprint", () => {
+    const out = redactSecrets({ key: "RB-X", licenseKey: "RB-Y", keyFingerprint: "abc" });
+    expect(out).toEqual({ keyFingerprint: "abc" });
+  });
 });

@@ -115,7 +115,10 @@ describe("isWritable (pure)", () => {
   it("couvre les états", () => {
     expect(isWritable(null, now)).toBe(false);
     expect(isWritable({ status: "ACTIVE", trialEndsAt: new Date("2020-01-01") }, now)).toBe(true);
-    expect(isWritable({ status: "EXPIRED", trialEndsAt: new Date("2030-01-01") }, now)).toBe(false);
+    // EXPIRED stocké mais fin future (après prolongation) : statut calculé TRIAL (B1).
+    expect(isWritable({ status: "EXPIRED", trialEndsAt: new Date("2030-01-01") }, now)).toBe(true);
+    expect(isWritable({ status: "EXPIRED", trialEndsAt: new Date("2020-01-01") }, now)).toBe(false);
+    expect(isWritable({ status: "TRIAL", trialEndsAt: now }, now)).toBe(false);
     expect(isWritable({ status: "TRIAL", trialEndsAt: new Date("2026-06-02") }, now)).toBe(true);
     expect(isWritable({ status: "TRIAL", trialEndsAt: new Date("2026-05-31") }, now)).toBe(false);
   });

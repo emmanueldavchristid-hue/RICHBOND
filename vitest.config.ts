@@ -3,6 +3,8 @@ import path from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
 
+// Secret fictif de test (jamais un secret réel).
+const TEST_LICENSE_SECRET = "test-only-license-secret-0123456789abcdef";
 const serverOnlyStub = path.resolve(__dirname, "tests/setup/server-only.ts");
 
 export default defineConfig({
@@ -17,6 +19,7 @@ export default defineConfig({
           name: "unit",
           environment: "node",
           include: ["tests/unit/**/*.test.ts"],
+          env: { LICENSE_SECRET: TEST_LICENSE_SECRET },
         },
       },
       {
@@ -29,7 +32,11 @@ export default defineConfig({
           globalSetup: ["tests/setup/integration-global.ts"],
           testTimeout: 20_000,
           hookTimeout: 30_000,
-          env: { DATABASE_URL: process.env.DATABASE_URL_TEST ?? "", BCRYPT_COST: "4" },
+          env: {
+            DATABASE_URL: process.env.DATABASE_URL_TEST ?? "",
+            BCRYPT_COST: "4",
+            LICENSE_SECRET: TEST_LICENSE_SECRET,
+          },
         },
       },
     ],
