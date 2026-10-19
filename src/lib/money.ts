@@ -17,6 +17,34 @@ export function formatFcfa(n: number): string {
   return `${n < 0 ? "-" : ""}${abs}${NBSP}FCFA`;
 }
 
+/**
+ * Montant dans une devise : XOF -> "1 250 000 FCFA", autre -> "1 250,50 CNY" (espaces insécables, virgule décimale).
+ * `value` peut être une chaîne décimale (Decimal sérialisé).
+ */
+export function formatAmount(value: number | string, currency: string, decimals = 2): string {
+  const n = Number(typeof value === "string" ? value.trim().replace(",", ".") : value);
+  if (!Number.isFinite(n)) throw new BusinessError("MONTANT_INVALIDE", "Le montant n'est pas un nombre valide.");
+  if (currency === "XOF") return formatFcfa(Math.round(n));
+  const [i, f] = Math.abs(n).toFixed(decimals).split(".");
+  const int = i.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  return `${n < 0 ? "-" : ""}${int}${f ? `,${f}` : ""}${NBSP}${currency}`;
+}
+
+/** Nombre décimal sans zéros inutiles (espaces insécables, virgule) : "655.957000" -> "655,957". */
+export function formatNumber(value: number | string, maxDecimals = 3): string {
+  const n = Number(typeof value === "string" ? value.trim().replace(",", ".") : value);
+  if (!Number.isFinite(n)) return "–";
+  const [i, f = ""] = n.toFixed(maxDecimals).split(".");
+  const int = i.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+  const frac = f.replace(/0+$/, "");
+  return `${int}${frac ? `,${frac}` : ""}`;
+}
+
+/** Quantité décimale sans zéros inutiles : "200.000" -> "200", "12.5" -> "12,5". */
+export function formatQty(value: number | string): string {
+  return formatNumber(value, 3);
+}
+
 /** Arrondi au franc, demi vers +infini (pas d'arrondi bancaire). */
 export function roundFcfa(x: number): number {
   if (!Number.isFinite(x)) {

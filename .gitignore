@@ -27,6 +27,7 @@ docs/cahier-des-charges-RICHBOND.pdf
 *.bdd
 sage-data/
 uploads/
+storage/
 
 # Système
 .DS_Store

@@ -2,6 +2,12 @@
 
 Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 
+## 2026-10-19 · LOT-03 · Référentiels
+- Fait : articles (fiche à onglets, photo, conversion unité achat/stock, criticité), fournisseurs (contacts, blocage avec motif, coordonnées), dépôts, services, devises et taux datés, réglage prix magasinier, DataTable partagé (URL, cartes tablette, export Excel), seed fictif (40 articles, 25 fournisseurs). 461 tests, 78 e2e.
+- Décisions : prix et MOQ exprimés par unité d'achat ; verrou SELECT FOR UPDATE + expectedUpdatedAt ; code refusé s'il dépasse 17 car. ; écart de taux >20 %% à confirmer. H22 à H36 (à confirmer, dont format du code sur export Sage réel). Recette « accepté avec réserves » (docs/recette/LOT-03.md).
+- Réserve : SR4 fournisseurs/tablette a échoué 2 fois en suite complète puis passé ; cause probable = course dans le test (corrigé), non observée en échec. À surveiller.
+- Suite : LOT-04 (demandes d'achat).
+
 ## 2026-10-19 · LOT-02 · Période d'essai et licence
 - Fait : statut calculé côté serveur (borne stricte, 23:59 Abidjan), badge et fenêtre de compte à rebours, rappels J-7/J-3/J-1/dernier jour, bandeau et consultation seule après échéance, page /parametres/licence (activation par clé HMAC, prolongation), script license:generate. 324 tests, 62 e2e.
 - Décisions : TEST_NOW réservé aux tests ; nom du bénéficiaire normalisé avant HMAC ; contact affiché via CONTACT_EMAIL/CONTACT_PHONE. H15 à H21 (H20, H21 à confirmer). Recette « accepté avec réserves » (docs/recette/LOT-02.md).

@@ -10,6 +10,10 @@ const PREFIX_ACTIONS: [string, Action][] = [
   ["/parametres/utilisateurs", "users.manage"],
   ["/parametres/journal", "audit.view"],
   ["/parametres/licence", "license.manage"],
+  ["/parametres/depots", "settings.manage"],
+  ["/parametres/services", "settings.manage"],
+  ["/parametres/reglages", "settings.manage"],
+  ["/parametres/devises", "exchangeRate.manage"],
 ];
 
 export default auth((req) => {

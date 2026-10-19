@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_ACTIONS, can, visibleNav, type Action, type PermissionUser } from "@/lib/permissions";
+import { ALL_ACTIONS, can, canSeePurchasePrice, visibleNav, type Action, type PermissionUser } from "@/lib/permissions";
 
 const SUPER: PermissionUser = { role: "SUPER_ADMIN" };
 const RESP: PermissionUser = { role: "RESPONSABLE_ACHATS" };
@@ -29,6 +29,7 @@ const ACHETEUR_OK: Action[] = [
   "price.viewPurchase",
   "price.viewPmp",
   "report.purchasing",
+  "exchangeRate.manage",
 ];
 const MAGASINIER_OK: Action[] = [
   "purchaseRequest.view",
@@ -122,7 +123,8 @@ describe("menu : Acheteur et Super-admin", () => {
     expect(hrefs("IMPORT")).toContain("/import");
     expect(hrefs("ALL")).toContain("/import");
     expect(hrefs("LOCAL")).toContain("/achats");
-    expect(hrefs("LOCAL")).not.toContain("/parametres");
+    expect(hrefs("LOCAL")).toContain("/parametres"); // taux de change (exchangeRate.manage)
+    expect(hrefs("LOCAL")).toContain("/stock/articles");
     expect(visibleNav(RESP).map((n) => n.href)).toContain("/import");
     expect(visibleNav(MAG).map((n) => n.href)).not.toContain("/import");
   });
@@ -131,5 +133,31 @@ describe("menu : Acheteur et Super-admin", () => {
   });
   it("le Super-admin voit Paramètres mais pas la liste des actions d'écriture métier", () => {
     expect(visibleNav(SUPER).map((n) => n.label)).toContain("Paramètres");
+  });
+});
+
+describe("LOT-03 : taux de change, prix d'achat, articles", () => {
+  it("exchangeRate.manage : Responsable et Acheteurs seulement", () => {
+    expect([SUPER, RESP, ACH, MAG].map((u) => can(u, "exchangeRate.manage"))).toEqual([false, true, true, false]);
+  });
+  it("écriture articles et fournisseurs : Acheteurs et Responsable ; Magasinier en lecture seule", () => {
+    for (const a of ["item.manage", "supplier.manage"] as Action[]) {
+      expect([RESP, ACH, MAG].map((u) => can(u, a)), a).toEqual([true, true, false]);
+    }
+    expect(can(MAG, "item.view")).toBe(true);
+    expect(can(MAG, "supplier.view")).toBe(false);
+  });
+  it("déblocage fournisseur (supplier.evaluate) : Responsable seul", () => {
+    expect([RESP, ACH, MAG].map((u) => can(u, "supplier.evaluate"))).toEqual([true, false, false]);
+  });
+  it("canSeePurchasePrice : Magasinier masqué par défaut, réglable ; autres rôles non concernés", () => {
+    expect(canSeePurchasePrice(MAG, {})).toBe(false);
+    expect(canSeePurchasePrice(MAG, { showPurchasePriceToWarehouse: false })).toBe(false);
+    expect(canSeePurchasePrice(MAG, { showPurchasePriceToWarehouse: true })).toBe(true);
+    expect(canSeePurchasePrice(ACH, {})).toBe(true);
+    expect(canSeePurchasePrice(RESP, {})).toBe(true);
+  });
+  it("menu Articles visible pour Magasinier, Acheteur et Responsable", () => {
+    for (const u of [MAG, ACH, RESP]) expect(visibleNav(u).map((n) => n.href)).toContain("/stock/articles");
   });
 });

@@ -62,3 +62,23 @@ export async function listAudit(raw: AuditFilters, viewerRole: string) {
   }));
   return { total, page: f.page, pageSize: PAGE_SIZE, items: withRef };
 }
+
+/** Dernières entrées du journal pour une fiche (onglet « Journal » d'un article ou d'un fournisseur). */
+export async function listEntityAudit(
+  entity: string,
+  entityId: string,
+  limit = 50,
+  /** Entités liées dont les opérations remontent aussi dans la fiche (ex. liens article-fournisseur, contacts). */
+  related: { entity: string; ids: string[] }[] = [],
+) {
+  const scopes: Prisma.AuditLogWhereInput[] = [
+    { entity, entityId },
+    ...related.filter((r) => r.ids.length > 0).map((r) => ({ entity: r.entity, entityId: { in: r.ids } })),
+  ];
+  return db.auditLog.findMany({
+    where: { OR: scopes, NOT: { user: { role: "SUPER_ADMIN" } } },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(limit, 200),
+    include: { user: { select: { name: true } } },
+  });
+}
