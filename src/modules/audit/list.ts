@@ -62,3 +62,13 @@ export async function listAudit(raw: AuditFilters, viewerRole: string) {
   }));
   return { total, page: f.page, pageSize: PAGE_SIZE, items: withRef };
 }
+
+/** Dernières entrées du journal pour une fiche (onglet « Journal » d'un article ou d'un fournisseur). */
+export async function listEntityAudit(entity: string, entityId: string, limit = 50) {
+  return db.auditLog.findMany({
+    where: { entity, entityId, NOT: { user: { role: "SUPER_ADMIN" } } },
+    orderBy: { createdAt: "desc" },
+    take: Math.min(limit, 200),
+    include: { user: { select: { name: true } } },
+  });
+}

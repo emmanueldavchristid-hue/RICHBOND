@@ -19,6 +19,17 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   LICENCE_ESSAI: { label: "Période d'essai", tone: "info" },
   LICENCE_ACTIVE: { label: "Licence active", tone: "success" },
   LICENCE_EXPIREE: { label: "Essai terminé", tone: "danger" },
+  // Articles et fournisseurs (LOT-03)
+  BLOQUE: { label: "Bloqué", tone: "danger" },
+  OBSOLETE: { label: "Obsolète", tone: "neutral" },
+  EN_EVALUATION: { label: "En évaluation", tone: "warning" },
+  // Criticité des articles
+  CRITIQUE: { label: "Critique", tone: "danger" },
+  IMPORTANT: { label: "Important", tone: "warning" },
+  STANDARD: { label: "Standard", tone: "neutral" },
+  // Types de fournisseur
+  LOCAL: { label: "Local", tone: "neutral" },
+  IMPORT: { label: "Import", tone: "info" },
 };
 
 export function StatusBadge({
