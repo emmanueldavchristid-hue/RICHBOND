@@ -29,6 +29,14 @@ export function registerOpenOrderSource(source: OpenOrderSource): void {
   if (!sources.includes(source)) sources.push(source);
 }
 
+/**
+ * LOT-05 : la source « BC » s'enregistre au chargement du module `purchase-orders`. Import dynamique pour éviter
+ * une dépendance circulaire (les BC dépendent des DA) tout en garantissant que les doublons voient les BC.
+ */
+async function ensureOrderSources(): Promise<void> {
+  await import("@/modules/purchase-orders/open-orders");
+}
+
 /** D13 : lignes de DA SOUMISE / A_COMPLETER / VALIDEE / EN_CONSULTATION / PARTIELLEMENT_COMMANDEE (hors DA exclue). */
 export async function findOpenCommitments(
   client: Client,
@@ -75,6 +83,7 @@ export async function findAllOpenCommitments(
   itemIds: string[],
   excludePrId?: string | null,
 ): Promise<ItemCommitment[]> {
+  await ensureOrderSources();
   const das = await findOpenCommitments(client, itemIds, excludePrId);
   const orders = (await Promise.all(sources.map((s) => s.findOpenOrders(client, itemIds)))).flat();
   return [...das, ...orders];

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { PR_STATUSES, type PrStatus } from "@/modules/purchase-requests/labels";
 import {
   FINAL_STATUSES,
+  REVERT_ACTIONS,
   TRANSITIONS,
   USER_ACTIONS,
   assertTransition,
@@ -85,10 +86,11 @@ describe("matrice exhaustive statut x action x rôle", () => {
       MAG: [],
       SUPER: [],
     },
-    VALIDEE: { RESP: ["cancel", "assign", "comment"], ACH: ["comment"], ACH2: ["comment"], MAG: [], SUPER: [] },
+    // « createOrder » (LOT-05, D22) : DA non assignée dans ce test, donc ouverte à tout acheteur du périmètre.
+    VALIDEE: { RESP: ["cancel", "assign", "comment", "createOrder"], ACH: ["comment", "createOrder"], ACH2: ["comment", "createOrder"], MAG: [], SUPER: [] },
     REFUSEE: { RESP: ["comment"], ACH: ["comment"], ACH2: ["comment"], MAG: [], SUPER: [] },
-    EN_CONSULTATION: { RESP: ["cancel", "assign", "comment"], ACH: ["comment"], ACH2: ["comment"], MAG: [], SUPER: [] },
-    PARTIELLEMENT_COMMANDEE: { RESP: ["assign", "comment"], ACH: ["comment"], ACH2: ["comment"], MAG: [], SUPER: [] },
+    EN_CONSULTATION: { RESP: ["cancel", "assign", "comment", "createOrder"], ACH: ["comment", "createOrder"], ACH2: ["comment", "createOrder"], MAG: [], SUPER: [] },
+    PARTIELLEMENT_COMMANDEE: { RESP: ["assign", "comment", "createOrder"], ACH: ["comment", "createOrder"], ACH2: ["comment", "createOrder"], MAG: [], SUPER: [] },
     COMMANDEE: { RESP: ["comment"], ACH: ["comment"], ACH2: ["comment"], MAG: [], SUPER: [] },
     ANNULEE: { RESP: ["comment"], ACH: ["comment"], ACH2: ["comment"], MAG: [], SUPER: [] },
   };
@@ -157,10 +159,46 @@ describe("règles de contrôle interne", () => {
     }
   });
 
+  it("COMMANDEE ne se rouvre pas à la main : seules les actions système de retour (D9) en sortent", () => {
+    for (const user of [RESP, ACH, MAG]) {
+      for (const action of USER_ACTIONS.filter((a) => a !== "comment")) {
+        expect(checkTransition(pr("COMMANDEE"), action, user).ok, `${action}`).toBe(false);
+      }
+    }
+    expect(checkTransition(pr("COMMANDEE"), "markOrderReverted", RESP)).toMatchObject({ ok: true, to: "PARTIELLEMENT_COMMANDEE" });
+    expect(checkTransition(pr("COMMANDEE"), "markOrderRevertedToValidated", RESP)).toMatchObject({ ok: true, to: "VALIDEE" });
+    expect(checkTransition(pr("PARTIELLEMENT_COMMANDEE"), "markOrderRevertedToValidated", RESP)).toMatchObject({ ok: true, to: "VALIDEE" });
+    expect(checkTransition(pr("PARTIELLEMENT_COMMANDEE"), "markOrderReverted", RESP).ok).toBe(false);
+    // REFUSEE et ANNULEE restent définitivement fermées.
+    for (const status of ["REFUSEE", "ANNULEE"] as const) {
+      for (const action of REVERT_ACTIONS) expect(checkTransition(pr(status), action, RESP).ok).toBe(false);
+    }
+  });
+
+  it("createOrder : Responsable, acheteur assigné, ou acheteur du périmètre si la DA n'est pas assignée", () => {
+    const da = (over: Record<string, unknown> = {}) => ({ ...pr("VALIDEE"), type: "LOCAL" as const, ...over });
+    expect(checkTransition(da({ assignedBuyerId: "a1" }), "createOrder", ACH).ok).toBe(true);
+    expect(checkTransition(da({ assignedBuyerId: "a1" }), "createOrder", ACH2)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(checkTransition(da({ assignedBuyerId: "a1" }), "createOrder", RESP).ok).toBe(true);
+    expect(checkTransition(da({ assignedBuyerId: null }), "createOrder", ACH2).ok).toBe(true);
+    // périmètre : un acheteur local ne commande pas une DA import
+    expect(checkTransition(da({ type: "IMPORT" }), "createOrder", ACH2)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    // plus rien à commander
+    expect(checkTransition(da({ hasRemaining: false }), "createOrder", RESP)).toMatchObject({ ok: false, code: "INVALID_STATUS" });
+    // le Magasinier et le Super-admin ne commandent pas
+    expect(checkTransition(da(), "createOrder", MAG)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    expect(checkTransition(da(), "createOrder", SUPER)).toMatchObject({ ok: false, code: "FORBIDDEN" });
+    // statuts non commandables
+    for (const status of ["BROUILLON", "SOUMISE", "A_COMPLETER", "REFUSEE", "COMMANDEE", "ANNULEE"] as const) {
+      expect(checkTransition({ ...da(), status }, "createOrder", RESP).ok, status).toBe(false);
+    }
+  });
+
   it("aucune règle ne sort d'un état final", () => {
     for (const rules of Object.values(TRANSITIONS)) {
       for (const rule of rules) {
         if (rule.to === null) continue;
+        if (rules === TRANSITIONS.markOrderReverted || rules === TRANSITIONS.markOrderRevertedToValidated) continue; // D9
         for (const final of FINAL_STATUSES) expect(rule.from).not.toContain(final);
       }
     }

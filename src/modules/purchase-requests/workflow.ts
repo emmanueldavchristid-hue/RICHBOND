@@ -16,10 +16,15 @@ export type PrAction =
   | "assign"
   | "comment"
   | "attach"
+  // Action dérivée (LOT-05, D22) : proposée sur la fiche, ne change pas le statut de la DA
+  | "createOrder"
   // Actions système (posées par les lots BC / consultation, jamais proposées en bouton)
   | "markInConsultation"
   | "markPartiallyOrdered"
-  | "markOrdered";
+  | "markOrdered"
+  // LOT-05 (D9) : retour en arrière quand un BC est annulé ou refusé
+  | "markOrderReverted"
+  | "markOrderRevertedToValidated";
 
 export type WorkflowUser = RequestActor;
 
@@ -27,6 +32,12 @@ export interface WorkflowRequest {
   status: PrStatus;
   createdById: string;
   kind: PrKind;
+  /** Acheteur assigné (action `createOrder`) ; absent ou null = non assignée. */
+  assignedBuyerId?: string | null;
+  /** Type de la DA (périmètre de l'acheteur pour `createOrder`). */
+  type?: "LOCAL" | "IMPORT" | "A_DEFINIR";
+  /** Faux si plus aucune quantité n'est à commander ; absent = inconnu (supposé vrai). */
+  hasRemaining?: boolean;
 }
 
 type Who =
@@ -34,6 +45,7 @@ type Who =
   | "creatorOrResponsable"
   | "responsable" // Responsable Achats seul
   | "approver" // droit purchaseRequest.approve
+  | "orderCreator" // Responsable, acheteur assigné, ou tout acheteur du périmètre si la DA n'est pas assignée (D5)
   | "reader" // tout lecteur de la DA ayant un droit d'écriture DA
   | "system";
 
@@ -71,9 +83,12 @@ export const TRANSITIONS: Record<PrAction, readonly Rule[]> = {
   assign: [{ from: OPEN_ORDERING, to: null, who: "approver" }],
   comment: [{ from: ALL, to: null, who: "reader" }],
   attach: [{ from: ["BROUILLON", "A_COMPLETER", "SOUMISE"], to: null, who: "creatorOrResponsable" }],
+  createOrder: [{ from: OPEN_ORDERING, to: null, who: "orderCreator" }],
   markInConsultation: [{ from: ["VALIDEE"], to: "EN_CONSULTATION", who: "system" }],
   markPartiallyOrdered: [{ from: OPEN_ORDERING, to: "PARTIELLEMENT_COMMANDEE", who: "system" }],
   markOrdered: [{ from: OPEN_ORDERING, to: "COMMANDEE", who: "system" }],
+  markOrderReverted: [{ from: ["COMMANDEE"], to: "PARTIELLEMENT_COMMANDEE", who: "system" }],
+  markOrderRevertedToValidated: [{ from: ["COMMANDEE", "PARTIELLEMENT_COMMANDEE"], to: "VALIDEE", who: "system" }],
 };
 
 /** Actions proposées en bouton (hors actions système). */
@@ -87,7 +102,11 @@ export const USER_ACTIONS: readonly PrAction[] = [
   "assign",
   "comment",
   "attach",
+  "createOrder",
 ];
+
+/** Actions système de retour en arrière (D9) : seules à pouvoir sortir de COMMANDEE, jamais ouvertes aux utilisateurs. */
+export const REVERT_ACTIONS: readonly PrAction[] = ["markOrderReverted", "markOrderRevertedToValidated"];
 
 export const FINAL_STATUSES: readonly PrStatus[] = ["REFUSEE", "ANNULEE", "COMMANDEE"];
 
@@ -102,6 +121,7 @@ const STATUS_MESSAGE: Partial<Record<PrAction, string>> = {
   reject: "Seule une DA à valider peut être refusée.",
   return: "Seule une DA à valider peut être renvoyée pour complément.",
   cancel: "Cette DA ne peut plus être annulée à ce stade.",
+  createOrder: "On ne commande que sur une DA validée dont il reste une quantité à commander.",
   assign: "L'acheteur ne se change que sur une DA validée, avant sa commande complète.",
   attach: "Les pièces jointes ne se modifient plus une fois la DA décidée.",
 };
@@ -117,7 +137,7 @@ function hasWriteRight(user: WorkflowUser): boolean {
 }
 
 /** Droit minimal du rôle pour l'action, indépendamment de la DA concernée. */
-function roleAllows(action: PrAction, user: WorkflowUser): boolean {
+function roleAllows(action: PrAction, user: WorkflowUser, pr: WorkflowRequest): boolean {
   switch (action) {
     case "edit":
     case "submit":
@@ -132,6 +152,8 @@ function roleAllows(action: PrAction, user: WorkflowUser): boolean {
       return can(user, "purchaseRequest.cancel");
     case "comment":
       return hasWriteRight(user);
+    case "createOrder":
+      return can(user, "purchaseOrder.create", pr.type === "LOCAL" || pr.type === "IMPORT" ? { scope: pr.type } : undefined);
     default:
       return true; // actions système
   }
@@ -141,7 +163,7 @@ function roleAllows(action: PrAction, user: WorkflowUser): boolean {
 export function checkTransition(pr: WorkflowRequest, action: PrAction, user: WorkflowUser): TransitionCheck {
   const rules = TRANSITIONS[action];
   const system = rules.every((r) => r.who === "system");
-  if (!system && !roleAllows(action, user)) return { ok: false, code: "FORBIDDEN", message: FORBIDDEN_MESSAGE };
+  if (!system && !roleAllows(action, user, pr)) return { ok: false, code: "FORBIDDEN", message: FORBIDDEN_MESSAGE };
 
   const rule = rules.find((r) => r.from.includes(pr.status));
   if (!rule) {
@@ -174,6 +196,14 @@ export function checkTransition(pr: WorkflowRequest, action: PrAction, user: Wor
       break;
     case "reader":
       if (!canViewRequest(user, pr)) return { ok: false, code: "FORBIDDEN", message: FORBIDDEN_MESSAGE };
+      break;
+    case "orderCreator":
+      if (pr.hasRemaining === false) {
+        return { ok: false, code: "INVALID_STATUS", message: STATUS_MESSAGE.createOrder! };
+      }
+      if (!isResponsable && pr.assignedBuyerId && pr.assignedBuyerId !== user.id) {
+        return { ok: false, code: "FORBIDDEN", message: "Cette DA est assignée à un autre acheteur." };
+      }
       break;
     case "approver":
     case "system":

@@ -15,6 +15,19 @@ export async function getSettings(): Promise<AppSettings> {
   return {
     showPurchasePriceToWarehouse: get<boolean>("warehouse.showPurchasePrice"),
     purchaseRequestApprovalThreshold: get<number>("purchaseRequest.approvalThreshold"),
+    purchaseOrderApprovalThreshold: get<number>("purchaseOrder.approvalThreshold"),
+    purchaseOrderDefaultVatRate: get<0 | 9 | 18>("purchaseOrder.defaultVatRate"),
+    purchaseOrderPriceAlertPct: get<number>("purchaseOrder.priceAlertPct"),
+    purchaseOrderReminderAfterDays: get<number>("purchaseOrder.reminderAfterDays"),
+    company: {
+      name: get<string>("company.name"),
+      address: get<string>("company.address"),
+      phone: get<string>("company.phone"),
+      email: get<string>("company.email"),
+      legalIds: get<string>("company.legalIds"),
+    },
+    purchaseOrderPdfFooter: get<string>("purchaseOrder.pdfFooter"),
+    purchaseOrderPdfConditions: get<string>("purchaseOrder.pdfConditions"),
   };
 }
 

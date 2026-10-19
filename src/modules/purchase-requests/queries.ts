@@ -12,6 +12,7 @@ import { displayNumber, type PrKind, type PrStatus, type PrType, type PrUrgency 
 import { listRequestsSchema, searchItemsForRequestSchema, type ListRequestsFilters, type ListRequestsInput } from "./schemas";
 import { lineTotal } from "./totals";
 import { availableActions, type PrAction, type WorkflowUser } from "./workflow";
+import { linkedOrders, requestOrderQuantities } from "./order-links";
 import { parseInput } from "./parse";
 
 export type RequestViewer = WorkflowUser;
@@ -197,7 +198,11 @@ export async function getRequest(user: RequestViewer, id: string, opts: { showPr
   if (!pr) throw new BusinessError("NOT_FOUND", "Demande d'achat introuvable.");
   if (!canViewRequest(user, pr)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à cette demande d'achat.");
   const threshold = (await getSettings()).purchaseRequestApprovalThreshold;
-  const actions: PrAction[] = availableActions(pr, user);
+  // LOT-05 (D22) : commandé / reste par ligne, commandes liées, action « Créer le BC ».
+  const quantities = await requestOrderQuantities(db, pr.lines);
+  const hasRemaining = pr.lines.some((l) => (l.approvedQty ?? l.quantity).gt(0) && (quantities.get(l.id)?.remainingQty.gt(0) ?? false));
+  const actions: PrAction[] = availableActions({ ...pr, hasRemaining }, user);
+  const orders = await linkedOrders(user, pr.id);
   const { lines, events, attachments, ...head } = pr;
   return serialize({
     ...head,
@@ -205,6 +210,9 @@ export async function getRequest(user: RequestViewer, id: string, opts: { showPr
     displayNumber: displayNumber(pr),
     lines: lines.map((l) => ({
       ...l,
+      reservedQty: quantities.get(l.id)?.reservedQty,
+      orderedQty: quantities.get(l.id)?.orderedQty,
+      remainingQty: quantities.get(l.id)?.remainingQty,
       estimatedUnitPrice: opts.showPrices ? l.estimatedUnitPrice : null,
       lineTotal: opts.showPrices ? lineTotal(l.approvedQty ?? l.quantity, l.estimatedUnitPrice) : null,
     })),
@@ -217,6 +225,7 @@ export async function getRequest(user: RequestViewer, id: string, opts: { showPr
       createdAt: a.createdAt,
     })),
     actions,
+    linkedOrders: orders,
     approvalThreshold: opts.showPrices ? threshold : 0,
     exceedsThreshold: opts.showPrices && exceedsThreshold(pr.estimatedTotal, threshold),
   });
