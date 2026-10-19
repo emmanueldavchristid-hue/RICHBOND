@@ -2,6 +2,12 @@
 
 Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 
+## 2026-10-19 · LOT-05 · Bons de commande
+- Fait : BC (brouillon, validation avec numéro, envoi, confirmation avec date promise, relance, avenant, annulation, clôture), PDF à la demande, écran « À commander » regroupé par fournisseur, retour de statut des DA, pastilles d'accueil, paramètres société/logo/règles BC, adresse des dépôts. 917 tests, 104 e2e (S1 étendu, SC1 à SC6, desktop + tablette).
+- Décisions : H51 à H66 (à confirmer) dans docs/plans/LOT-05.md. Mode express : recette métier du lot reportée à la recette globale (étape finalisation démo).
+- Réserves : BC import USD, rejet/renvoi, clôture et seuil d'auto-validation couverts en intégration seulement ; validation de formulaire BC côté serveur (message général).
+- Suite : LOT-D partie 1 (design), puis LOT-06, 07, 08.
+
 ## 2026-10-19 · LOT-04 · Demandes d'achat et validation
 - Fait : DA (brouillon, soumission, à compléter, validation à quantités réductibles, refus, annulation), numérotation à la soumission, DA de réapprovisionnement Magasinier, pièces jointes, avertissement de doublon, assignation à l'acheteur du bon périmètre, validation groupée, chronologie (PurchaseRequestEvent), cloche de notifications (Notification), bandeau rouge arrêt de production, seuil de validation en réglage, export. 653 tests, 90 e2e (S1, SD1-SD5 desktop + tablette).
 - Décisions : H37 à H50 (à confirmer), dont auto-validation du Responsable, brouillon d'autrui invisible même au Responsable, priorité remise à normale à la clôture. Relecture corrigée (plafond INTEGER, doublons anonymisés, approveMany, QTY_CHANGED). Recette « accepté avec réserves » (docs/recette/LOT-04.md).
