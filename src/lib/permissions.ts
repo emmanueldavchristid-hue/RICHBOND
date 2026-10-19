@@ -179,7 +179,7 @@ export interface NavEntry {
 /** Config unique du menu (icône = nom lucide). Filtrée par `visibleNav`. */
 export const NAV_ITEMS: NavEntry[] = [
   { label: "Accueil", href: "/accueil", icon: "Home", anyOf: [] },
-  { label: "Demandes d'achat", href: "/achats/demandes", icon: "ShoppingCart", anyOf: ["purchaseRequest.view"] },
+  { label: "Achats", href: "/achats", icon: "ShoppingCart", anyOf: ["purchaseRequest.view"] },
   { label: "Import", href: "/import", icon: "Ship", anyOf: ["importFile.view"], scope: "IMPORT" },
   { label: "Stock", href: "/stock", icon: "Warehouse", anyOf: ["stock.view"] },
   { label: "Articles", href: "/stock/articles", icon: "Package", anyOf: ["item.view"] },

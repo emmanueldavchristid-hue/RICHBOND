@@ -123,7 +123,7 @@ describe("menu : Acheteur et Super-admin", () => {
     expect(hrefs("LOCAL")).not.toContain("/import");
     expect(hrefs("IMPORT")).toContain("/import");
     expect(hrefs("ALL")).toContain("/import");
-    expect(hrefs("LOCAL")).toContain("/achats/demandes");
+    expect(hrefs("LOCAL")).toContain("/achats");
     expect(hrefs("LOCAL")).toContain("/parametres"); // taux de change (exchangeRate.manage)
     expect(hrefs("LOCAL")).toContain("/stock/articles");
     expect(visibleNav(RESP).map((n) => n.href)).toContain("/import");
