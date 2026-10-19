@@ -2,6 +2,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { computeTrialEnd } from "../src/modules/licensing/state";
 import { createPrismaClient } from "../src/lib/prisma-client";
+import { seedReferentials } from "./seed/referentials";
 import type { PurchaseScope, Role } from "../src/generated/prisma/client";
 
 const prisma = createPrismaClient();
@@ -67,7 +68,12 @@ async function main() {
   }
 }
 
-main()
+async function seedAll() {
+  await main();
+  await seedReferentials(prisma);
+}
+
+seedAll()
   .then(() => prisma.$disconnect())
   .catch(async (e) => {
     console.error(e);

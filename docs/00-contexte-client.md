@@ -53,3 +53,12 @@ Correspondance avec le cahier des charges : « assistant achat local » et « as
 | H19 | Activation définitive : pas de révocation dans l'application ; changement de bénéficiaire = nouvelle clé par Jason | à confirmer |
 | H20 | Si la ligne de licence est supprimée en base, un nouvel essai est recréé automatiquement (durée par défaut) | à confirmer |
 | H21 | Les boutons Désactiver / Réinitialiser (comptes) restent actifs en consultation seule (essai expiré) | à confirmer |
+| H22 | Un seul code par article et par fournisseur (= code Sage s'il existe), majuscules, 17 caractères max ; vide à la création = généré (`ART-00001`, `FRS-00001`) ; modifiable par le Responsable seul, avec audit (LOT-03, R1/R2) | à confirmer |
+| H23 | Coefficient de conversion : 1 unité d'achat = `coef` unités de stock, strictement positif, 3 décimales, arrondi demi-supérieur (LOT-03, R3) | à confirmer |
+| H24 | Unités : liste fermée (U, KG, G, T, L, M, M2, M3, ROULEAU, FUT, CARTON, SAC, PALETTE, PAIRE, JEU, H, FORFAIT) en attendant l'import Sage (LOT-03, R4) | à confirmer |
+| H25 | Bloquer un fournisseur : acheteurs et Responsable (motif obligatoire) ; le débloquer : Responsable seul (LOT-03, R8) | à confirmer |
+| H26 | Les acheteurs écrivent sur tous les fournisseurs et articles, quel que soit leur périmètre local/import ; le périmètre s'applique aux DA, BC et dossiers (LOT-03, R9) | à confirmer |
+| H27 | Taux de change saisis à la main, en FCFA pour 1 unité de devise, dernier taux antérieur ou égal à la date ; alerte « taux ancien » au-delà de 30 jours ; EUR = 655,957 (confirmation si différent) (LOT-03, R11) | à confirmer |
+| H28 | Taux saisis par les acheteurs et le Responsable (`exchangeRate.manage`) ; dépôts, services et devises gérés par le Responsable ; lecture ouverte à tout utilisateur connecté (LOT-03, R14) | à confirmer |
+| H29 | Prix d'achat masqués au Magasinier par défaut (réglage `warehouse.showPurchasePrice`, modifiable par le Responsable) ; les prix ne quittent pas le serveur pour lui (LOT-03, R15) | à confirmer |
+| H30 | Photos d'articles stockées sur le serveur applicatif (`storage/items/`, hors dépôt git), servies après contrôle de session, à inclure dans la sauvegarde (LOT-15) (LOT-03, R19) | à confirmer |

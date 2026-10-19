@@ -13,10 +13,9 @@ export function qtySchema(label: string, opts: { positive?: boolean } = {}) {
 
 /** "" / null / undefined => null. */
 export function nullable<T extends z.ZodType>(schema: T) {
-  return z.preprocess(
-    (v) => (v === "" || v === undefined || v === null ? null : v),
-    schema.nullable(),
-  ) as unknown as z.ZodType<z.output<T> | null, unknown>;
+  return z
+    .preprocess((v) => (v === undefined || v === null || (typeof v === "string" && v.trim() === "") ? null : v), schema.nullable())
+    .default(null);
 }
 
 export const idSchema = z.string().min(1, "Identifiant manquant.");

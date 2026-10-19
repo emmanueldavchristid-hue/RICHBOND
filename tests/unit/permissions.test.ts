@@ -107,13 +107,13 @@ describe("matrice des permissions", () => {
 describe("menu par rôle", () => {
   const labels = (u: PermissionUser) => visibleNav(u).map((n) => n.label);
   it("Responsable : tout", () => {
-    expect(labels(RESP)).toEqual(["Accueil", "Achats", "Import", "Stock", "Fournisseurs", "Rapports", "Paramètres"]);
+    expect(labels(RESP)).toEqual(["Accueil", "Achats", "Import", "Stock", "Articles", "Fournisseurs", "Rapports", "Paramètres"]);
   });
   it("Acheteur", () => {
-    expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Stock", "Fournisseurs", "Rapports"]);
+    expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Stock", "Articles", "Fournisseurs", "Rapports", "Paramètres"]);
   });
-  it("Magasinier : Accueil, Achats, Stock, Rapports", () => {
-    expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Rapports"]);
+  it("Magasinier : Accueil, Achats, Stock, Articles, Rapports", () => {
+    expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Articles", "Rapports"]);
   });
   it("Super-admin : consultation + Paramètres", () => {
     expect(labels(SUPER)).toContain("Paramètres");

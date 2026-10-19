@@ -42,6 +42,7 @@ export function normalizeName(name: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/\./g, "")
     .replace(/\b(sarl|sa|sas|sasu|ltd|co|gmbh|ci|cie)\b/g, " ")
     .replace(/[^a-z0-9]+/g, "");
 }
