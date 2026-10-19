@@ -108,10 +108,15 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
       await expect(title(page)).toHaveText(supplierName);
       await expect(page.getByText(/Code FRS-\d{5}/).first()).toBeVisible();
       await expect(page.getByTestId("supplier-tabs-tab-contacts")).toContainText("Contacts (2)");
-      const row = await dbOne<{ id: string; code: string; incoterm: string; currency_code: string; type: string }>(
-        "SELECT id, code, incoterm::text, currency_code, type::text FROM suppliers WHERE name = $1",
-        [supplierName],
-      );
+      const row = await dbOne<{
+        id: string;
+        code: string;
+        incoterm: string;
+        currency_code: string;
+        type: string;
+      }>("SELECT id, code, incoterm::text, currency_code, type::text FROM suppliers WHERE name = $1", [
+        supplierName,
+      ]);
       supplierId = row.id;
       supplierCode = row.code;
       expect(row.code).toMatch(/^FRS-\d{5}$/);
@@ -121,7 +126,10 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
         [supplierId],
       );
       expect([contacts.n, contacts.primaries]).toEqual(["2", "1"]);
-      const audit = await dbQuery("SELECT 1 FROM audit_logs WHERE action = 'SUPPLIER_CREATE' AND entity_id = $1", [supplierId]);
+      const audit = await dbQuery(
+        "SELECT 1 FROM audit_logs WHERE action = 'SUPPLIER_CREATE' AND entity_id = $1",
+        [supplierId],
+      );
       expect(audit).toHaveLength(1);
     });
 
@@ -136,7 +144,9 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
       await page.getByTestId("item-purchase-unit").selectOption("CARTON");
       await page.getByTestId("item-coef").fill("10");
       await expect(page.getByTestId("item-conversion-preview")).toContainText(/1 Carton .* = 10 U/);
-      await page.getByTestId("item-main-supplier").selectOption({ label: `${supplierName} (${supplierCode})` });
+      await page
+        .getByTestId("item-main-supplier")
+        .selectOption({ label: `${supplierName} (${supplierCode})` });
       await page.getByTestId("item-save").click();
     });
 
@@ -144,10 +154,15 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
       await expect(page).toHaveURL(/\/stock\/articles\/(?!nouveau)[a-z0-9]+$/);
       await expect(title(page)).toHaveText(itemName);
       await expect(page.getByTestId("status-CRITIQUE").first()).toBeVisible();
-      const row = await dbOne<{ id: string; code: string; conversion_factor: string; equipment: string; main_supplier_id: string }>(
-        "SELECT id, code, conversion_factor::text, equipment, main_supplier_id FROM items WHERE name = $1",
-        [itemName],
-      );
+      const row = await dbOne<{
+        id: string;
+        code: string;
+        conversion_factor: string;
+        equipment: string;
+        main_supplier_id: string;
+      }>("SELECT id, code, conversion_factor::text, equipment, main_supplier_id FROM items WHERE name = $1", [
+        itemName,
+      ]);
       itemId = row.id;
       itemCode = row.code;
       expect(row.code).toMatch(/^ART-\d{5}$/);
@@ -190,7 +205,12 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
       expect(text).toContain("Saisie manuelle");
       expect(text).toContain(supplierName);
       expect(text).toMatch(/FCFA/);
-      const hist = await dbQuery<{ price: string; currency_code: string; rate_to_xof: string | null; source: string }>(
+      const hist = await dbQuery<{
+        price: string;
+        currency_code: string;
+        rate_to_xof: string | null;
+        source: string;
+      }>(
         "SELECT price::text, currency_code, rate_to_xof::text, source::text FROM item_price_history WHERE item_id = $1 ORDER BY created_at",
         [itemId],
       );
@@ -199,7 +219,10 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
         [13.75, "CNY", "MANUEL"],
       ]);
       expect(Number(hist[1].rate_to_xof)).toBeGreaterThan(0); // taux CNY figé à la date
-      const audit = await dbQuery("SELECT 1 FROM audit_logs WHERE action = 'ITEM_SUPPLIER_UPDATE' AND after::text LIKE $1", [`%${supplierId}%`]);
+      const audit = await dbQuery(
+        "SELECT 1 FROM audit_logs WHERE action = 'ITEM_SUPPLIER_UPDATE' AND after::text LIKE $1",
+        [`%${supplierId}%`],
+      );
       expect(audit.length).toBeGreaterThanOrEqual(2);
     });
 
@@ -218,7 +241,9 @@ test.describe("SR1 – Acheteur import : fournisseur Chine, article PDR, histori
 test.describe("SR2 – Magasinier sur tablette : lecture seule, sans prix", () => {
   test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true });
 
-  test("filtre PDR critiques, fiche sans bouton d'écriture ni prix, puis réglage Responsable", async ({ page }) => {
+  test("filtre PDR critiques, fiche sans bouton d'écriture ni prix, puis réglage Responsable", async ({
+    page,
+  }) => {
     await test.step("Le magasinier ouvre la liste des articles et filtre PDR + Critique + équipement", async () => {
       await loginAs(page, "MAGASINIER");
       await ready(page, "/stock/articles");
@@ -263,7 +288,7 @@ test.describe("SR2 – Magasinier sur tablette : lecture seule, sans prix", () =
       await expect(page.getByTestId("money")).toHaveCount(0);
       const html = await (await page.request.get(page.url())).text();
       expect(html).not.toMatch(/11[\s  ]?500/); // prix du fournisseur local de ce roulement
-      expect(html).not.toContain("lastPrice\":\"");
+      expect(html).not.toContain('lastPrice":"');
     });
 
     await test.step("Fournisseurs et export des fournisseurs refusés au magasinier", async () => {
@@ -279,8 +304,12 @@ test.describe("SR2 – Magasinier sur tablette : lecture seule, sans prix", () =
       await ready(page, "/parametres/reglages");
       await page.getByTestId("setting-show-purchase-price").check();
       await page.getByTestId("settings-save").click();
-      await expect(page.getByText("Les prix d'achat sont maintenant visibles par le Magasinier.")).toBeVisible();
-      const s = await dbOne<{ value: boolean }>("SELECT value FROM settings WHERE key = 'warehouse.showPurchasePrice'");
+      await expect(
+        page.getByText("Les prix d'achat sont maintenant visibles par le Magasinier."),
+      ).toBeVisible();
+      const s = await dbOne<{ value: boolean }>(
+        "SELECT value FROM settings WHERE key = 'warehouse.showPurchasePrice'",
+      );
       expect(s.value).toBe(true);
     });
 
@@ -302,7 +331,9 @@ test.describe("SR2 – Magasinier sur tablette : lecture seule, sans prix", () =
       await ready(page, "/parametres/reglages");
       await page.getByTestId("setting-show-purchase-price").uncheck();
       await page.getByTestId("settings-save").click();
-      await expect(page.getByText("Les prix d'achat sont maintenant masqués pour le Magasinier.")).toBeVisible();
+      await expect(
+        page.getByText("Les prix d'achat sont maintenant masqués pour le Magasinier."),
+      ).toBeVisible();
       await logout(page);
       await loginAs(page, "MAGASINIER");
       await ready(page, "/stock/articles?q=ART-00017");
@@ -321,7 +352,14 @@ test.describe("SR3 – Blocage et déblocage d'un fournisseur", () => {
     );
     const reason = "Retards de livraison répétés (test E2E).";
     const auditCount = async (action: string) =>
-      Number((await dbOne<{ n: string }>("SELECT count(*) AS n FROM audit_logs WHERE action = $1 AND entity_id = $2", [action, supplier.id])).n);
+      Number(
+        (
+          await dbOne<{ n: string }>(
+            "SELECT count(*) AS n FROM audit_logs WHERE action = $1 AND entity_id = $2",
+            [action, supplier.id],
+          )
+        ).n,
+      );
     const blocksBefore = await auditCount("SUPPLIER_BLOCK");
     const unblocksBefore = await auditCount("SUPPLIER_UNBLOCK");
     try {
@@ -343,12 +381,16 @@ test.describe("SR3 – Blocage et déblocage d'un fournisseur", () => {
         await page.getByTestId("supplier-block-reason").fill("abc");
         await page.getByTestId("supplier-block-confirm").click();
         await expect(page.getByTestId("supplier-block-error")).toBeVisible();
-        const still = await dbOne<{ status: string }>("SELECT status::text FROM suppliers WHERE id = $1", [supplier.id]);
+        const still = await dbOne<{ status: string }>("SELECT status::text FROM suppliers WHERE id = $1", [
+          supplier.id,
+        ]);
         expect(still.status).toBe("ACTIF");
       });
 
       await test.step("Avertissement : liste des articles dont il est le fournisseur principal", async () => {
-        await expect(page.getByTestId("supplier-block-warning")).toContainText(/fournisseur principal de \d+ article/);
+        await expect(page.getByTestId("supplier-block-warning")).toContainText(
+          /fournisseur principal de \d+ article/,
+        );
         await expect(page.getByTestId("supplier-block-warning")).toContainText("Roulement 6205");
       });
 
@@ -356,10 +398,17 @@ test.describe("SR3 – Blocage et déblocage d'un fournisseur", () => {
         await page.getByTestId("supplier-block-reason").fill(reason);
         await page.getByTestId("supplier-block-confirm").click();
         await expect(page.getByTestId("supplier-block-dialog")).toBeHidden();
-        await expect(page.getByTestId("supplier-blocked-banner")).toContainText("aucun bon de commande possible");
+        await expect(page.getByTestId("supplier-blocked-banner")).toContainText(
+          "aucun bon de commande possible",
+        );
         await expect(page.getByTestId("supplier-blocked-reason")).toHaveText(reason);
         await expect(page.getByTestId("status-BLOQUE").first()).toBeVisible();
-        const row = await dbOne<{ status: string; blocked_reason: string; blocked_at: string | null; blocked_by_id: string | null }>(
+        const row = await dbOne<{
+          status: string;
+          blocked_reason: string;
+          blocked_at: string | null;
+          blocked_by_id: string | null;
+        }>(
           "SELECT status::text, blocked_reason, blocked_at::text, blocked_by_id FROM suppliers WHERE id = $1",
           [supplier.id],
         );
@@ -372,13 +421,19 @@ test.describe("SR3 – Blocage et déblocage d'un fournisseur", () => {
 
       await test.step("L'acheteur ne peut pas débloquer", async () => {
         await expect(page.getByTestId("supplier-unblock")).toHaveCount(0);
-        await expect(page.getByTestId("supplier-unblock-hint")).toHaveText("Seul le Responsable Achats peut débloquer.");
+        await expect(page.getByTestId("supplier-unblock-hint")).toHaveText(
+          "Seul le Responsable Achats peut débloquer.",
+        );
       });
 
       await test.step("Le fournisseur bloqué n'est plus proposé comme fournisseur principal d'un article", async () => {
         await ready(page, "/stock/articles/nouveau");
-        await expect(page.getByTestId("item-main-supplier").locator("option", { hasText: supplier.code })).toHaveCount(0);
-        await expect(page.getByTestId("item-main-supplier").locator("option", { hasText: "FRS-00005" })).toHaveCount(1);
+        await expect(
+          page.getByTestId("item-main-supplier").locator("option", { hasText: supplier.code }),
+        ).toHaveCount(0);
+        await expect(
+          page.getByTestId("item-main-supplier").locator("option", { hasText: "FRS-00005" }),
+        ).toHaveCount(1);
       });
 
       await test.step("Responsable : débloque le fournisseur", async () => {
@@ -410,12 +465,15 @@ test.describe("SR3 – Blocage et déblocage d'un fournisseur", () => {
 
       await test.step("Le fournisseur est de nouveau proposé pour un article", async () => {
         await ready(page, "/stock/articles/nouveau");
-        await expect(page.getByTestId("item-main-supplier").locator("option", { hasText: supplier.code })).toHaveCount(1);
+        await expect(
+          page.getByTestId("item-main-supplier").locator("option", { hasText: supplier.code }),
+        ).toHaveCount(1);
       });
     } finally {
-      await dbQuery("UPDATE suppliers SET status = 'ACTIF', blocked_reason = NULL, blocked_at = NULL, blocked_by_id = NULL WHERE id = $1", [
-        supplier.id,
-      ]);
+      await dbQuery(
+        "UPDATE suppliers SET status = 'ACTIF', blocked_reason = NULL, blocked_at = NULL, blocked_by_id = NULL WHERE id = $1",
+        [supplier.id],
+      );
     }
   });
 });
@@ -450,7 +508,9 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
       await expect(page).toHaveURL(/tri=name/);
       await expect(page.getByTestId("articles-sort-name")).toHaveCount(1);
       const names = async () =>
-        Promise.all((await itemRows(page).all()).map(async (r) => norm(await r.locator("td").nth(1).textContent())));
+        Promise.all(
+          (await itemRows(page).all()).map(async (r) => norm(await r.locator("td").nth(1).textContent())),
+        );
       await expect(page.locator("th[aria-sort]")).toContainText("Désignation");
       const asc = await names();
       await page.getByTestId("articles-sort-name").click();
@@ -466,7 +526,8 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
       await page.getByTestId("articles-search").fill("roulement");
       await expect(page).toHaveURL(/q=roulement/);
       await expect.poll(() => rangeTotal(page, "articles")).toBeGreaterThanOrEqual(2);
-      for (const r of await itemRows(page).all()) expect(norm(await r.textContent()).toLowerCase()).toContain("roulement");
+      for (const r of await itemRows(page).all())
+        expect(norm(await r.textContent()).toLowerCase()).toContain("roulement");
       await page.getByTestId("articles-search").fill("REF-016-1");
       await expect(page).toHaveURL(/q=REF-016-1/);
       await expect(itemRows(page)).toHaveCount(1);
@@ -506,7 +567,9 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
       const file = await downloadFrom(page, "articles-export");
       expect(file.name).toMatch(/^articles_\d{8}\.xlsx$/);
       const xl = await readExport(file.path, "Articles");
-      expect(xl.header).toEqual(expect.arrayContaining(["Code", "Désignation", "Catégorie", "Criticité", "Statut"]));
+      expect(xl.header).toEqual(
+        expect.arrayContaining(["Code", "Désignation", "Catégorie", "Criticité", "Statut"]),
+      );
       expect(xl.header.some((h) => /prix/i.test(h))).toBe(false);
       expect(xl.rows).toHaveLength(3);
       for (const r of xl.rows) expect(r["Catégorie"]).toBe("Service");
@@ -557,7 +620,9 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
       await page.getByTestId("suppliers-sort-name").click();
       await page.getByTestId("suppliers-sort-name").click();
       await expect(page).toHaveURL(/ordre=desc/);
-      const names = await Promise.all((await supplierRows(page).all()).map(async (r) => norm(await r.locator("td").nth(1).textContent())));
+      const names = await Promise.all(
+        (await supplierRows(page).all()).map(async (r) => norm(await r.locator("td").nth(1).textContent())),
+      );
       expect(names.length).toBeGreaterThanOrEqual(6);
       expect(names[0].toLowerCase() >= names[names.length - 1].toLowerCase()).toBe(true);
     });
@@ -576,6 +641,9 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
 
     await test.step("Recherche par NCC d'un fournisseur local", async () => {
       await page.getByTestId("suppliers-reset").click();
+      // La réinitialisation navigue : on attend son effet avant de saisir (sinon elle peut écraser la saisie).
+      await expect(page).not.toHaveURL(/type=|pays=/);
+      await expect(page.getByTestId("suppliers-filter-type")).toHaveValue("");
       await page.getByTestId("suppliers-search").fill("2100003A");
       await expect(page).toHaveURL(/q=2100003A/);
       await expect(supplierRows(page)).toHaveCount(1);
@@ -583,7 +651,9 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
     });
   });
 
-  test("recherche tapée puis clic immédiat sur une ligne : la fiche s'ouvre sans retour à la liste (debounce)", async ({ page }) => {
+  test("recherche tapée puis clic immédiat sur une ligne : la fiche s'ouvre sans retour à la liste (debounce)", async ({
+    page,
+  }) => {
     await loginAs(page, "RESPONSABLE_ACHATS");
     await page.clock.install(); // le temps réel continue de s'écouler ; runFor déclenche les minuteries en attente
     await ready(page, "/stock/articles");
@@ -670,7 +740,9 @@ test.describe("SR6 – Devises et taux de change", () => {
     await resetLicense(30);
   });
 
-  test("parité EUR confirmée, virgule, doublon, droits acheteur, alerte « taux ancien »", async ({ page }, testInfo) => {
+  test("parité EUR confirmée, virgule, doublon, droits acheteur, alerte « taux ancien »", async ({
+    page,
+  }, testInfo) => {
     const offset = testInfo.project.name === "desktop" ? -3 : -4; // jours distincts par projet
     const rateDay = dayOffset(offset);
 
@@ -694,7 +766,9 @@ test.describe("SR6 – Devises et taux de change", () => {
       await expect(confirm).toContainText("655,957");
       await confirm.getByTestId("rate-eur-confirm-cancel").click();
       await expect(confirm).toBeHidden();
-      const none = await dbQuery("SELECT 1 FROM exchange_rates WHERE currency_code = 'EUR' AND note = $1", [NOTE]);
+      const none = await dbQuery("SELECT 1 FROM exchange_rates WHERE currency_code = 'EUR' AND note = $1", [
+        NOTE,
+      ]);
       expect(none).toHaveLength(0);
     });
 
@@ -708,7 +782,10 @@ test.describe("SR6 – Devises et taux de change", () => {
       );
       expect(Number(row.rate)).toBe(600);
       expect(row.date).toContain(rateDay);
-      const audit = await dbQuery("SELECT 1 FROM audit_logs WHERE action = 'EXCHANGE_RATE_CREATE' AND entity_id = $1", [row.id]);
+      const audit = await dbQuery(
+        "SELECT 1 FROM audit_logs WHERE action = 'EXCHANGE_RATE_CREATE' AND entity_id = $1",
+        [row.id],
+      );
       expect(audit).toHaveLength(1);
       // Le dernier taux affiché reste celui de la veille (plus récent que le taux saisi à J-3/J-4).
       await expect(page.getByTestId("currency-rate-EUR")).toHaveText("655,957");
@@ -721,7 +798,10 @@ test.describe("SR6 – Devises et taux de change", () => {
       await page.getByTestId("rate-note").fill(NOTE);
       await page.getByTestId("rate-save").click();
       await expect(page.getByTestId("rate-dialog")).toBeHidden();
-      const row = await dbOne<{ rate: string }>("SELECT rate::text FROM exchange_rates WHERE currency_code = 'USD' AND note = $1", [NOTE]);
+      const row = await dbOne<{ rate: string }>(
+        "SELECT rate::text FROM exchange_rates WHERE currency_code = 'USD' AND note = $1",
+        [NOTE],
+      );
       expect(Number(row.rate)).toBeCloseTo(610.5, 6);
       await page.getByTestId("rate-add-USD").click();
       await page.getByTestId("rate-date").fill(rateDay);

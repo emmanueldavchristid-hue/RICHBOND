@@ -105,7 +105,14 @@ export function ExportButton({ href, query, testId }: { href: string; query: str
   }
 
   return (
-    <Button type="button" variant="outline" className="h-11 px-4" disabled={busy} onClick={() => void download()} data-testid={testId}>
+    <Button
+      type="button"
+      variant="outline"
+      className="h-11 px-4"
+      disabled={busy}
+      onClick={() => void download()}
+      data-testid={testId}
+    >
       <Download /> {busy ? "Export en cours…" : "Exporter Excel"}
     </Button>
   );
@@ -180,7 +187,13 @@ export function Toolbar({
         ),
       )}
       {canReset ? (
-        <Button type="button" variant="ghost" className="h-11 px-3" onClick={onReset} data-testid={`${testId}-reset`}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-11 px-3"
+          onClick={onReset}
+          data-testid={`${testId}-reset`}
+        >
           <X /> Réinitialiser
         </Button>
       ) : null}
