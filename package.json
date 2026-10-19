@@ -15,6 +15,8 @@
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate",
+    "license:generate": "tsx scripts/license-generate.ts",
+    "license:secret": "tsx scripts/license-secret.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
