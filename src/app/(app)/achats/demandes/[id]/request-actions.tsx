@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, CheckCircle2, CornerUpLeft, MessageSquare, Pencil, Send, UserCog, XCircle } from "lucide-react";
+import { Ban, CheckCircle2, CornerUpLeft, FilePlus2, MessageSquare, Pencil, Send, UserCog, XCircle } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { FormError, FormField, TextArea } from "@/components/form-field";
 import { WriteButton } from "@/components/license/write-button";
@@ -178,6 +178,11 @@ export function RequestActions({
             data-testid="pr-action-assign"
           >
             <UserCog /> Changer l&apos;acheteur
+          </WriteButton>
+        ) : null}
+        {can("createOrder") ? (
+          <WriteButton className="h-12 px-5 text-base" onClick={() => router.push(`/achats/commandes/nouvelle?da=${id}`)} data-testid="pr-action-create-order">
+            <FilePlus2 /> Créer le BC
           </WriteButton>
         ) : null}
         {can("cancel") ? (
