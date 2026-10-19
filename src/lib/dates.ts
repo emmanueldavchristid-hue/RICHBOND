@@ -35,3 +35,8 @@ export function addBusinessDays(d: Date, days: number): Date {
   }
   return fromZonedTime(cursor, APP_TZ);
 }
+
+/** Jour courant à Abidjan au format ISO court (yyyy-MM-dd). */
+export function todayAbidjan(now: Date = new Date()): string {
+  return formatInTimeZone(now, APP_TZ, "yyyy-MM-dd");
+}
