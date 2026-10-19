@@ -24,6 +24,8 @@ export type { FilterDef, FilterOption } from "./toolbar";
 export interface DataColumn<T> {
   id: string;
   header: string;
+  /** Contenu libre de l'en-tête (ex. case « tout sélectionner ») ; `header` reste le libellé de la colonne. */
+  headerContent?: ReactNode;
   cell: (row: T) => ReactNode;
   sortable?: boolean;
   /** Figée à gauche sur tablette : « first » (code), « second » (désignation, décalée de la première). */
@@ -63,6 +65,7 @@ export function DataTable<T extends { id: string }>({
   exportHref,
   rowHref,
   rowTestId,
+  rowClassName,
   emptyTitle = "Aucun résultat",
   emptyDescription = "Modifiez la recherche ou les filtres.",
   toolbarExtra,
@@ -78,6 +81,8 @@ export function DataTable<T extends { id: string }>({
   exportHref?: string;
   rowHref?: (row: T) => string;
   rowTestId?: (row: T) => string;
+  /** Mise en évidence d'une ligne (ex. arrêt de production). */
+  rowClassName?: (row: T) => string | undefined;
   emptyTitle?: string;
   emptyDescription?: string;
   toolbarExtra?: ReactNode;
@@ -187,7 +192,7 @@ export function DataTable<T extends { id: string }>({
                                 )}
                               </button>
                             ) : (
-                              col?.header
+                              (col?.headerContent ?? col?.header)
                             )}
                           </th>
                         );
@@ -210,7 +215,7 @@ export function DataTable<T extends { id: string }>({
                               }
                             : undefined
                         }
-                        className={cn("border-b transition-colors hover:bg-muted/50", href && "cursor-pointer")}
+                        className={cn("border-b transition-colors hover:bg-muted/50", href && "cursor-pointer", rowClassName?.(row.original))}
                       >
                         {row.getAllCells().map((cell) => {
                           const col = byId.get(cell.column.id);
@@ -256,7 +261,7 @@ export function DataTable<T extends { id: string }>({
                   </>
                 );
                 return (
-                  <li key={r.id} data-testid={`${rowKey(r)}-card`} className="rounded-lg border bg-card">
+                  <li key={r.id} data-testid={`${rowKey(r)}-card`} className={cn("rounded-lg border bg-card", rowClassName?.(r))}>
                     {/* Carte entière cliquable (le lien du code reste le lien accessible : pas d'ancre imbriquée). */}
                     <div
                       className={cn("min-h-14 rounded-lg p-4", href && "cursor-pointer hover:bg-muted/50")}
