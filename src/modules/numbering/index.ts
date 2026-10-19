@@ -1,5 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { counterKeySchema, yearSchema, type CounterKey } from "./keys";
+import { COUNTER_KEYS, counterKeySchema, yearSchema, type CounterKey } from "./keys";
 import { nextNumberWith } from "./next";
 
 export { formatDocumentNumber } from "./format";
@@ -16,5 +16,8 @@ export async function nextNumber(
 ): Promise<number> {
   counterKeySchema.parse(key);
   yearSchema.parse(year);
+  if (COUNTER_KEYS[key].annual === (year === 0)) {
+    throw new RangeError("Année incompatible avec ce compteur.");
+  }
   return nextNumberWith(tx, key, year);
 }

@@ -19,3 +19,10 @@ describe("formatDocumentNumber", () => {
     expect(() => formatDocumentNumber("XYZ" as CounterKey, 2026, 1)).toThrow());
   it("rejette un numéro invalide", () => expect(() => formatDocumentNumber("DA", 2026, 0)).toThrow());
 });
+
+describe("compteurs non annuels (LOT-03)", () => {
+  it("ART / FRS : format sans année", () => {
+    expect(formatDocumentNumber("ART", 0, 1)).toBe("ART-00001");
+    expect(formatDocumentNumber("FRS", 0, 42)).toBe("FRS-00042");
+  });
+});

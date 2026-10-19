@@ -101,3 +101,270 @@ model License {
 
   @@map("licenses")
 }
+
+// ---------------------------------------------------------------- LOT-03 : référentiels
+
+enum ItemCategory {
+  MATIERE_PREMIERE
+  INTRANT
+  PDR
+  FOURNITURE
+  SERVICE
+}
+
+enum Criticality {
+  CRITIQUE
+  IMPORTANT
+  STANDARD
+}
+
+enum ItemStatus {
+  ACTIF
+  BLOQUE
+  OBSOLETE
+}
+
+enum SupplierType {
+  LOCAL
+  IMPORT
+}
+
+enum SupplierStatus {
+  ACTIF
+  EN_EVALUATION
+  BLOQUE
+}
+
+enum PaymentTerm {
+  COMPTANT
+  J30
+  J45
+  J60
+  J90
+  FIN_DE_MOIS_30
+  AUTRE
+}
+
+enum Incoterm {
+  EXW
+  FCA
+  FAS
+  FOB
+  CFR
+  CIF
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+}
+
+enum PriceSource {
+  MANUEL
+  BC
+  FACTURE
+}
+
+model Warehouse {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items Item[]
+
+  @@map("warehouses")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("departments")
+}
+
+model Currency {
+  code        String   @id
+  name        String
+  symbol      String
+  decimals    Int      @default(2)
+  isBase      Boolean  @default(false) @map("is_base")
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rates     ExchangeRate[]
+  suppliers Supplier[]
+
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  currencyCode String   @map("currency_code")
+  date         DateTime @db.Date
+  /// FCFA pour 1 unité de devise.
+  rate         Decimal  @db.Decimal(14, 6)
+  note         String?
+  createdById  String?  @map("created_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  currency Currency @relation(fields: [currencyCode], references: [code])
+
+  @@unique([currencyCode, date])
+  @@map("exchange_rates")
+}
+
+model Supplier {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  name            String
+  type            SupplierType
+  country         String         @default("CI")
+  city            String?
+  currencyCode    String         @map("currency_code")
+  ncc             String?        @unique
+  rccm            String?
+  paymentTerm     PaymentTerm    @default(J30) @map("payment_term")
+  paymentTermNote String?        @map("payment_term_note")
+  incoterm        Incoterm?
+  leadTimeDays    Int?           @map("lead_time_days")
+  categories      ItemCategory[]
+  status          SupplierStatus @default(ACTIF)
+  blockedReason   String?        @map("blocked_reason")
+  blockedAt       DateTime?      @map("blocked_at")
+  blockedById     String?        @map("blocked_by_id")
+  notes           String?
+  createdById     String?        @map("created_by_id")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  currency  Currency          @relation(fields: [currencyCode], references: [code])
+  contacts  SupplierContact[]
+  items     ItemSupplier[]
+  mainItems Item[]
+
+  @@index([status, type])
+  @@index([name])
+  @@map("suppliers")
+}
+
+model SupplierContact {
+  id          String   @id @default(cuid())
+  supplierId  String   @map("supplier_id")
+  name        String
+  role        String?
+  phone       String?
+  email       String?
+  isPrimary   Boolean  @default(false) @map("is_primary")
+  active      Boolean  @default(true)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId])
+  @@map("supplier_contacts")
+}
+
+model Item {
+  id                 String       @id @default(cuid())
+  code               String       @unique
+  name               String
+  category           ItemCategory
+  family             String?
+  stockUnit          String       @map("stock_unit")
+  purchaseUnit       String       @map("purchase_unit")
+  conversionFactor   Decimal      @default(1) @map("conversion_factor") @db.Decimal(14, 3)
+  stocked            Boolean      @default(true)
+  criticality        Criticality  @default(STANDARD)
+  abcClass           String?      @map("abc_class")
+  defaultWarehouseId String?      @map("default_warehouse_id")
+  safetyStock        Decimal?     @map("safety_stock") @db.Decimal(14, 3)
+  reorderPoint       Decimal?     @map("reorder_point") @db.Decimal(14, 3)
+  economicOrderQty   Decimal?     @map("economic_order_qty") @db.Decimal(14, 3)
+  leadTimeDays       Int?         @map("lead_time_days")
+  mainSupplierId     String?      @map("main_supplier_id")
+  barcode            String?      @unique
+  status             ItemStatus   @default(ACTIF)
+  equipment          String?
+  photoPath          String?      @map("photo_path")
+  notes              String?
+  createdById        String?      @map("created_by_id")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
+
+  defaultWarehouse Warehouse?         @relation(fields: [defaultWarehouseId], references: [id])
+  mainSupplier     Supplier?          @relation(fields: [mainSupplierId], references: [id])
+  suppliers        ItemSupplier[]
+  priceHistory     ItemPriceHistory[]
+
+  @@index([category, status])
+  @@index([criticality])
+  @@index([name])
+  @@index([equipment])
+  @@map("items")
+}
+
+model ItemSupplier {
+  id            String    @id @default(cuid())
+  itemId        String    @map("item_id")
+  supplierId    String    @map("supplier_id")
+  supplierRef   String?   @map("supplier_ref")
+  lastPrice     Decimal?  @map("last_price") @db.Decimal(14, 2)
+  currencyCode  String?   @map("currency_code")
+  lastPriceDate DateTime? @map("last_price_date")
+  leadTimeDays  Int?      @map("lead_time_days")
+  minOrderQty   Decimal?  @map("min_order_qty") @db.Decimal(14, 3)
+  active        Boolean   @default(true)
+  createdById   String?   @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  item     Item     @relation(fields: [itemId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@unique([itemId, supplierId])
+  @@index([supplierId])
+  @@map("item_suppliers")
+}
+
+model ItemPriceHistory {
+  id           String      @id @default(cuid())
+  itemId       String      @map("item_id")
+  supplierId   String      @map("supplier_id")
+  price        Decimal     @db.Decimal(14, 2)
+  currencyCode String      @map("currency_code")
+  rateToXof    Decimal?    @map("rate_to_xof") @db.Decimal(14, 6)
+  source       PriceSource @default(MANUEL)
+  sourceRef    String?     @map("source_ref")
+  date         DateTime
+  createdById  String?     @map("created_by_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  item Item @relation(fields: [itemId], references: [id])
+
+  @@index([itemId, date])
+  @@map("item_price_history")
+}
+
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?  @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
