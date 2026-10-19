@@ -17,8 +17,18 @@ import { SupplierTextPanel, type SupplierText } from "./supplier-text-panel";
  * Relance d'un fournisseur (D20) : texte prêt à copier (WhatsApp / e-mail), puis enregistrement de la relance
  * (moyen, contact, commentaire). L'application n'envoie rien : le texte est copié ou ouvert dans l'application du poste.
  */
-export function ReminderDialog({
-  open,
+export function ReminderDialog(props: { open: boolean; onOpenChange: (open: boolean) => void; orderId: string; updatedAt: string; displayNumber: string }) {
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-testid="po-remind-dialog">
+        <ReminderBody {...props} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Contenu monté à l'ouverture seulement : l'état (texte, moyen, contact) repart à zéro à chaque relance. */
+function ReminderBody({
   onOpenChange,
   orderId,
   updatedAt,
@@ -39,14 +49,7 @@ export function ReminderDialog({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
     let alive = true;
-    setData(null);
-    setLoadError(null);
-    setChannel("");
-    setContact("");
-    setComment("");
-    setError(null);
     void reminderTextAction({ id: orderId }).then((res) => {
       if (!alive) return;
       if (res.ok) {
@@ -58,7 +61,7 @@ export function ReminderDialog({
     return () => {
       alive = false;
     };
-  }, [open, orderId]);
+  }, [orderId]);
 
   async function save() {
     if (!channel) return setError("Choisissez le moyen utilisé pour relancer (e-mail, WhatsApp, téléphone…).");
@@ -70,8 +73,7 @@ export function ReminderDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-testid="po-remind-dialog">
+    <>
         <DialogHeader>
           <DialogTitle>Relancer le fournisseur : {displayNumber}</DialogTitle>
           <DialogDescription>
@@ -100,7 +102,6 @@ export function ReminderDialog({
             <BellRing /> {pending ? "Enregistrement…" : "Enregistrer la relance"}
           </WriteButton>
         </div>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

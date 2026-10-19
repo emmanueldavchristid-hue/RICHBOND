@@ -17,8 +17,18 @@ import { SupplierTextPanel, type SupplierText } from "./supplier-text-panel";
  * « Marquer comme envoyé » (D17) : l'application ne transmet rien. L'acheteur télécharge le PDF, l'envoie au fournisseur
  * (texte d'accompagnement fourni), puis enregistre ici le moyen, la date et le contact.
  */
-export function SendDialog({
-  open,
+export function SendDialog(props: { open: boolean; onOpenChange: (open: boolean) => void; orderId: string; updatedAt: string; displayNumber: string; today: string }) {
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-testid="po-send-dialog">
+        <SendBody {...props} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Contenu monté à l'ouverture seulement : l'état repart à zéro à chaque envoi. */
+function SendBody({
   onOpenChange,
   orderId,
   updatedAt,
@@ -41,13 +51,7 @@ export function SendDialog({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
     let alive = true;
-    setData(null);
-    setChannel("");
-    setDate(today);
-    setContact("");
-    setError(null);
     void sendTextAction({ id: orderId }).then((res) => {
       if (!alive || !res.ok) return;
       const d = res.data as SupplierText;
@@ -57,7 +61,7 @@ export function SendDialog({
     return () => {
       alive = false;
     };
-  }, [open, orderId, today]);
+  }, [orderId]);
 
   async function save() {
     if (!channel) return setError("Choisissez le moyen utilisé pour envoyer le bon (e-mail, WhatsApp, remis en main propre…).");
@@ -70,8 +74,7 @@ export function SendDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-testid="po-send-dialog">
+    <>
         <DialogHeader>
           <DialogTitle>Envoyer {displayNumber} au fournisseur</DialogTitle>
           <DialogDescription>
@@ -108,7 +111,6 @@ export function SendDialog({
             <Send /> {pending ? "Enregistrement…" : "Marquer comme envoyé"}
           </WriteButton>
         </div>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }

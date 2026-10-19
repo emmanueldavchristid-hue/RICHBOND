@@ -8,7 +8,7 @@ import { toFcfa } from "@/lib/money";
 import { can, canViewOrder, requireAction } from "@/lib/permissions";
 import { dayKey, isRateStale } from "@/modules/currencies/rate";
 import { EXPORT_MAX_ROWS, toPage, type Page } from "@/modules/referentials/list-query";
-import { serialize } from "@/modules/referentials/serialize";
+import { serialize, type Serialized } from "@/modules/referentials/serialize";
 import { buyerCoversType } from "@/modules/purchase-requests/assignment";
 import { requestOrderQuantities } from "@/modules/purchase-requests/order-links";
 import { parseInput } from "@/modules/purchase-requests/parse";
@@ -382,12 +382,13 @@ export interface OrderableLine {
 }
 
 /** Lignes de DA restant à commander et visibles de l'utilisateur : siennes (acheteur) ou toutes (Responsable). */
-async function orderableLines(user: OrderActor, opts: { q?: string; supplierId?: string | null; limit?: number }): Promise<OrderableLine[]> {
+async function orderableLines(user: OrderActor, opts: { q?: string; supplierId?: string | null; requestId?: string; limit?: number }): Promise<OrderableLine[]> {
   requireAction(user, "purchaseOrder.create");
   const q = opts.q?.trim();
   const rows = await db.purchaseRequestLine.findMany({
     where: {
       OR: [{ approvedQty: null }, { approvedQty: { gt: 0 } }],
+      ...(opts.requestId ? { requestId: opts.requestId } : {}),
       request: {
         status: { in: [...OPEN_FOR_ORDER] },
         ...(user.role === "ACHETEUR" ? { OR: [{ assignedBuyerId: user.id }, { assignedBuyerId: null }] } : {}),
@@ -448,7 +449,7 @@ export interface OrderableGroup {
 }
 
 /** Écran « À commander » : lignes à commander groupées par fournisseur principal de l'article, « sans fournisseur » à part (en dernier). */
-export async function listOrderableLines(user: OrderActor): Promise<{ groups: OrderableGroup[] }> {
+export async function listOrderableLines(user: OrderActor): Promise<{ groups: Serialized<OrderableGroup>[] }> {
   const lines = await orderableLines(user, {});
   const groups = new Map<string, OrderableGroup>();
   for (const l of lines) {
@@ -462,7 +463,21 @@ export async function listOrderableLines(user: OrderActor): Promise<{ groups: Or
     if (!b.supplier) return -1;
     return a.supplier.name.localeCompare(b.supplier.name, "fr");
   });
-  return serialize({ groups: sorted }) as unknown as { groups: OrderableGroup[] };
+  return serialize({ groups: sorted }) as unknown as { groups: Serialized<OrderableGroup>[] };
+}
+
+/** Lignes restant à commander d'une seule DA (« Créer le BC » depuis la fiche DA), groupées par fournisseur principal. */
+export async function listOrderableLinesOfRequest(user: OrderActor, requestId: string): Promise<{ groups: Serialized<OrderableGroup>[] }> {
+  const lines = await orderableLines(user, { requestId });
+  const groups = new Map<string, OrderableGroup>();
+  for (const l of lines) {
+    const key = l.mainSupplier?.id ?? "";
+    const g = groups.get(key) ?? { supplier: l.mainSupplier, lines: [] };
+    g.lines.push(l);
+    groups.set(key, g);
+  }
+  const sorted = [...groups.values()].sort((a, b) => (!a.supplier ? 1 : !b.supplier ? -1 : a.supplier.name.localeCompare(b.supplier.name, "fr")));
+  return serialize({ groups: sorted }) as unknown as { groups: Serialized<OrderableGroup>[] };
 }
 
 /** Recherche clavier d'une ligne à commander pour le formulaire (par article, désignation ou numéro de DA). */

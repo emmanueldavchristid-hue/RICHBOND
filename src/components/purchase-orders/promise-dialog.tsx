@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FormError, FormField, TextArea } from "@/components/form-field";
 import { WriteButton } from "@/components/license/write-button";
 import { Button } from "@/components/ui/button";
@@ -13,16 +13,18 @@ import { changePromisedDateAction, confirmOrderAction } from "@/app/(app)/achats
  * Confirmation du fournisseur (date promise obligatoire, référence facultative) ou report de la date promise
  * (motif obligatoire : un fournisseur qui repousse plusieurs fois doit se voir).
  */
-export function PromiseDialog({
-  mode,
-  open,
-  onOpenChange,
-  orderId,
-  updatedAt,
-  displayNumber,
-  currentPromised,
-  minDate,
-}: {
+export function PromiseDialog(props: PromiseProps) {
+  const testId = props.mode === "confirm" ? "po-confirm-dialog" : "po-promise-dialog";
+  return (
+    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+      <DialogContent className="sm:max-w-lg" data-testid={testId}>
+        <PromiseBody {...props} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface PromiseProps {
   mode: "confirm" | "change";
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -33,20 +35,22 @@ export function PromiseDialog({
   currentPromised: string | null;
   /** Date du bon (yyyy-MM-dd) : la date promise ne peut pas la précéder. */
   minDate: string;
-}) {
+}
+
+function PromiseBody({
+  mode,
+  onOpenChange,
+  orderId,
+  updatedAt,
+  displayNumber,
+  currentPromised,
+  minDate,
+}: PromiseProps) {
   const { run, pending } = useActionRunner();
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(currentPromised ?? "");
   const [ref, setRef] = useState("");
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setDate(currentPromised ?? "");
-    setRef("");
-    setReason("");
-    setError(null);
-  }, [open, currentPromised]);
 
   async function save() {
     if (!date) return setError("Saisissez la date promise par le fournisseur.");
@@ -71,8 +75,7 @@ export function PromiseDialog({
 
   const testId = mode === "confirm" ? "po-confirm-dialog" : "po-promise-dialog";
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg" data-testid={testId}>
+    <>
         <DialogHeader>
           <DialogTitle>{mode === "confirm" ? `Confirmation du fournisseur : ${displayNumber}` : `Changer la date promise : ${displayNumber}`}</DialogTitle>
           <DialogDescription>
@@ -102,7 +105,6 @@ export function PromiseDialog({
             {pending ? "Enregistrement…" : mode === "confirm" ? "Confirmer la commande" : "Enregistrer la nouvelle date"}
           </WriteButton>
         </div>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }
