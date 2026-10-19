@@ -2,8 +2,10 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
+import { getNow } from "@/lib/clock";
 import { can, roleLabel, visibleNav } from "@/lib/permissions";
 import { requirePageAction } from "@/modules/auth/session";
+import { homeOrderSummary } from "@/modules/purchase-orders";
 import { homeRequestSummary } from "@/modules/purchase-requests/queries";
 
 export const metadata: Metadata = { title: "Accueil – RICHBOND" };
@@ -21,8 +23,43 @@ async function AccueilContent() {
   const user = await requirePageAction(null);
   const links = visibleNav(user).filter((n) => n.href !== "/accueil");
   const sum = can(user, "purchaseRequest.view") ? await homeRequestSummary(user) : null;
+  // LOT-05 : BC à valider (Responsable), BC en retard et à relancer (Responsable : tous, acheteur : les siens). Jamais pour le Magasinier.
+  const { now } = await getNow();
+  const orders = can(user, "purchaseOrder.view") ? await homeOrderSummary(user, now) : null;
+  const hasOrderAlert = orders !== null && (orders.toValidate > 0 || orders.late > 0 || orders.toRemind > 0);
   return (
     <>
+      {hasOrderAlert ? (
+        <div className="mb-4 flex flex-wrap gap-3" data-testid="accueil-bc">
+          {orders.toValidate > 0 ? (
+            <Link
+              href="/achats/commandes?onglet=a-valider"
+              className="inline-flex min-h-12 items-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-base font-medium text-amber-950 shadow-sm"
+              data-testid="accueil-bc-a-valider"
+            >
+              BC à valider : {orders.toValidate}
+            </Link>
+          ) : null}
+          {orders.late > 0 ? (
+            <Link
+              href="/achats/commandes?onglet=en-retard"
+              className="inline-flex min-h-12 items-center rounded-lg border border-red-300 bg-red-50 px-4 text-base font-medium text-red-900 shadow-sm"
+              data-testid="accueil-bc-en-retard"
+            >
+              {orders.late === 1 ? "1 BC en retard" : `${orders.late} BC en retard`}
+            </Link>
+          ) : null}
+          {orders.toRemind > 0 ? (
+            <Link
+              href="/achats/commandes?onglet=en-cours&relance=1"
+              className="inline-flex min-h-12 items-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-base font-medium text-amber-950 shadow-sm"
+              data-testid="accueil-bc-a-relancer"
+            >
+              {orders.toRemind === 1 ? "1 BC à relancer" : `${orders.toRemind} BC à relancer`}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
       {sum && (sum.toValidate > 0 || sum.assignedToMe > 0) ? (
         <Link
           href="/achats/demandes"

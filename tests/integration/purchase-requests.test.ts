@@ -675,7 +675,7 @@ describe("liste (D5, H48)", () => {
 });
 
 describe("statuts posés par les lots suivants (D1)", () => {
-  it("consultation puis commande partielle puis totale; jamais de retour en arrière", async () => {
+  it("consultation puis commande partielle puis totale ; COMMANDEE reste final pour les utilisateurs", async () => {
     const s = await submitted(achLocal, {
       lines: [
         { itemId: itemA.id, quantity: 10 },
@@ -691,14 +691,56 @@ describe("statuts posés par les lots suivants (D1)", () => {
     });
     await db.$transaction(async (tx) => {
       expect((await refreshOrderedStatus(tx, s.id, { [l1.id]: 10 }, resp)).status).toBe("PARTIELLEMENT_COMMANDEE");
-    });
-    await db.$transaction(async (tx) => {
-      expect((await refreshOrderedStatus(tx, s.id, {}, resp)).status).toBe("PARTIELLEMENT_COMMANDEE"); // pas de régression
+      // rien de plus : le statut ne change pas (idempotent)
+      expect((await refreshOrderedStatus(tx, s.id, { [l1.id]: 10 }, resp)).status).toBe("PARTIELLEMENT_COMMANDEE");
       expect((await refreshOrderedStatus(tx, s.id, { [l1.id]: 10, [l2.id]: "4" }, resp)).status).toBe("COMMANDEE");
     });
     expect(await db.auditLog.count({ where: { entityId: s.id, action: "PR_STATUS_SYNC" } })).toBe(3);
     expect(await db.purchaseRequestEvent.count({ where: { requestId: s.id, type: "STATUS_SYNC" } })).toBe(3);
     expect(await code(cancelRequest(resp, { id: s.id, expectedUpdatedAt: (await reload(s.id)).updatedAt, reason: "Trop tard" }))).toBe("INVALID_STATUS");
+  });
+
+  it("LOT-05 (D9) : refreshOrderedStatus est bidirectionnelle (BC annulé ou refusé)", async () => {
+    const s = await submitted(achLocal, {
+      lines: [
+        { itemId: itemA.id, quantity: 10 },
+        { itemId: itemB.id, quantity: 4 },
+      ],
+    });
+    await approveRequest(resp, { id: s.id, expectedUpdatedAt: s.updatedAt });
+    const [l1, l2] = (await reload(s.id)).lines;
+    const sync = (ordered: Record<string, string | number>) => db.$transaction((tx) => refreshOrderedStatus(tx, s.id, ordered, resp));
+    expect((await sync({ [l1.id]: 10, [l2.id]: 4 })).status).toBe("COMMANDEE");
+    // un BC est annulé : la ligne 2 n'est plus commandée -> partiellement commandée
+    expect((await sync({ [l1.id]: 10 })).status).toBe("PARTIELLEMENT_COMMANDEE");
+    // l'autre BC aussi -> la DA redevient commandable
+    expect((await sync({})).status).toBe("VALIDEE");
+    expect((await sync({})).status).toBe("VALIDEE"); // idempotent
+    // de VALIDEE directement à COMMANDEE, puis retour direct à VALIDEE
+    expect((await sync({ [l1.id]: 10, [l2.id]: 4 })).status).toBe("COMMANDEE");
+    expect((await sync({})).status).toBe("VALIDEE");
+    const events = await db.purchaseRequestEvent.findMany({ where: { requestId: s.id, type: "STATUS_SYNC" }, orderBy: { createdAt: "asc" } });
+    expect(events.map((e) => `${e.fromStatus}>${e.toStatus}`)).toEqual([
+      "VALIDEE>COMMANDEE",
+      "COMMANDEE>PARTIELLEMENT_COMMANDEE",
+      "PARTIELLEMENT_COMMANDEE>VALIDEE",
+      "VALIDEE>COMMANDEE",
+      "COMMANDEE>VALIDEE",
+    ]);
+    expect(await db.auditLog.count({ where: { entityId: s.id, action: "PR_STATUS_SYNC" } })).toBe(5);
+  });
+
+  it("LOT-05 (D9) : une DA EN_CONSULTATION dont rien n'est commandé le reste ; REFUSEE, ANNULEE et SOUMISE ne bougent pas", async () => {
+    const s = await submitted(achLocal);
+    const [l1] = (await reload(s.id)).lines;
+    // DA non validée : aucun effet
+    expect((await db.$transaction((tx) => refreshOrderedStatus(tx, s.id, { [l1.id]: 5 }, resp))).status).toBe("SOUMISE");
+    await approveRequest(resp, { id: s.id, expectedUpdatedAt: s.updatedAt });
+    await db.$transaction((tx) => markInConsultation(tx, s.id, resp));
+    expect((await db.$transaction((tx) => refreshOrderedStatus(tx, s.id, {}, resp))).status).toBe("EN_CONSULTATION");
+    const r = await submitted(achLocal);
+    await rejectRequest(resp, { id: r.id, expectedUpdatedAt: r.updatedAt, reason: "Motif de refus" });
+    expect((await db.$transaction((tx) => refreshOrderedStatus(tx, r.id, {}, resp))).status).toBe("REFUSEE");
   });
 
   it("les lignes retirées (0) ne comptent pas pour « totalement commandée »", async () => {

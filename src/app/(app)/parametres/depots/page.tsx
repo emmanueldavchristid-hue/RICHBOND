@@ -14,7 +14,7 @@ async function WarehousesContent() {
   return (
     <SimpleRefManager
       rows={rows}
-      labels={{ singular: "dépôt", plural: "Dépôts", newButton: "Nouveau dépôt", nameLabel: "Nom du dépôt", created: "créé", testId: "warehouse" }}
+      labels={{ singular: "dépôt", plural: "Dépôts", newButton: "Nouveau dépôt", nameLabel: "Nom du dépôt", created: "créé", testId: "warehouse", withAddress: true }}
       createAction={createWarehouseAction}
       updateAction={updateWarehouseAction}
       setActiveAction={setWarehouseActiveAction}

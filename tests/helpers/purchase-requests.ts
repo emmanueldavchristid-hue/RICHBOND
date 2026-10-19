@@ -2,17 +2,17 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 import { formatInTimeZone } from "date-fns-tz";
 import { db } from "@/lib/db";
+import { cleanPurchaseOrders } from "./purchase-orders";
 
 export const FUTURE_DAY = (days = 14) => formatInTimeZone(new Date(Date.now() + days * 86_400_000), "Africa/Abidjan", "yyyy-MM-dd");
 
 /** Supprime les DA, notifications, pièces jointes et compteurs créés par les tests (comptes `it-*`). Base de test uniquement. */
 export async function cleanPurchaseRequests() {
+  await cleanPurchaseOrders(); // les BC référencent les lignes de DA : à supprimer d'abord
   const users = (await db.user.findMany({ where: { email: { startsWith: "it-" } }, select: { id: true } })).map((u) => u.id);
   // DA du seed (« [démo] ») : retirées de la base de test pour que les listes soient prévisibles.
-  const prs = await db.purchaseRequest.findMany({
-    where: { OR: [{ createdById: { in: users } }, { reason: { startsWith: "[démo]" } }] },
-    select: { id: true },
-  });
+  // Les DA laissées par les scénarios e2e (comptes du seed) sont retirées aussi : base de test uniquement.
+  const prs = await db.purchaseRequest.findMany({ select: { id: true } });
   const ids = prs.map((p) => p.id);
   await db.notification.deleteMany({ where: { OR: [{ recipientId: { in: users } }, { entityId: { in: ids } }] } });
   await db.auditLog.deleteMany({ where: { entity: "PurchaseRequest", entityId: { in: ids } } });

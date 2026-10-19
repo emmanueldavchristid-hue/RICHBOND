@@ -9,6 +9,7 @@ import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { AttachmentsPanel } from "@/components/purchase-requests/attachments-panel";
 import { Timeline, type TimelineEvent } from "@/components/purchase-requests/timeline";
 import { UrgencyBadge } from "@/components/purchase-requests/urgency-badge";
+import { AllocationCell } from "@/components/purchase-orders/allocation-cell";
 import { StatusBadge } from "@/components/status-badge";
 import { unitShort } from "@/components/unit-select";
 import { isBusinessError } from "@/lib/errors";
@@ -58,6 +59,8 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
   const events = pr.events as unknown as TimelineEvent[];
   const lastReturn = [...pr.events].reverse().find((e) => e.type === "RETURNED")?.comment ?? null;
   const decisionOpen = pr.status === "SOUMISE";
+  // LOT-05 : colonnes « Commandé / Reste » dès qu'un bon de commande touche la demande (ou qu'elle est ouverte à la commande).
+  const showOrdering = pr.linkedOrders.length > 0 || ["VALIDEE", "EN_CONSULTATION", "PARTIELLEMENT_COMMANDEE", "COMMANDEE"].includes(pr.status);
 
   return (
     <>
@@ -179,7 +182,7 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
           Articles demandés
         </h2>
         <div className="overflow-x-auto rounded-lg border bg-card">
-          <table className="w-full min-w-[40rem] text-sm" data-testid="pr-lines">
+          <table className="w-full min-w-[44rem] text-sm" data-testid="pr-lines">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
               <tr>
                 <th className="p-3">N°</th>
@@ -187,6 +190,7 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
                 <th className="p-3 text-right">Demandé</th>
                 {hasApproved ? <th className="p-3 text-right">Validé</th> : null}
                 <th className="p-3">Unité</th>
+                {showOrdering ? <th className="p-3 text-right">Commandé / Reste</th> : null}
                 {showPrices ? <th className="p-3 text-right">Prix estimé</th> : null}
                 {showPrices ? <th className="p-3 text-right">Total</th> : null}
               </tr>
@@ -218,6 +222,11 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
                       </td>
                     ) : null}
                     <td className="p-3">{unitShort(l.unit)}</td>
+                    {showOrdering ? (
+                      <td className="p-3 text-right" data-testid={`pr-line-${l.lineNo}-ordering`}>
+                        <AllocationCell ordered={l.orderedQty} remaining={l.remainingQty} unit={l.unit} />
+                      </td>
+                    ) : null}
                     {showPrices ? (
                       <td className="p-3 text-right tabular-nums">
                         <MoneyCell value={l.estimatedUnitPrice} decimals={0} />
@@ -235,6 +244,34 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
           </table>
         </div>
       </section>
+
+      {pr.linkedOrders.length > 0 ? (
+        <section className="mb-6" aria-labelledby="pr-orders-title" data-testid="pr-linked-orders">
+          <h2 id="pr-orders-title" className="mb-2 font-medium">
+            Commandes liées
+          </h2>
+          <ul className="divide-y rounded-lg border bg-card text-sm">
+            {pr.linkedOrders.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2" data-testid={`pr-linked-order-${o.displayNumber.replace(/\s+/g, "-")}`}>
+                <Link href={`/achats/commandes/${o.id}`} className="inline-flex min-h-11 items-center font-mono font-medium text-primary underline-offset-4 hover:underline">
+                  {o.displayNumber}
+                </Link>
+                <StatusBadge status={o.status} />
+                <span className="text-muted-foreground tabular-nums">
+                  {o.lines
+                    .map((ol) => {
+                      const line = pr.lines.find((l) => l.id === ol.requestLineId);
+                      return line ? `ligne ${line.lineNo} : ${formatQty(ol.qty)} ${unitShort(line.unit)}` : null;
+                    })
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-xs text-muted-foreground">Les bons en brouillon réservent la quantité mais ne changent pas le statut de la demande.</p>
+        </section>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section aria-labelledby="pr-att-title">

@@ -90,6 +90,7 @@ const ACHETEUR: Action[] = [
   "purchaseOrder.create",
   "purchaseOrder.send",
   "purchaseOrder.remind",
+  "purchaseOrder.cancel",
   "importFile.view",
   "importFile.manage",
   "invoice.view",
@@ -245,4 +246,37 @@ export function canEditRequest(user: RequestActor, pr: RequestRef & { status: st
   const mayWrite = can(user, "purchaseRequest.create") || can(user, "purchaseRequest.createReplenishment");
   if (!mayWrite) return false;
   return pr.createdById === user.id || user.role === "RESPONSABLE_ACHATS";
+}
+
+// ------------------------------------------------------------------ LOT-05 : bons de commande (règles pures)
+
+export interface OrderRef {
+  createdById: string;
+  type: "LOCAL" | "IMPORT";
+  status: string;
+  version?: number;
+}
+
+/**
+ * D24 : Responsable, Acheteurs (tous les BC, H26) et Super-admin (lecture) voient les BC ; le Magasinier n'a aucun
+ * accès aux BC en LOT-05. Un brouillon est visible de son seul créateur (comme H49), sauf un avenant (version > 1),
+ * que le Responsable peut aussi consulter.
+ */
+export function canViewOrder(user: RequestActor, po: OrderRef): boolean {
+  if (!can(user, "purchaseOrder.view")) return false;
+  if (po.status === "BROUILLON" && po.createdById !== user.id) {
+    return user.role === "RESPONSABLE_ACHATS" && (po.version ?? 1) > 1;
+  }
+  return true;
+}
+
+/**
+ * Modification du contenu : brouillon seulement, créateur (le Responsable aussi pour un avenant), dans son périmètre
+ * (l'Acheteur « local » ne modifie pas un BC import).
+ */
+export function canEditOrder(user: RequestActor, po: OrderRef): boolean {
+  if (po.status !== "BROUILLON") return false;
+  if (!can(user, "purchaseOrder.create", { scope: po.type })) return false;
+  if (po.createdById === user.id) return true;
+  return user.role === "RESPONSABLE_ACHATS" && (po.version ?? 1) > 1;
 }

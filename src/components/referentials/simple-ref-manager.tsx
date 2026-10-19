@@ -6,7 +6,7 @@ import { CodeInput } from "@/components/code-input";
 import { CODE_FORMAT_MESSAGE, isValidCode } from "@/modules/referentials/codes";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { EmptyState } from "@/components/empty-state";
-import { FormError, FormField } from "@/components/form-field";
+import { FormError, FormField, TextArea } from "@/components/form-field";
 import { WriteButton } from "@/components/license/write-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ export interface SimpleRefRow {
   name: string;
   active: boolean;
   updatedAt: Date;
+  /** Adresse de livraison (dépôts : imprimée sur les bons de commande). */
+  address?: string | null;
 }
 
 type Act = (input: unknown) => Promise<ActionResult<unknown>>;
@@ -38,12 +40,15 @@ export interface SimpleRefLabels {
   created: string;
   /** Préfixe des data-testid. */
   testId: string;
+  /** Affiche et permet de saisir l'adresse (dépôts : adresse de livraison des bons de commande). */
+  withAddress?: boolean;
 }
 
 function RefForm({ labels, target, create, update, onDone }: { labels: SimpleRefLabels; target: SimpleRefRow | null; create: Act; update: Act; onDone: () => void }) {
   const { run, pending } = useActionRunner();
   const [code, setCode] = useState(target?.code ?? "");
   const [name, setName] = useState(target?.name ?? "");
+  const [address, setAddress] = useState(target?.address ?? "");
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -56,7 +61,8 @@ function RefForm({ labels, target, create, update, onDone }: { labels: SimpleRef
     if (name.trim().length < 2) next.name = `Le nom est obligatoire (2 caractères minimum).`;
     setErrors(next);
     if (next.code || next.name) return;
-    await run(() => (target ? update({ id: target.id, expectedUpdatedAt: target.updatedAt.toISOString(), name }) : create({ code, name })), {
+    const extra = labels.withAddress ? { address: address.trim() } : {};
+    await run(() => (target ? update({ id: target.id, expectedUpdatedAt: target.updatedAt.toISOString(), name, ...extra }) : create({ code, name, ...extra })), {
       success: target ? `${labels.singular[0].toUpperCase()}${labels.singular.slice(1)} modifié.` : `${labels.singular[0].toUpperCase()}${labels.singular.slice(1)} ${labels.created}.`,
       onSuccess: onDone,
       onError: (f) => (f.code === "CODE_EXISTS" ? setErrors({ code: f.message }) : setFormError(f.message)),
@@ -91,6 +97,11 @@ function RefForm({ labels, target, create, update, onDone }: { labels: SimpleRef
           data-testid={`${labels.testId}-name`}
         />
       </FormField>
+      {labels.withAddress ? (
+        <FormField id={`${labels.testId}-address`} label="Adresse de livraison" hint="Imprimée sur les bons de commande livrés dans ce dépôt (300 caractères maximum).">
+          <TextArea id={`${labels.testId}-address`} className="min-h-20" maxLength={300} value={address} onChange={(e) => setAddress(e.target.value)} data-testid={`${labels.testId}-address`} />
+        </FormField>
+      ) : null}
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" className="h-11 px-4" onClick={onDone}>
           Annuler
@@ -138,6 +149,7 @@ export function SimpleRefManager({
               <tr>
                 <th className="p-3">Code</th>
                 <th className="p-3">Nom</th>
+                {labels.withAddress ? <th className="p-3">Adresse de livraison</th> : null}
                 <th className="p-3">Statut</th>
                 <th className="p-3" />
               </tr>
@@ -147,6 +159,11 @@ export function SimpleRefManager({
                 <tr key={r.id} className="border-t" data-testid={`${t}-row-${r.code}`}>
                   <td className="p-3 font-mono">{r.code}</td>
                   <td className="p-3">{r.name}</td>
+                  {labels.withAddress ? (
+                    <td className="max-w-72 p-3 whitespace-pre-wrap" data-testid={`${t}-address-cell`}>
+                      {r.address || <span className="text-muted-foreground">Non renseignée</span>}
+                    </td>
+                  ) : null}
                   <td className="p-3">
                     <StatusBadge status={r.active ? "ACTIF" : "DESACTIVE"} />
                   </td>
@@ -188,7 +205,7 @@ export function SimpleRefManager({
         <DialogContent className="sm:max-w-md" data-testid={`${t}-dialog`}>
           <DialogHeader>
             <DialogTitle>{dialog?.target ? `Modifier : ${dialog.target.name}` : labels.newButton}</DialogTitle>
-            <DialogDescription>{dialog?.target ? "Seul le nom peut être modifié." : "Le code ne pourra plus être modifié ensuite."}</DialogDescription>
+            <DialogDescription>{dialog?.target ? (labels.withAddress ? "Le code ne peut pas être modifié ; le nom et l'adresse oui." : "Seul le nom peut être modifié.") : "Le code ne pourra plus être modifié ensuite."}</DialogDescription>
           </DialogHeader>
           {dialog ? (
             <RefForm key={dialog.target?.id ?? "new"} labels={labels} target={dialog.target} create={createAction} update={updateAction} onDone={() => setDialog(null)} />

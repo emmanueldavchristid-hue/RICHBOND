@@ -57,6 +57,23 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PR_ATTACHMENT_ADD: "Pièce jointe ajoutée à une demande d'achat",
   PR_ATTACHMENT_REMOVE: "Pièce jointe retirée d'une demande d'achat",
   PR_STATUS_SYNC: "Statut de demande d'achat mis à jour",
+  PO_CREATE: "Création d'un bon de commande",
+  PO_UPDATE: "Modification d'un bon de commande",
+  PO_SUBMIT: "Soumission d'un bon de commande",
+  PO_APPROVE: "Validation d'un bon de commande",
+  PO_REJECT: "Refus d'un bon de commande",
+  PO_RETURN: "Bon de commande renvoyé pour correction",
+  PO_CANCEL: "Annulation d'un bon de commande",
+  PO_SEND: "Bon de commande envoyé au fournisseur",
+  PO_CONFIRM: "Bon de commande confirmé par le fournisseur",
+  PO_PROMISED_DATE_CHANGE: "Date promise modifiée",
+  PO_REMIND: "Relance du fournisseur",
+  PO_AMEND_START: "Avenant ouvert sur un bon de commande",
+  PO_AMEND_ABANDON: "Avenant abandonné",
+  PO_CLOSE: "Clôture d'un bon de commande",
+  PO_COMMENT: "Commentaire sur un bon de commande",
+  PO_STATUS_SYNC: "Statut de bon de commande mis à jour",
+  SETTINGS_LOGO: "Logo de la société",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
@@ -72,6 +89,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   ExchangeRate: "Taux de change",
   Setting: "Réglage",
   PurchaseRequest: "Demande d'achat",
+  PurchaseOrder: "Bon de commande",
 };
 
 export function auditActionLabel(action: string): string {

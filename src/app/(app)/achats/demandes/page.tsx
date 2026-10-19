@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getNow } from "@/lib/clock";
 import { can } from "@/lib/permissions";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { pickParams, type SearchParams } from "@/lib/search-params";
@@ -56,6 +57,7 @@ async function RequestsContent({ searchParams }: { searchParams: Promise<SearchP
 
   const showPrices = await viewerCanSeePrices(user);
   const parsed = listRequestsSchema.safeParse(raw);
+  const { now } = await getNow();
   const [page, departments, local, imp] = await Promise.all([
     listRequests(user, parsed.success ? raw : { onglet: raw.onglet }, { showPrices }),
     listDepartments({ activeOnly: true }),
@@ -87,6 +89,7 @@ async function RequestsContent({ searchParams }: { searchParams: Promise<SearchP
         canCreate={can(user, "purchaseRequest.create") || can(user, "purchaseRequest.createReplenishment")}
         canApprove={canApprove}
         showPrices={showPrices}
+        nowIso={now.toISOString()}
         departments={departments.map((d) => ({ id: d.id, name: d.name }))}
         buyers={buyers}
       />

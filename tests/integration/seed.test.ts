@@ -11,6 +11,8 @@ describe("seed idempotent", () => {
     // Base de test uniquement (DATABASE_URL forcé à DATABASE_URL_TEST par vitest.config.ts).
     await db.auditLog.deleteMany();
     await db.notification.deleteMany();
+    await db.purchaseOrder.deleteMany(); // cascade : lignes, allocations, frais, événements, versions
+    await db.counter.deleteMany({ where: { key: "BC" } });
     await db.purchaseRequest.deleteMany(); // cascade : lignes, événements, pièces jointes
     await db.counter.deleteMany({ where: { key: "DA" } });
     await db.user.deleteMany();
@@ -40,7 +42,8 @@ describe("seed idempotent", () => {
     const demo = await db.purchaseRequest.findMany({ where: { reason: { startsWith: "[démo]" } }, orderBy: { number: "asc" } });
     expect(demo).toHaveLength(11);
     const byStatus = (st: string) => demo.filter((d) => d.status === st).length;
-    expect([byStatus("BROUILLON"), byStatus("SOUMISE"), byStatus("A_COMPLETER"), byStatus("VALIDEE"), byStatus("REFUSEE"), byStatus("ANNULEE")]).toEqual([2, 4, 1, 2, 1, 1]);
+    expect([byStatus("BROUILLON"), byStatus("SOUMISE"), byStatus("A_COMPLETER"), byStatus("VALIDEE"), byStatus("REFUSEE"), byStatus("ANNULEE")]).toEqual([2, 4, 1, 0, 1, 1]); // les 2 DA validées sont commandées par les BC fictifs (LOT-05)
+    expect([byStatus("PARTIELLEMENT_COMMANDEE"), byStatus("COMMANDEE")]).toEqual([1, 1]);
     expect(demo.filter((d) => d.urgency === "ARRET_PRODUCTION")).toHaveLength(1);
     expect(demo.filter((d) => d.kind === "REAPPRO")).toHaveLength(1);
     expect(demo.filter((d) => d.number === null).map((d) => d.status)).toEqual(["BROUILLON", "BROUILLON"]);
@@ -50,6 +53,26 @@ describe("seed idempotent", () => {
     expect(await db.purchaseRequestEvent.count()).toBeGreaterThanOrEqual(20);
     expect(await db.purchaseRequestLine.count({ where: { freeDesignation: { not: null } } })).toBe(1);
     expect(await db.purchaseRequestLine.count({ where: { request: { kind: "REAPPRO" }, estimatedUnitPrice: { not: null } } })).toBe(0);
+    // BC fictifs (LOT-05) : mêmes effectifs après deux exécutions, numéros consécutifs sans trou, statuts cohérents.
+    const bc = await db.purchaseOrder.findMany({ where: { events: { some: { payload: { path: ["seedKey"], string_starts_with: "lot05:" } } } }, orderBy: { createdAt: "asc" }, include: { lines: { include: { allocations: true } }, versions: true } });
+    expect(bc).toHaveLength(11);
+    const bcStatus = (st: string) => bc.filter((o) => o.status === st).length;
+    expect([bcStatus("BROUILLON"), bcStatus("A_VALIDER"), bcStatus("VALIDE"), bcStatus("ENVOYE"), bcStatus("CONFIRME"), bcStatus("RECU"), bcStatus("ANNULE")]).toEqual([1, 1, 4, 1, 2, 1, 1]);
+    const bcNumbers = bc.filter((o) => o.number).map((o) => Number(o.number!.slice(-5))).sort((a, b) => a - b);
+    expect(bcNumbers).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
+    expect(bc.filter((o) => !o.number).map((o) => o.status).sort()).toEqual(["A_VALIDER", "BROUILLON"]);
+    expect((await db.counter.findFirstOrThrow({ where: { key: "BC" } })).value).toBe(9);
+    const amended = bc.filter((o) => o.version === 2);
+    expect(amended).toHaveLength(1);
+    expect(amended[0].versions.map((v) => v.version).sort()).toEqual([1, 2]);
+    expect(bc.filter((o) => o.type === "IMPORT" && o.currencyCode !== "XOF" && o.exchangeRate !== null)).toHaveLength(2);
+    expect(bc.filter((o) => o.incoterm === "FOB" && o.incotermPlace === "Shanghai")).toHaveLength(2);
+    expect(bc.find((o) => o.status === "A_VALIDER")!.lines[0].priceDeltaPct?.toString()).toBe("30");
+    expect(bc.filter((o) => o.lines.some((l) => l.allocations.length > 0))).toHaveLength(4);
+    expect(await db.purchaseOrderEvent.count()).toBeGreaterThanOrEqual(30);
+    expect(await db.auditLog.count({ where: { entity: "PurchaseOrder" } })).toBeGreaterThanOrEqual(30);
+    expect(await db.setting.count({ where: { key: { in: ["company.name", "company.address", "purchaseOrder.pdfFooter"] } } })).toBe(3);
+    expect(await db.warehouse.count({ where: { address: { not: null } } })).toBeGreaterThanOrEqual(2);
     expect(await db.supplier.count({ where: { code: { startsWith: "FRS-" } } })).toBe(25);
     expect(await db.warehouse.count()).toBeGreaterThanOrEqual(2);
     expect(await db.department.count({ where: { code: { in: ["PROD", "MAINT", "QUAL", "LOG", "ADM", "DIR"] } } })).toBe(6);

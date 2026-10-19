@@ -22,11 +22,13 @@ import {
   PR_TYPE_LABELS,
   PR_URGENCY_LABELS,
 } from "@/modules/purchase-requests/labels";
+import { exportOrders } from "@/modules/purchase-orders/queries";
+import { PO_STATUS_LABELS, PO_TYPE_LABELS } from "@/modules/purchase-orders/labels";
 import { viewerCanSeePrices } from "@/modules/settings";
 import { exportSuppliers } from "@/modules/suppliers";
 
 /**
- * GET /api/export/articles | /fournisseurs | /demandes : mêmes filtres que la liste (query string).
+ * GET /api/export/articles | /fournisseurs | /demandes | /commandes : mêmes filtres que la liste (query string).
  * Autorisé en lecture seule (essai expiré) : pas de contrôle d'écriture.
  * Articles et fournisseurs : aucune colonne de prix d'achat (R15/R18). Demandes : prix estimés (FCFA) inclus
  * uniquement si l'utilisateur a le droit de voir les prix (le Magasinier ne les reçoit pas, sauf réglage explicite).
@@ -128,6 +130,39 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
       ];
       file = await buildWorkbook("Demandes d'achat", cols, rows);
       name = `demandes_${stamp}.xlsx`;
+    } else if (entity === "commandes") {
+      // LOT-05 (D30) : une ligne par ligne de BC, mêmes filtres que la liste. Le Magasinier n'a aucun accès aux BC.
+      if (!can(user, "purchaseOrder.view")) return forbidden();
+      const rows = await exportOrders(user, filters, (await getNow()).now);
+      type R = (typeof rows)[number];
+      const cols: ExcelColumn<R>[] = [
+        { header: "N° BC", width: 20, value: (r) => r.number },
+        { header: "Version", value: (r) => r.version },
+        { header: "Statut", width: 20, value: (r) => PO_STATUS_LABELS[r.status] },
+        { header: "Type", value: (r) => PO_TYPE_LABELS[r.type] },
+        { header: "Code fournisseur", value: (r) => r.supplierCode },
+        { header: "Fournisseur", width: 32, value: (r) => r.supplier },
+        { header: "Créé par", width: 22, value: (r) => r.createdBy },
+        { header: "Ligne", value: (r) => r.lineNo },
+        { header: "Code article", value: (r) => r.itemCode },
+        { header: "Désignation", width: 40, value: (r) => r.designation },
+        { header: "Quantité commandée", format: "0.###", value: (r) => r.quantity },
+        { header: "Quantité reçue", format: "0.###", value: (r) => r.receivedQty },
+        { header: "Reste à recevoir", format: "0.###", value: (r) => r.remainingQty },
+        { header: "Unité", value: (r) => r.unit },
+        { header: "Prix unitaire", format: "#,##0.00", value: (r) => r.unitPrice },
+        { header: "Remise (%)", format: "0.##", value: (r) => r.discountPct },
+        { header: "Devise", value: (r) => r.currency },
+        { header: "Montant ligne (devise)", format: "#,##0.00", value: (r) => r.netAmount },
+        { header: "Montant ligne (FCFA)", format: "#,##0", value: (r) => r.netAmountXof },
+        { header: "Total TTC du BC (FCFA)", format: "#,##0", value: (r) => r.totalTtcXof },
+        { header: "Date demandée", value: (r) => r.requestedDate },
+        { header: "Date promise", value: (r) => r.promisedDate },
+        { header: "Date attendue", value: (r) => r.expectedDate },
+        { header: "Jours de retard", value: (r) => r.daysLate },
+      ];
+      file = await buildWorkbook("Bons de commande", cols, rows);
+      name = `commandes_${stamp}.xlsx`;
     } else {
       return NextResponse.json({ code: "NOT_FOUND", message: "Export inconnu." }, { status: 404 });
     }

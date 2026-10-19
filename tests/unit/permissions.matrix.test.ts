@@ -17,6 +17,7 @@ const ACHETEUR_OK: Action[] = [
   "purchaseOrder.create",
   "purchaseOrder.send",
   "purchaseOrder.remind",
+  "purchaseOrder.cancel",
   "importFile.view",
   "importFile.manage",
   "invoice.view",

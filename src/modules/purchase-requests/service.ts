@@ -728,9 +728,13 @@ export async function markInConsultation(tx: Tx, requestId: string, actor: { id:
 }
 
 /**
- * Appelé depuis la transaction du BC (LOT-05) : recalcule PARTIELLEMENT_COMMANDEE / COMMANDEE à partir des
- * quantités commandées par ligne de DA (en unité de la ligne). Les lignes retirées (approvedQty = 0) sont ignorées.
- * Ne revient jamais en arrière.
+ * Appelé depuis les transactions de validation, d'annulation et de refus d'un BC (LOT-05, D9) : recalcule
+ * PARTIELLEMENT_COMMANDEE / COMMANDEE à partir des quantités commandées par ligne de DA (en unité de la ligne,
+ * somme des allocations des BC validés et au-delà). Les lignes retirées (approvedQty = 0) sont ignorées.
+ *
+ * Bidirectionnelle : quand un BC est annulé, une DA COMMANDEE repasse en PARTIELLEMENT_COMMANDEE ou VALIDEE, une DA
+ * PARTIELLEMENT_COMMANDEE en VALIDEE (actions système `markOrderReverted*`). Une DA EN_CONSULTATION dont rien n'est
+ * commandé reste EN_CONSULTATION. COMMANDEE reste final pour les utilisateurs.
  */
 export async function refreshOrderedStatus(
   tx: Tx,
@@ -741,15 +745,29 @@ export async function refreshOrderedStatus(
 ) {
   const pr = await tx.purchaseRequest.findUnique({ where: { id: requestId }, include: { lines: true } });
   if (!pr) throw new BusinessError("NOT_FOUND", "Demande d'achat introuvable.");
-  if (!OPEN_FOR_BUYER.includes(pr.status)) return result(pr);
+  if (!OPEN_FOR_BUYER.includes(pr.status) && pr.status !== "COMMANDEE") return result(pr);
   const needed = pr.lines.map((l) => ({ id: l.id, need: l.approvedQty ?? l.quantity })).filter((l) => l.need.gt(0));
   const ordered = (id: string) => new Prisma.Decimal(orderedByLineId[id] ?? 0);
   const complete = needed.length > 0 && needed.every((l) => ordered(l.id).gte(l.need));
   const started = needed.some((l) => ordered(l.id).gt(0));
-  const target: PurchaseRequestStatus | null = complete ? "COMMANDEE" : started ? "PARTIELLEMENT_COMMANDEE" : null;
+  let target: PurchaseRequestStatus | null;
+  let action: PrAction;
+  if (complete) {
+    target = "COMMANDEE";
+    action = "markOrdered";
+  } else if (started) {
+    target = "PARTIELLEMENT_COMMANDEE";
+    action = pr.status === "COMMANDEE" ? "markOrderReverted" : "markPartiallyOrdered";
+  } else if (pr.status === "COMMANDEE" || pr.status === "PARTIELLEMENT_COMMANDEE") {
+    target = "VALIDEE";
+    action = "markOrderRevertedToValidated";
+  } else {
+    target = null;
+    action = "markOrdered";
+  }
   if (!target || target === pr.status) return result(pr);
   const user = { id: actor.id, role: "RESPONSABLE_ACHATS" as const };
-  const { to } = assertTransition(pr, target === "COMMANDEE" ? "markOrdered" : "markPartiallyOrdered", user);
+  const { to } = assertTransition(pr, action, user);
   const after = await tx.purchaseRequest.update({ where: { id: requestId }, data: { status: to!, priority: effectivePriority(pr.urgency, to!) } });
   await recordEvent(tx, { requestId, type: "STATUS_SYNC", userId: actor.id, from: pr.status, to: to!, at });
   await log(tx, {

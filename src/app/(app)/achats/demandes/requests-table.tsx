@@ -9,6 +9,8 @@ import { DataTable, type DataColumn, type DataTablePageInfo, type FilterDef } fr
 import { DateCell } from "@/components/date-cell";
 import { WriteButton } from "@/components/license/write-button";
 import { MoneyCell } from "@/components/money-cell";
+import { AgeBadge } from "@/components/purchase-orders/age-badge";
+import { ageInDays, ageSeverity } from "@/lib/dates";
 import { UrgencyBadge } from "@/components/purchase-requests/urgency-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ export function RequestsTable({
   canCreate,
   canApprove,
   showPrices,
+  nowIso,
   departments,
   buyers,
 }: {
@@ -42,6 +45,8 @@ export function RequestsTable({
   canCreate: boolean;
   canApprove: boolean;
   showPrices: boolean;
+  /** Heure serveur (ancienneté de la validation). */
+  nowIso: string;
   departments: { id: string; name: string }[];
   buyers: { id: string; name: string }[];
 }) {
@@ -164,8 +169,31 @@ export function RequestsTable({
       header: "Acheteur",
       cell: (r) => r.assignedBuyer?.name ?? <span className="text-muted-foreground">–</span>,
     });
+    // LOT-05 (D21) : « Assignées à moi » montre ce qui traîne : ancienneté de la validation et reste à commander.
+    if (tab === "assignees") {
+      const now = new Date(nowIso);
+      cols.push(
+        {
+          id: "approvedAge",
+          header: "Validée",
+          cell: (r) => (r.approvedAt && r.linesToOrder > 0 ? <AgeBadge days={ageInDays(r.approvedAt, now)} severity={ageSeverity(r.approvedAt, now)} prefix="depuis" /> : <span className="text-muted-foreground">–</span>),
+        },
+        {
+          id: "linesToOrder",
+          header: "À commander",
+          cell: (r) =>
+            r.linesToOrder > 0 ? (
+              <span className="font-medium text-amber-800" data-testid="pr-lines-to-order">
+                {r.linesToOrder} ligne{r.linesToOrder > 1 ? "s" : ""}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">–</span>
+            ),
+        },
+      );
+    }
     return cols;
-  }, [canApprove, showPrices, selectable, selected, allChecked, toggle]);
+  }, [canApprove, showPrices, selectable, selected, allChecked, toggle, tab, nowIso]);
 
   const filters = useMemo<FilterDef[]>(() => {
     const f: FilterDef[] = [];
