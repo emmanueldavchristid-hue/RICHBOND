@@ -13,6 +13,9 @@ export default defineConfig({
   // Scripts jetables de débogage/recette (non suivis par git) : jamais joués par la suite.
   testIgnore: ["**/_dbg/**", "**/_recette/**"],
   globalSetup: "./tests/e2e/global-setup.ts",
+  // Serveur de dev : la première visite d'une page compile à la volée (plusieurs secondes) ; scénarios multi-rôles longs.
+  timeout: 180_000,
+  expect: { timeout: 15_000 },
   fullyParallel: false,
   workers: 1,
   reporter: [["list"]],

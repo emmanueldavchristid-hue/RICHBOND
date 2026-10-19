@@ -21,6 +21,8 @@ export function seedPassword(): string {
 /** Saisit les identifiants sur /connexion et soumet (sans rien vérifier). */
 export async function submitLogin(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/connexion");
+  // Hydratation terminée avant de saisir : sinon un clic trop tôt envoie le formulaire en natif et vide les champs.
+  await page.waitForLoadState("networkidle");
   await page.getByTestId("login-email").fill(email);
   await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
