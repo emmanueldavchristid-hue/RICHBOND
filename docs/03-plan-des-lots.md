@@ -11,7 +11,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 | LOT-02 | Période d'essai, compte à rebours, licence | EX-05 | Terminé |
 | LOT-03 | Référentiels : articles, fournisseurs, dépôts, services, devises | EX-10, 11 | Terminé |
 | LOT-04 | Demandes d'achat et workflow de validation | EX-20, 21 | Terminé |
-| LOT-05 | Bons de commande, PDF, suivi des délais et relances | EX-21, 22, 23 | À faire |
+| LOT-05 | Bons de commande, PDF, suivi des délais et relances | EX-21, 22, 23 | En cours |
 | LOT-06 | Réceptions, contrôle, non-conformités, retours | EX-24, 30 | À faire |
 | LOT-07 | Stock : mouvements, sorties, PMP, seuils, prévision de rupture, réappro | EX-30, 31, 33 | À faire |
 | LOT-08 | Tableau de bord d'accueil par rôle | EX-60, 61 | À faire |
