@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useState, type ComponentProps } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLicense } from "./license-provider";
@@ -13,11 +13,13 @@ import { useLicense } from "./license-provider";
 /** `exempt` : action autorisée même en lecture seule (Super-admin sur comptes et licence, mot de passe). */
 export function WriteButton({ exempt = false, ...props }: ComponentProps<typeof Button> & { exempt?: boolean }) {
   const { writable, readOnlyMessage } = useLicense();
+  const [open, setOpen] = useState(false);
   if (writable || exempt) return <Button {...props} />;
   return (
-    <Tooltip>
+    <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger
-        render={<span className="inline-flex" tabIndex={0} data-testid="write-disabled-hint" />}
+        // Tablette : le toucher n'ouvre pas l'infobulle par défaut, on l'ouvre au clic/toucher.
+        render={<span className="inline-flex" tabIndex={0} data-testid="write-disabled-hint" onClick={() => setOpen(true)} />}
       >
         <Button {...props} disabled onClick={undefined} />
       </TooltipTrigger>
