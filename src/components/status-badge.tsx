@@ -16,6 +16,9 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   DESACTIVE: { label: "Désactivé", tone: "neutral" },
   VERROUILLE: { label: "Verrouillé", tone: "danger" },
   A_CHANGER: { label: "Mot de passe à définir", tone: "warning" },
+  LICENCE_ESSAI: { label: "Période d'essai", tone: "info" },
+  LICENCE_ACTIVE: { label: "Licence active", tone: "success" },
+  LICENCE_EXPIREE: { label: "Essai terminé", tone: "danger" },
 };
 
 export function StatusBadge({

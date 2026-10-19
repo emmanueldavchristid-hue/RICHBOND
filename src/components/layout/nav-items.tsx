@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   Home,
+  KeyRound,
   Settings,
   Ship,
   ShoppingCart,
@@ -21,7 +22,7 @@ export interface NavLink {
   icon: string;
 }
 
-const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Truck, BarChart3, Settings };
+const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Truck, BarChart3, Settings, KeyRound };
 
 export function NavItems({ items, onNavigate }: { items: NavLink[]; onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -29,7 +30,9 @@ export function NavItems({ items, onNavigate }: { items: NavLink[]; onNavigate?:
     <nav aria-label="Menu principal" className="flex flex-col gap-1" data-testid="main-nav">
       {items.map((item) => {
         const Icon = ICONS[item.icon] ?? Home;
-        const active = pathname === item.href || pathname.startsWith(item.href + "/");
+        const hasChildEntry = items.some((o) => o.href !== item.href && o.href.startsWith(item.href + "/"));
+        const active =
+          pathname === item.href || (!hasChildEntry && pathname.startsWith(item.href + "/"));
         return (
           <Link
             key={item.href}
