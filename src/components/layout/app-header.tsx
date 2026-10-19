@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { NotificationsBell } from "./notifications-bell";
 import { NavItems, type NavLink } from "./nav-items";
 import { UserMenu } from "./user-menu";
 import { TrialBadgeSlot } from "./trial-badge-slot";
@@ -48,18 +48,7 @@ export function AppHeader({
       )}
       <div className="flex-1" />
       <TrialBadgeSlot />
-      <Popover>
-        <PopoverTrigger
-          render={<Button variant="ghost" size="icon" className="size-11" />}
-          aria-label="Notifications"
-          data-testid="notifications"
-        >
-          <Bell className="size-5" />
-        </PopoverTrigger>
-        <PopoverContent align="end" data-testid="notifications-panel">
-          <p className="text-sm text-muted-foreground">Aucune notification.</p>
-        </PopoverContent>
-      </Popover>
+      {minimal ? null : <NotificationsBell />}
       <UserMenu name={name} roleLabel={roleLabel} showAccountLink={!minimal} />
     </header>
   );
