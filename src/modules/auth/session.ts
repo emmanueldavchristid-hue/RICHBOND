@@ -58,7 +58,7 @@ export async function requirePageAction(
 
 export interface WithActionOptions {
   /** Écriture : refusée si la licence est en lecture seule (défaut true). */
-  writable?: boolean;
+  writable?: boolean | ((user: CurrentUser) => boolean);
   /** Autorise l'action alors que le mot de passe doit être changé (mon-compte). */
   allowMustChangePassword?: boolean;
 }
@@ -94,7 +94,8 @@ export function withAction<S extends z.ZodType, R>(
         );
       }
       if (action) requireAction(user, action);
-      if (writable) await requireWritable();
+      const needsWritable = typeof writable === "function" ? writable(user) : writable;
+      if (needsWritable) await requireWritable();
       const parsed = schema.safeParse(rawInput);
       if (!parsed.success) {
         throw new BusinessError(

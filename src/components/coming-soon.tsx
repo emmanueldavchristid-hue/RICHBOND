@@ -6,9 +6,9 @@ import { requirePageAction } from "@/modules/auth/session";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 
-async function ComingSoonContent({ title, anyOf }: { title: string; anyOf: Action[] }) {
+async function ComingSoonContent({ title, anyOf, scope }: { title: string; anyOf: Action[]; scope?: "LOCAL" | "IMPORT" }) {
   const user = await requirePageAction(null);
-  if (!anyOf.some((a) => can(user, a))) redirect("/acces-refuse");
+  if (!anyOf.some((a) => can(user, a, scope ? { scope } : undefined))) redirect("/acces-refuse");
   return (
     <>
       <PageHeader title={title} />
@@ -22,10 +22,18 @@ async function ComingSoonContent({ title, anyOf }: { title: string; anyOf: Actio
 }
 
 /** Rubrique prévue dans un lot ultérieur. Au moins un des droits `anyOf` est requis. */
-export function ComingSoon({ title, anyOf }: { title: string; anyOf: Action[] }) {
+export function ComingSoon({
+  title,
+  anyOf,
+  scope,
+}: {
+  title: string;
+  anyOf: Action[];
+  scope?: "LOCAL" | "IMPORT";
+}) {
   return (
     <Suspense fallback={<PageSkeleton />}>
-      <ComingSoonContent title={title} anyOf={anyOf} />
+      <ComingSoonContent title={title} anyOf={anyOf} scope={scope} />
     </Suspense>
   );
 }

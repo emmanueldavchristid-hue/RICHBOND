@@ -7,6 +7,15 @@ import { requirePageAction } from "@/modules/auth/session";
 
 export const metadata: Metadata = { title: "Accueil – RICHBOND" };
 
+const DESCRIPTIONS: Record<string, string> = {
+  "/achats": "Demandes d'achat, consultations et bons de commande.",
+  "/import": "Dossiers d'import, suivi des expéditions et frais d'approche.",
+  "/stock": "Niveaux de stock, réceptions, sorties et inventaires.",
+  "/fournisseurs": "Fiches fournisseurs, conditions et évaluations.",
+  "/rapports": "Tableaux de bord et exports pour suivre achats et stocks.",
+  "/parametres": "Utilisateurs, journal d'activité et réglages.",
+};
+
 async function AccueilContent() {
   const user = await requirePageAction(null);
   const links = visibleNav(user).filter((n) => n.href !== "/accueil");
@@ -22,7 +31,10 @@ async function AccueilContent() {
             href={n.href}
             className="rounded-lg border bg-card p-5 text-base font-medium shadow-sm transition-colors hover:bg-muted"
           >
-            {n.label}
+            <span className="block">{n.label}</span>
+            {DESCRIPTIONS[n.href] ? (
+              <span className="mt-1 block text-sm font-normal text-muted-foreground">{DESCRIPTIONS[n.href]}</span>
+            ) : null}
           </Link>
         ))}
       </div>

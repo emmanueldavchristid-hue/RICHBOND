@@ -37,7 +37,7 @@ export function LoginForm({ retour }: { retour?: string }) {
         <p className="text-3xl font-bold tracking-wide text-primary">RICHBOND</p>
         <h1 className="mt-1 text-base text-muted-foreground">Achats &amp; Stocks</h1>
       </div>
-      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+      <form method="post" onSubmit={onSubmit} className="space-y-4" noValidate>
         {error ? (
           <div
             role="alert"

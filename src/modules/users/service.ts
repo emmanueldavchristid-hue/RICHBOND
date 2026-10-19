@@ -140,6 +140,12 @@ export async function updateUser(actor: Actor, raw: UpdateUserInput, ip?: string
 }
 
 export async function resetPassword(actor: Actor, id: string, ip?: string | null) {
+  if (actor.id === id) {
+    throw new BusinessError(
+      "SELF_RESET",
+      "Vous ne pouvez pas réinitialiser votre propre mot de passe ici : utilisez « Mon compte ».",
+    );
+  }
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
   await db.$transaction(async (tx) => {

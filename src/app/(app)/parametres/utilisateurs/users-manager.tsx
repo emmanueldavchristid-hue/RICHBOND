@@ -4,9 +4,10 @@ import { useMemo, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { DateCell } from "@/components/date-cell";
@@ -176,107 +177,96 @@ export function UsersManager({
       {filtered.length === 0 ? (
         <EmptyState title="Aucun utilisateur trouvé" description="Modifiez la recherche ou les filtres." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border bg-card">
-          <Table data-testid="users-table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
-                <TableHead>Périmètre</TableHead>
-                <TableHead>Statut</TableHead>
-                <TableHead>Dernière connexion</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((u) => {
-                const isSelf = u.id === currentUserId;
-                return (
-                  <TableRow key={u.id} data-testid={`user-row-${u.email}`}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>{ROLE_LABELS[u.role]}</TableCell>
-                    <TableCell>{u.role === "ACHETEUR" && u.purchaseScope ? SCOPE_LABELS[u.purchaseScope] : "–"}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <StatusBadge status={u.active ? "ACTIF" : "DESACTIVE"} />
-                        {u.active && u.locked && u.lockedUntil ? (
-                          <StatusBadge
-                            status="VERROUILLE"
-                            label={`Verrouillé jusqu'à ${formatDateTime(u.lockedUntil).slice(-5)}`}
-                          />
-                        ) : null}
-                        {u.active && u.mustChangePassword ? <StatusBadge status="A_CHANGER" /> : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DateCell value={u.lastLoginAt} withTime empty="Jamais" />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <WriteButton readOnly={readOnly} variant="outline" className="h-10 px-3" onClick={() => openEdit(u)} data-testid="user-edit">
-                          Modifier
-                        </WriteButton>
-                        {u.active ? (
-                          <WriteButton
-                            readOnly={readOnly}
-                            variant="outline"
-                            className="h-10 px-3"
-                            onClick={() => setConfirm({ kind: "reset", user: u })}
-                            data-testid="user-reset"
-                          >
-                            Réinitialiser le mot de passe
-                          </WriteButton>
-                        ) : null}
-                        {u.active && u.locked ? (
-                          <WriteButton
-                            readOnly={readOnly}
-                            variant="outline"
-                            className="h-10 px-3"
-                            disabled={pending}
-                            onClick={() =>
-                              run(() => unlockUserAction({ id: u.id }), `Compte de ${u.name} déverrouillé.`)
-                            }
-                            data-testid="user-unlock"
-                          >
-                            Déverrouiller
-                          </WriteButton>
-                        ) : null}
-                        {u.active ? (
-                          isSelf ? null : (
-                            <WriteButton
-                              readOnly={readOnly}
-                              variant="destructive"
-                              className="h-10 px-3"
-                              onClick={() => setConfirm({ kind: "deactivate", user: u })}
-                              data-testid="user-deactivate"
-                            >
-                              Désactiver
-                            </WriteButton>
-                          )
-                        ) : (
-                          <WriteButton
-                            readOnly={readOnly}
-                            variant="outline"
-                            className="h-10 px-3"
-                            disabled={pending}
-                            onClick={() =>
-                              run(() => reactivateUserAction({ id: u.id }), `Compte de ${u.name} réactivé.`)
-                            }
-                            data-testid="user-reactivate"
-                          >
-                            Réactiver
-                          </WriteButton>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <ul className="divide-y rounded-lg border bg-card" data-testid="users-table">
+          {filtered.map((u) => {
+            const isSelf = u.id === currentUserId;
+            return (
+              <li
+                key={u.id}
+                data-testid={`user-row-${u.email}`}
+                className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between"
+              >
+                <div className="min-w-0 space-y-1">
+                  <p className="font-medium">{u.name}</p>
+                  <p className="truncate text-sm text-muted-foreground">{u.email}</p>
+                  <p className="text-sm">
+                    {ROLE_LABELS[u.role]}
+                    {u.role === "ACHETEUR" && u.purchaseScope ? ` (${SCOPE_LABELS[u.purchaseScope]})` : ""}
+                    <span className="text-muted-foreground"> · Dernière connexion : </span>
+                    <DateCell value={u.lastLoginAt} withTime empty="Jamais" />
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    <StatusBadge status={u.active ? "ACTIF" : "DESACTIVE"} />
+                    {u.active && u.locked && u.lockedUntil ? (
+                      <StatusBadge
+                        status="VERROUILLE"
+                        label={`Verrouillé jusqu'à ${formatDateTime(u.lockedUntil).slice(-5)}`}
+                      />
+                    ) : null}
+                    {u.active && u.mustChangePassword ? <StatusBadge status="A_CHANGER" /> : null}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 lg:max-w-md lg:justify-end">
+                  <WriteButton readOnly={readOnly} variant="outline" className="h-10 px-3" onClick={() => openEdit(u)} data-testid="user-edit">
+                    Modifier
+                  </WriteButton>
+                  {u.active && !isSelf ? (
+                    <Button
+                      variant="outline"
+                      className="h-10 px-3"
+                      onClick={() => setConfirm({ kind: "reset", user: u })}
+                      data-testid="user-reset"
+                    >
+                      Réinitialiser le mot de passe
+                    </Button>
+                  ) : null}
+                  {u.active && isSelf ? (
+                    <Link
+                      href="/mon-compte"
+                      className={cn(buttonVariants({ variant: "outline" }), "h-10 px-3")}
+                      data-testid="user-self-password"
+                    >
+                      Changer mon mot de passe
+                    </Link>
+                  ) : null}
+                  {u.active && u.locked ? (
+                    <Button
+                      variant="outline"
+                      className="h-10 px-3"
+                      disabled={pending}
+                      onClick={() => run(() => unlockUserAction({ id: u.id }), `Compte de ${u.name} déverrouillé.`)}
+                      data-testid="user-unlock"
+                    >
+                      Déverrouiller
+                    </Button>
+                  ) : null}
+                  {u.active ? (
+                    isSelf ? null : (
+                      <Button
+                        variant="destructive"
+                        className="h-10 px-3"
+                        onClick={() => setConfirm({ kind: "deactivate", user: u })}
+                        data-testid="user-deactivate"
+                      >
+                        Désactiver
+                      </Button>
+                    )
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="h-10 px-3"
+                      disabled={pending}
+                      onClick={() => run(() => reactivateUserAction({ id: u.id }), `Compte de ${u.name} réactivé.`)}
+                      data-testid="user-reactivate"
+                    >
+                      Réactiver
+                    </Button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       <UserFormDialog

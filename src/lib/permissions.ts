@@ -169,13 +169,15 @@ export interface NavEntry {
   href: string;
   icon: string;
   anyOf: Action[];
+  /** Périmètre exigé de l'Acheteur pour voir la rubrique (ex. Import). */
+  scope?: "LOCAL" | "IMPORT";
 }
 
 /** Config unique du menu (icône = nom lucide). Filtrée par `visibleNav`. */
 export const NAV_ITEMS: NavEntry[] = [
   { label: "Accueil", href: "/accueil", icon: "Home", anyOf: [] },
   { label: "Achats", href: "/achats", icon: "ShoppingCart", anyOf: ["purchaseRequest.view"] },
-  { label: "Import", href: "/import", icon: "Ship", anyOf: ["importFile.view"] },
+  { label: "Import", href: "/import", icon: "Ship", anyOf: ["importFile.view"], scope: "IMPORT" },
   { label: "Stock", href: "/stock", icon: "Warehouse", anyOf: ["stock.view"] },
   { label: "Fournisseurs", href: "/fournisseurs", icon: "Truck", anyOf: ["supplier.view"] },
   {
@@ -193,5 +195,5 @@ export const NAV_ITEMS: NavEntry[] = [
 ];
 
 export function visibleNav(user: PermissionUser): NavEntry[] {
-  return NAV_ITEMS.filter((n) => n.anyOf.length === 0 || n.anyOf.some((a) => can(user, a)));
+  return NAV_ITEMS.filter((n) => n.anyOf.length === 0 || n.anyOf.some((a) => can(user, a, n.scope ? { scope: n.scope } : undefined)));
 }

@@ -34,6 +34,7 @@ async function JournalContent({ searchParams }: { searchParams: Promise<Params> 
     entity: first(sp.entity),
     from: first(sp.from),
     to: first(sp.to),
+    showAuth: first(sp.showAuth),
     page: first(sp.page),
   };
   const valid = auditFiltersSchema.safeParse(raw).success;
@@ -44,7 +45,7 @@ async function JournalContent({ searchParams }: { searchParams: Promise<Params> 
   const pageHref = (page: number) => {
     const p = new URLSearchParams();
     const f: Record<string, string | undefined> = filters;
-    for (const k of ["userId", "action", "entity", "from", "to"]) {
+    for (const k of ["userId", "action", "entity", "from", "to", "showAuth"]) {
       const v = f[k];
       if (v) p.set(k, v);
     }
@@ -105,6 +106,17 @@ async function JournalContent({ searchParams }: { searchParams: Promise<Params> 
             ))}
           </NativeSelect>
         </div>
+        <label className="flex h-11 items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="showAuth"
+            value="1"
+            defaultChecked={raw.showAuth === "1"}
+            className="size-5"
+            data-testid="journal-show-auth"
+          />
+          Afficher les connexions et déconnexions
+        </label>
         <Button type="submit" className="h-11 px-4" data-testid="journal-appliquer">
           Filtrer
         </Button>
@@ -124,7 +136,7 @@ async function JournalContent({ searchParams }: { searchParams: Promise<Params> 
                 <TableHead>Utilisateur</TableHead>
                 <TableHead>Action</TableHead>
                 <TableHead>Élément</TableHead>
-                <TableHead>N°</TableHead>
+                <TableHead>Concerné</TableHead>
                 <TableHead>Détail</TableHead>
               </TableRow>
             </TableHeader>
@@ -137,7 +149,7 @@ async function JournalContent({ searchParams }: { searchParams: Promise<Params> 
                   <TableCell>{e.user?.name ?? "Système"}</TableCell>
                   <TableCell data-testid="journal-action">{auditActionLabel(e.action)}</TableCell>
                   <TableCell>{auditEntityLabel(e.entity)}</TableCell>
-                  <TableCell className="font-mono text-xs">{e.entityId}</TableCell>
+                  <TableCell className="text-sm" title={e.entityId}>{e.entityRef}</TableCell>
                   <TableCell>
                     <AuditDetailButton title={auditActionLabel(e.action)} before={e.before} after={e.after} />
                   </TableCell>

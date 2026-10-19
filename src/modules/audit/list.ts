@@ -7,6 +7,9 @@ import type { Prisma } from "@/generated/prisma/client";
 
 export const PAGE_SIZE = 50;
 
+/** Événements de session, masqués par défaut pour laisser voir les opérations métier. */
+export const SESSION_NOISE_ACTIONS = ["LOGIN_SUCCESS", "LOGOUT"] as const;
+
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const auditFiltersSchema = z.object({
   userId: z.string().optional(),
@@ -14,6 +17,8 @@ export const auditFiltersSchema = z.object({
   entity: z.string().optional(),
   from: day.optional(),
   to: day.optional(),
+  /** "1" = afficher aussi connexions réussies et déconnexions (masquées par défaut). */
+  showAuth: z.enum(["1"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
 });
 export type AuditFilters = z.input<typeof auditFiltersSchema>;
@@ -24,6 +29,7 @@ export async function listAudit(raw: AuditFilters, viewerRole: string) {
   const where: Prisma.AuditLogWhereInput = {};
   if (f.userId) where.userId = f.userId;
   if (f.action) where.action = f.action;
+  else if (f.showAuth !== "1") where.action = { notIn: [...SESSION_NOISE_ACTIONS] };
   if (f.entity) where.entity = f.entity;
   if (f.from || f.to) {
     where.createdAt = {
@@ -44,5 +50,15 @@ export async function listAudit(raw: AuditFilters, viewerRole: string) {
       include: { user: { select: { name: true, email: true } } },
     }),
   ]);
-  return { total, page: f.page, pageSize: PAGE_SIZE, items };
+  // Libellé lisible de l'élément concerné (nom pour un utilisateur) à la place de l'id technique.
+  const userIds = [...new Set(items.filter((i) => i.entity === "User").map((i) => i.entityId))];
+  const targets = userIds.length
+    ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, email: true } })
+    : [];
+  const names = new Map(targets.map((t) => [t.id, `${t.name} (${t.email})`]));
+  const withRef = items.map((i) => ({
+    ...i,
+    entityRef: i.entity === "User" ? (names.get(i.entityId) ?? "Compte supprimé ou inconnu") : i.entityId,
+  }));
+  return { total, page: f.page, pageSize: PAGE_SIZE, items: withRef };
 }

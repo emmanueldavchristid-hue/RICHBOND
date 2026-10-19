@@ -20,7 +20,7 @@ async function UsersContent() {
       users={rows}
       currentUserId={user.id}
       canAssignAdmin={user.role === "SUPER_ADMIN"}
-      readOnly={!writable}
+      readOnly={!writable && user.role !== "SUPER_ADMIN"}
     />
   );
 }
