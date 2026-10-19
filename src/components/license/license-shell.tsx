@@ -14,6 +14,10 @@ export async function LicenseShell({ children }: { children: ReactNode }) {
         serverNow: l.serverNow.toISOString(),
         licensedTo: l.licensedTo,
         activatedAt: l.activatedAt?.toISOString() ?? null,
+        contact: {
+          email: process.env.CONTACT_EMAIL?.trim() || null,
+          phone: process.env.CONTACT_PHONE?.trim() || null,
+        },
       }}
     >
       {children}

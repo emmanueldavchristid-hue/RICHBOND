@@ -5,7 +5,7 @@ import { useLicense } from "./license-provider";
 
 /** Bandeau rouge fixe après l'échéance : dans le flux de la page, il ne masque aucun contenu. */
 export function ReadOnlyBanner() {
-  const { state, openDialog } = useLicense();
+  const { state, openDialog, contact } = useLicense();
   if (state.status !== "EXPIRED") return null;
   return (
     <div
@@ -15,6 +15,11 @@ export function ReadOnlyBanner() {
     >
       <Lock className="size-4 shrink-0" aria-hidden />
       <span>Période d&apos;essai terminée – consultation seule</span>
+      <span data-testid="read-only-contact">
+        Contact : Christ-Emmanuel Mouhi
+        {contact.email ? ` – ${contact.email}` : ""}
+        {contact.phone ? ` – ${contact.phone}` : ""}
+      </span>
       <button type="button" onClick={openDialog} className="underline underline-offset-2" data-testid="read-only-details">
         En savoir plus
       </button>

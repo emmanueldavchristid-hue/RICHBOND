@@ -20,7 +20,7 @@ export function longDate(d: Date): string {
  * (J-7, J-3, J-1, dernier jour). Après l'échéance : fenêtre explicative à chaque connexion.
  */
 export function TrialDialog({ sessionId }: { sessionId: string }) {
-  const { state, serverNow, dialogOpen, openDialog, closeDialog } = useLicense();
+  const { state, serverNow, dialogOpen, openDialog, closeDialog, contact } = useLicense();
   const { status, isReminderDay } = state;
   const dayKey = formatInTimeZone(serverNow, TZ, "yyyy-MM-dd");
 
@@ -30,6 +30,8 @@ export function TrialDialog({ sessionId }: { sessionId: string }) {
     try {
       if (!localStorage.getItem(base)) {
         localStorage.setItem(base, "1");
+        // Le jour de rappel est consommé par cette première ouverture (pas de doublon après F5).
+        if (status === "TRIAL" && isReminderDay) localStorage.setItem(`${base}:${dayKey}`, "1");
         openDialog();
         return;
       }
@@ -74,7 +76,11 @@ export function TrialDialog({ sessionId }: { sessionId: string }) {
           <ul className="list-disc space-y-1 pl-5 text-base" data-testid="trial-expired-help">
             <li>L&apos;application est en consultation seule : aucune donnée n&apos;a été supprimée.</li>
             <li>Vous pouvez toujours consulter, imprimer et exporter vos données.</li>
-            <li>Pour la réactiver, contactez Christ-Emmanuel Mouhi.</li>
+            <li data-testid="trial-contact">
+              Pour la réactiver, contactez Christ-Emmanuel Mouhi
+              {contact.email ? ` – ${contact.email}` : ""}
+              {contact.phone ? ` – ${contact.phone}` : ""}.
+            </li>
           </ul>
         ) : (
           <div className="space-y-3">

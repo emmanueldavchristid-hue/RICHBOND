@@ -13,9 +13,12 @@ export interface LicenseSnapshot {
   serverNow: string;
   licensedTo: string | null;
   activatedAt: string | null;
+  /** Coordonnées de contact (variables CONTACT_EMAIL / CONTACT_PHONE), absentes si non définies. */
+  contact?: { email: string | null; phone: string | null };
 }
 
 interface LicenseContextValue {
+  contact: { email: string | null; phone: string | null };
   /** État recalculé chaque minute à partir de l'heure serveur. */
   state: LicenseState;
   serverNow: Date;
@@ -69,6 +72,7 @@ export function LicenseProvider({ snapshot, children }: { snapshot: LicenseSnaps
 
   const value = useMemo<LicenseContextValue>(
     () => ({
+      contact: snapshot.contact ?? { email: null, phone: null },
       state,
       serverNow: new Date(nowMs),
       writable: state.writable,
@@ -77,7 +81,7 @@ export function LicenseProvider({ snapshot, children }: { snapshot: LicenseSnaps
       openDialog: () => setDialogOpen(true),
       closeDialog: () => setDialogOpen(false),
     }),
-    [state, nowMs, dialogOpen],
+    [state, nowMs, dialogOpen, snapshot.contact],
   );
   return <LicenseContext.Provider value={value}>{children}</LicenseContext.Provider>;
 }
