@@ -16,6 +16,8 @@ export interface CurrentUser {
   role: Role;
   purchaseScope: PurchaseScope | null;
   mustChangePassword: boolean;
+  /** Identifiant de la session en cours (connexion), pour les messages « une fois par session ». */
+  sessionKey: string;
 }
 
 /**
@@ -35,6 +37,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     role: u.role,
     purchaseScope: u.purchaseScope,
     mustChangePassword: u.mustChangePassword,
+    sessionKey: String(s.loginAt ?? 0),
   };
 });
 
