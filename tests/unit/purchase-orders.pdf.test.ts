@@ -55,7 +55,8 @@ function snapshot(over: Partial<OrderSnapshot> = {}): OrderSnapshot {
 }
 
 async function textOf(snap: OrderSnapshot, preview = false): Promise<string> {
-  const bytes = await renderToBuffer(createElement(PurchaseOrderDocument, { snapshot: snap, company, preview }));
+  const doc = createElement(PurchaseOrderDocument, { snapshot: snap, company, preview }) as unknown as Parameters<typeof renderToBuffer>[0];
+  const bytes = await renderToBuffer(doc);
   const pdf = await getDocumentProxy(new Uint8Array(bytes));
   const { text } = await extractText(pdf, { mergePages: true });
   return text;

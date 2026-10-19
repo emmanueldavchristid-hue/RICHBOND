@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getClientIp } from "@/modules/auth/ip";
 import { withAction } from "@/modules/auth/session";
-import { getSettings, updateSetting, updateSettingSchema } from "@/modules/settings";
+import { BusinessError } from "@/lib/errors";
+import { getSettings, removeLogo, setLogo, updateSetting, updateSettingSchema } from "@/modules/settings";
 
 export const getSettingsAction = withAction("settings.manage", z.object({}).optional(), () => getSettings(), { writable: false });
 
@@ -15,4 +16,19 @@ export const updateSettingAction = withAction("settings.manage", updateSettingSc
   revalidatePath("/stock/articles", "layout");
   revalidatePath("/fournisseurs", "layout");
   return r;
+});
+
+/** D29 : logo imprimé sur les bons de commande. FormData : champ `file` (PNG ou JPEG, 1 Mo maximum). */
+export const uploadLogoAction = withAction("settings.manage", z.instanceof(FormData), async ({ user, input }) => {
+  const file = input.get("file");
+  if (!(file instanceof File)) throw new BusinessError("VALIDATION", "Aucun fichier sélectionné.");
+  const r = await setLogo(user, { bytes: new Uint8Array(await file.arrayBuffer()) }, await getClientIp());
+  revalidatePath("/parametres/reglages");
+  return r;
+});
+
+export const removeLogoAction = withAction("settings.manage", z.object({}).optional(), async ({ user }) => {
+  await removeLogo(user, await getClientIp());
+  revalidatePath("/parametres/reglages");
+  return { ok: true };
 });
