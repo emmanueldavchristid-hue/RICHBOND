@@ -10,6 +10,9 @@ describe("seed idempotent", () => {
   it("exécuté deux fois : pas de doublon", async () => {
     // Base de test uniquement (DATABASE_URL forcé à DATABASE_URL_TEST par vitest.config.ts).
     await db.auditLog.deleteMany();
+    await db.notification.deleteMany();
+    await db.purchaseRequest.deleteMany(); // cascade : lignes, événements, pièces jointes
+    await db.counter.deleteMany({ where: { key: "DA" } });
     await db.user.deleteMany();
     await db.license.deleteMany();
     await db.itemPriceHistory.deleteMany();
@@ -33,6 +36,20 @@ describe("seed idempotent", () => {
     expect(await db.license.count()).toBe(1);
     // Référentiels fictifs (LOT-03) : mêmes effectifs après deux exécutions.
     expect(await db.item.count({ where: { code: { startsWith: "ART-" } } })).toBe(40);
+    // DA fictives (LOT-04) : mêmes effectifs après deux exécutions, numéros consécutifs sans trou.
+    const demo = await db.purchaseRequest.findMany({ where: { reason: { startsWith: "[démo]" } }, orderBy: { number: "asc" } });
+    expect(demo).toHaveLength(11);
+    const byStatus = (st: string) => demo.filter((d) => d.status === st).length;
+    expect([byStatus("BROUILLON"), byStatus("SOUMISE"), byStatus("A_COMPLETER"), byStatus("VALIDEE"), byStatus("REFUSEE"), byStatus("ANNULEE")]).toEqual([2, 4, 1, 2, 1, 1]);
+    expect(demo.filter((d) => d.urgency === "ARRET_PRODUCTION")).toHaveLength(1);
+    expect(demo.filter((d) => d.kind === "REAPPRO")).toHaveLength(1);
+    expect(demo.filter((d) => d.number === null).map((d) => d.status)).toEqual(["BROUILLON", "BROUILLON"]);
+    const numbers = demo.filter((d) => d.number).map((d) => Number(d.number!.slice(-5)));
+    expect(numbers.sort((a, b) => a - b)).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
+    expect((await db.counter.findFirstOrThrow({ where: { key: "DA" } })).value).toBe(9);
+    expect(await db.purchaseRequestEvent.count()).toBeGreaterThanOrEqual(20);
+    expect(await db.purchaseRequestLine.count({ where: { freeDesignation: { not: null } } })).toBe(1);
+    expect(await db.purchaseRequestLine.count({ where: { request: { kind: "REAPPRO" }, estimatedUnitPrice: { not: null } } })).toBe(0);
     expect(await db.supplier.count({ where: { code: { startsWith: "FRS-" } } })).toBe(25);
     expect(await db.warehouse.count()).toBeGreaterThanOrEqual(2);
     expect(await db.department.count({ where: { code: { in: ["PROD", "MAINT", "QUAL", "LOG", "ADM", "DIR"] } } })).toBe(6);
