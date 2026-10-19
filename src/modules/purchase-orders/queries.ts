@@ -21,7 +21,15 @@ import { daysLate, isLate, needsReminder, REMINDABLE_STATUSES } from "./lateness
 import { lastPrices } from "./pricing";
 import { checkPrice, priceAlertMessage } from "./price-check";
 import { mailtoLink, reminderText, sendText, whatsappLink } from "./reminder-text";
-import { checkOrderDuplicatesSchema, listOrdersSchema, orderIdSchema, priceCheckSchema, searchOrderableLinesSchema, type ListOrdersFilters, type ListOrdersInput } from "./schemas";
+import {
+  checkOrderDuplicatesSchema,
+  listOrdersSchema,
+  orderIdSchema,
+  priceCheckSchema,
+  searchOrderableLinesSchema,
+  type ListOrdersFilters,
+  type ListOrdersInput,
+} from "./schemas";
 import { computeTotals } from "./totals";
 import { alreadyOrderedWarnings } from "./warnings";
 import { isSupplierEvaluationStale } from "./supplier-evaluation";
@@ -46,7 +54,12 @@ export function lateWhere(at: Date): Where {
 }
 
 /** Filtre partagé par la liste, les compteurs et l'export. `remindIds` : identifiants « à relancer » déjà calculés. */
-export function buildOrderWhere(user: OrderActor, f: ListOrdersFilters, at: Date, remindIds?: string[]): Where {
+export function buildOrderWhere(
+  user: OrderActor,
+  f: ListOrdersFilters,
+  at: Date,
+  remindIds?: string[],
+): Where {
   const and: Where[] = [visibilityWhere(user)];
   switch (f.onglet) {
     case "a-valider":
@@ -71,8 +84,11 @@ export function buildOrderWhere(user: OrderActor, f: ListOrdersFilters, at: Date
   if (f.devise) and.push({ currencyCode: f.devise });
   if (f.relance) and.push({ id: { in: remindIds ?? [] } });
   if (f.q) {
+    // Un brouillon n'a pas de numéro : son libellé « BC-BROUILLON-AB12CD » (6 derniers caractères de l'id) doit rester recherchable.
+    const draft = /^BC-BROUILLON-([A-Z0-9]{3,6})$/i.exec(f.q.trim());
     and.push({
       OR: [
+        ...(draft ? [{ number: null, id: { endsWith: draft[1].toLowerCase() } }] : []),
         { number: { contains: f.q, mode: "insensitive" } },
         { supplier: { name: { contains: f.q, mode: "insensitive" } } },
         { supplier: { code: { contains: f.q, mode: "insensitive" } } },
@@ -84,7 +100,11 @@ export function buildOrderWhere(user: OrderActor, f: ListOrdersFilters, at: Date
                 { freeDesignation: { contains: f.q, mode: "insensitive" } },
                 { item: { code: { contains: f.q, mode: "insensitive" } } },
                 { item: { name: { contains: f.q, mode: "insensitive" } } },
-                { allocations: { some: { requestLine: { request: { number: { contains: f.q, mode: "insensitive" } } } } } },
+                {
+                  allocations: {
+                    some: { requestLine: { request: { number: { contains: f.q, mode: "insensitive" } } } },
+                  },
+                },
               ],
             },
           },
@@ -95,7 +115,9 @@ export function buildOrderWhere(user: OrderActor, f: ListOrdersFilters, at: Date
   return { AND: and };
 }
 
-export function buildOrderOrder(f: Pick<ListOrdersFilters, "tri" | "ordre" | "onglet">): Prisma.PurchaseOrderOrderByWithRelationInput[] {
+export function buildOrderOrder(
+  f: Pick<ListOrdersFilters, "tri" | "ordre" | "onglet">,
+): Prisma.PurchaseOrderOrderByWithRelationInput[] {
   const order: Prisma.PurchaseOrderOrderByWithRelationInput[] = [];
   if (f.tri) {
     if (f.tri === "supplier") order.push({ supplier: { name: f.ordre } });
@@ -174,7 +196,9 @@ export async function listOrders(
   requireAction(user, "purchaseOrder.view");
   const f = parseInput(listOrdersSchema, raw);
   const settings = await getSettings();
-  const remindIds = f.relance ? await remindableIds(user, at, settings.purchaseOrderReminderAfterDays) : undefined;
+  const remindIds = f.relance
+    ? await remindableIds(user, at, settings.purchaseOrderReminderAfterDays)
+    : undefined;
   const where = buildOrderWhere(user, f, at, remindIds);
   const [rows, total, counts] = await Promise.all([
     db.purchaseOrder.findMany({
@@ -229,7 +253,14 @@ export async function listOrders(
 // ------------------------------------------------------------------ fiche
 
 const DETAIL_INCLUDE = {
-  supplier: { include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" as const }, { name: "asc" as const }] } } },
+  supplier: {
+    include: {
+      contacts: {
+        where: { active: true },
+        orderBy: [{ isPrimary: "desc" as const }, { name: "asc" as const }],
+      },
+    },
+  },
   warehouse: { select: { id: true, code: true, name: true, address: true } },
   currency: { select: { code: true, name: true, decimals: true, symbol: true } },
   createdBy: { select: { id: true, name: true } },
@@ -237,16 +268,50 @@ const DETAIL_INCLUDE = {
   lines: {
     orderBy: { lineNo: "asc" as const },
     include: {
-      item: { select: { id: true, code: true, name: true, purchaseUnit: true, stockUnit: true, conversionFactor: true } },
-      allocations: { include: { requestLine: { select: { id: true, lineNo: true, unit: true, request: { select: { id: true, number: true, status: true } } } } } },
+      item: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          purchaseUnit: true,
+          stockUnit: true,
+          conversionFactor: true,
+        },
+      },
+      allocations: {
+        include: {
+          requestLine: {
+            select: {
+              id: true,
+              lineNo: true,
+              unit: true,
+              request: { select: { id: true, number: true, status: true } },
+            },
+          },
+        },
+      },
     },
   },
   charges: { orderBy: { id: "asc" as const } },
-  events: { orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }], include: { user: { select: { id: true, name: true } } } },
-  versions: { orderBy: { version: "asc" as const }, select: { version: true, approvedAt: true, approvedById: true } },
+  events: {
+    orderBy: [{ createdAt: "asc" as const }, { id: "asc" as const }],
+    include: { user: { select: { id: true, name: true } } },
+  },
+  versions: {
+    orderBy: { version: "asc" as const },
+    select: { version: true, approvedAt: true, approvedById: true },
+  },
 } satisfies Prisma.PurchaseOrderInclude;
 
-export type AlertKind = "PRICE" | "QTY_OVER" | "RATE_STALE" | "RATE_MISSING" | "SUPPLIER_IN_EVALUATION" | "SUPPLIER_NOT_EVALUATED" | "SUPPLIER_BLOCKED" | "UNDER_THRESHOLD";
+export type AlertKind =
+  | "PRICE"
+  | "QTY_OVER"
+  | "RATE_STALE"
+  | "RATE_MISSING"
+  | "SUPPLIER_IN_EVALUATION"
+  | "SUPPLIER_NOT_EVALUATED"
+  | "SUPPLIER_BLOCKED"
+  | "UNDER_THRESHOLD";
 
 export interface OrderAlert {
   kind: AlertKind;
@@ -259,52 +324,92 @@ export async function getOrder(user: OrderActor, id: string, at: Date = now()) {
   requireAction(user, "purchaseOrder.view");
   const po = await db.purchaseOrder.findUnique({ where: { id }, include: DETAIL_INCLUDE });
   if (!po) throw new BusinessError("NOT_FOUND", "Bon de commande introuvable.");
-  if (!canViewOrder(user, po)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
+  if (!canViewOrder(user, po))
+    throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
   const settings = await getSettings();
   const hasReceipts = po.lines.some((l) => l.receivedQty.gt(0));
   const actions = availableActions({ ...po, hasReceipts }, user);
   const totals = computeTotals(
-    po.lines.map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, discountPct: l.discountPct, vatRate: l.vatRate })),
+    po.lines.map((l) => ({
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      discountPct: l.discountPct,
+      vatRate: l.vatRate,
+    })),
     po.charges.map((c) => ({ amount: c.amount, vatRate: c.vatRate })),
     { currencyCode: po.currencyCode, decimals: po.currency.decimals, rate: po.exchangeRate },
   );
 
   // Alertes montrées au validateur (et au créateur) tant que le BC n'est pas validé.
   const alerts: OrderAlert[] = [];
-  const last = await lastPrices(db, po.lines.flatMap((l) => (l.itemId ? [l.itemId] : [])));
+  const last = await lastPrices(
+    db,
+    po.lines.flatMap((l) => (l.itemId ? [l.itemId] : [])),
+  );
   for (const l of po.lines) {
     if (l.priceDeltaPct && Math.abs(l.priceDeltaPct.toNumber()) > settings.purchaseOrderPriceAlertPct) {
       const info = l.itemId ? last.get(l.itemId) : undefined;
       alerts.push({
         kind: "PRICE",
         lineNo: l.lineNo,
-        message: l.lastPriceXof !== null && info
-          ? `Ligne ${l.lineNo} : ${priceAlertMessage(l.priceDeltaPct, { lastPriceXof: l.lastPriceXof, date: info.date instanceof Date ? info.date : new Date(info.date), supplierCode: info.supplierCode })}`
-          : `Ligne ${l.lineNo} : écart de prix de ${l.priceDeltaPct.toString()} % par rapport au dernier prix.`,
+        message:
+          l.lastPriceXof !== null && info
+            ? `Ligne ${l.lineNo} : ${priceAlertMessage(l.priceDeltaPct, { lastPriceXof: l.lastPriceXof, date: info.date instanceof Date ? info.date : new Date(info.date), supplierCode: info.supplierCode })}`
+            : `Ligne ${l.lineNo} : écart de prix de ${l.priceDeltaPct.toString()} % par rapport au dernier prix.`,
       });
     }
     if (l.item && l.allocations.length > 0) {
       let sum = new Prisma.Decimal(0);
       for (const a of l.allocations) sum = sum.plus(convertQty(a.qty, a.requestLine.unit, l.unit, l.item));
       const pct = qtyOverPct(l.quantity, sum);
-      if (isQtyOverWarning(pct)) alerts.push({ kind: "QTY_OVER", lineNo: l.lineNo, message: `Ligne ${l.lineNo} : quantité commandée +${pct!.toString().replace(".", ",")} % par rapport aux demandes d'achat.` });
+      if (isQtyOverWarning(pct))
+        alerts.push({
+          kind: "QTY_OVER",
+          lineNo: l.lineNo,
+          message: `Ligne ${l.lineNo} : quantité commandée +${pct!.toString().replace(".", ",")} % par rapport aux demandes d'achat.`,
+        });
     }
   }
-  if (po.currencyCode !== "XOF" && !["VALIDE", "ENVOYE", "CONFIRME", "PARTIELLEMENT_RECU", "RECU", "CLOTURE"].includes(po.status)) {
+  if (
+    po.currencyCode !== "XOF" &&
+    !["VALIDE", "ENVOYE", "CONFIRME", "PARTIELLEMENT_RECU", "RECU", "CLOTURE"].includes(po.status)
+  ) {
     const found = await latestRate(db, po.currencyCode, at);
-    if (!found) alerts.push({ kind: "RATE_MISSING", message: `Aucun taux ${po.currencyCode} connu : saisissez-le avant de valider.` });
-    else if (isRateStale(found.date, at)) alerts.push({ kind: "RATE_STALE", message: `Le dernier taux ${po.currencyCode} date de plus de 30 jours.` });
+    if (!found)
+      alerts.push({
+        kind: "RATE_MISSING",
+        message: `Aucun taux ${po.currencyCode} connu : saisissez-le avant de valider.`,
+      });
+    else if (isRateStale(found.date, at))
+      alerts.push({
+        kind: "RATE_STALE",
+        message: `Le dernier taux ${po.currencyCode} date de plus de 30 jours.`,
+      });
   }
-  if (po.supplier.status === "BLOQUE") alerts.push({ kind: "SUPPLIER_BLOCKED", message: `Le fournisseur « ${po.supplier.name} » est bloqué : le bon ne peut plus être soumis ni validé.` });
-  if (po.supplier.status === "EN_EVALUATION") alerts.push({ kind: "SUPPLIER_IN_EVALUATION", message: `Le fournisseur « ${po.supplier.name} » est en évaluation.` });
+  if (po.supplier.status === "BLOQUE")
+    alerts.push({
+      kind: "SUPPLIER_BLOCKED",
+      message: `Le fournisseur « ${po.supplier.name} » est bloqué : le bon ne peut plus être soumis ni validé.`,
+    });
+  if (po.supplier.status === "EN_EVALUATION")
+    alerts.push({
+      kind: "SUPPLIER_IN_EVALUATION",
+      message: `Le fournisseur « ${po.supplier.name} » est en évaluation.`,
+    });
   if ((await isSupplierEvaluationStale(db, po.supplierId, at)) === true) {
     alerts.push({ kind: "SUPPLIER_NOT_EVALUATED", message: "Fournisseur non évalué depuis 12 mois." });
   }
-  if (po.status === "A_VALIDER" && isUnderApprovalThreshold(po.totalTtcXof, settings.purchaseOrderApprovalThreshold)) {
+  if (
+    po.status === "A_VALIDER" &&
+    isUnderApprovalThreshold(po.totalTtcXof, settings.purchaseOrderApprovalThreshold)
+  ) {
     alerts.push({ kind: "UNDER_THRESHOLD", message: "Montant sous le seuil de validation." });
   }
 
-  const sourceMap = new Map<string, { id: string; number: string | null; displayNumber: string; status: string }>();
+  const sourceMap = new Map<
+    string,
+    { id: string; number: string | null; displayNumber: string; status: string }
+  >();
   for (const l of po.lines) {
     for (const a of l.allocations) {
       const r = a.requestLine.request;
@@ -352,7 +457,11 @@ export async function getOrder(user: OrderActor, id: string, at: Date = now()) {
     needsReminder: needsReminder(po, at, settings.purchaseOrderReminderAfterDays),
     ageDays: age ? ageInDays(age, at) : null,
     ageSeverity: age ? ageSeverity(age, at) : null,
-    settings: { priceAlertPct: settings.purchaseOrderPriceAlertPct, approvalThreshold: settings.purchaseOrderApprovalThreshold, reminderAfterDays: settings.purchaseOrderReminderAfterDays },
+    settings: {
+      priceAlertPct: settings.purchaseOrderPriceAlertPct,
+      approvalThreshold: settings.purchaseOrderApprovalThreshold,
+      reminderAfterDays: settings.purchaseOrderReminderAfterDays,
+    },
   });
 }
 
@@ -382,7 +491,10 @@ export interface OrderableLine {
 }
 
 /** Lignes de DA restant à commander et visibles de l'utilisateur : siennes (acheteur) ou toutes (Responsable). */
-async function orderableLines(user: OrderActor, opts: { q?: string; supplierId?: string | null; requestId?: string; limit?: number }): Promise<OrderableLine[]> {
+async function orderableLines(
+  user: OrderActor,
+  opts: { q?: string; supplierId?: string | null; requestId?: string; limit?: number },
+): Promise<OrderableLine[]> {
   requireAction(user, "purchaseOrder.create");
   const q = opts.q?.trim();
   const rows = await db.purchaseRequestLine.findMany({
@@ -391,10 +503,19 @@ async function orderableLines(user: OrderActor, opts: { q?: string; supplierId?:
       ...(opts.requestId ? { requestId: opts.requestId } : {}),
       request: {
         status: { in: [...OPEN_FOR_ORDER] },
-        ...(user.role === "ACHETEUR" ? { OR: [{ assignedBuyerId: user.id }, { assignedBuyerId: null }] } : {}),
+        ...(user.role === "ACHETEUR"
+          ? { OR: [{ assignedBuyerId: user.id }, { assignedBuyerId: null }] }
+          : {}),
       },
       ...(opts.supplierId
-        ? { item: { OR: [{ mainSupplierId: opts.supplierId }, { suppliers: { some: { supplierId: opts.supplierId, active: true } } }] } }
+        ? {
+            item: {
+              OR: [
+                { mainSupplierId: opts.supplierId },
+                { suppliers: { some: { supplierId: opts.supplierId, active: true } } },
+              ],
+            },
+          }
         : {}),
       ...(q
         ? {
@@ -408,8 +529,20 @@ async function orderableLines(user: OrderActor, opts: { q?: string; supplierId?:
         : {}),
     },
     include: {
-      request: { select: { id: true, number: true, urgency: true, priority: true, neededBy: true, type: true, assignedBuyerId: true } },
-      item: { include: { mainSupplier: { select: { id: true, code: true, name: true, type: true, status: true } } } },
+      request: {
+        select: {
+          id: true,
+          number: true,
+          urgency: true,
+          priority: true,
+          neededBy: true,
+          type: true,
+          assignedBuyerId: true,
+        },
+      },
+      item: {
+        include: { mainSupplier: { select: { id: true, code: true, name: true, type: true, status: true } } },
+      },
     },
     orderBy: [{ request: { priority: "asc" } }, { request: { neededBy: "asc" } }, { id: "asc" }],
     take: Math.min((opts.limit ?? 500) * 3, 1500),
@@ -418,7 +551,12 @@ async function orderableLines(user: OrderActor, opts: { q?: string; supplierId?:
   const out: OrderableLine[] = [];
   for (const r of rows) {
     const t = r.request.type;
-    if (user.role === "ACHETEUR" && !r.request.assignedBuyerId && (t === "A_DEFINIR" || !buyerCoversType(user.purchaseScope, t))) continue;
+    if (
+      user.role === "ACHETEUR" &&
+      !r.request.assignedBuyerId &&
+      (t === "A_DEFINIR" || !buyerCoversType(user.purchaseScope, t))
+    )
+      continue;
     const qn = quantities.get(r.id)!;
     if (qn.remainingQty.lte(0)) continue;
     const item = r.item;
@@ -449,7 +587,9 @@ export interface OrderableGroup {
 }
 
 /** Écran « À commander » : lignes à commander groupées par fournisseur principal de l'article, « sans fournisseur » à part (en dernier). */
-export async function listOrderableLines(user: OrderActor): Promise<{ groups: Serialized<OrderableGroup>[] }> {
+export async function listOrderableLines(
+  user: OrderActor,
+): Promise<{ groups: Serialized<OrderableGroup>[] }> {
   const lines = await orderableLines(user, {});
   const groups = new Map<string, OrderableGroup>();
   for (const l of lines) {
@@ -467,7 +607,10 @@ export async function listOrderableLines(user: OrderActor): Promise<{ groups: Se
 }
 
 /** Lignes restant à commander d'une seule DA (« Créer le BC » depuis la fiche DA), groupées par fournisseur principal. */
-export async function listOrderableLinesOfRequest(user: OrderActor, requestId: string): Promise<{ groups: Serialized<OrderableGroup>[] }> {
+export async function listOrderableLinesOfRequest(
+  user: OrderActor,
+  requestId: string,
+): Promise<{ groups: Serialized<OrderableGroup>[] }> {
   const lines = await orderableLines(user, { requestId });
   const groups = new Map<string, OrderableGroup>();
   for (const l of lines) {
@@ -476,14 +619,18 @@ export async function listOrderableLinesOfRequest(user: OrderActor, requestId: s
     g.lines.push(l);
     groups.set(key, g);
   }
-  const sorted = [...groups.values()].sort((a, b) => (!a.supplier ? 1 : !b.supplier ? -1 : a.supplier.name.localeCompare(b.supplier.name, "fr")));
+  const sorted = [...groups.values()].sort((a, b) =>
+    !a.supplier ? 1 : !b.supplier ? -1 : a.supplier.name.localeCompare(b.supplier.name, "fr"),
+  );
   return serialize({ groups: sorted }) as unknown as { groups: Serialized<OrderableGroup>[] };
 }
 
 /** Recherche clavier d'une ligne à commander pour le formulaire (par article, désignation ou numéro de DA). */
 export async function searchOrderableLines(user: OrderActor, raw: unknown) {
   const input = parseInput(searchOrderableLinesSchema, raw);
-  return serialize(await orderableLines(user, { q: input.q, supplierId: input.supplierId, limit: input.limit }));
+  return serialize(
+    await orderableLines(user, { q: input.q, supplierId: input.supplierId, limit: input.limit }),
+  );
 }
 
 // ------------------------------------------------------------------ aides à la saisie (lectures)
@@ -493,14 +640,29 @@ export async function priceCheckLines(user: OrderActor, raw: unknown, at: Date =
   requireAction(user, "purchaseOrder.view");
   const input = parseInput(priceCheckSchema, raw);
   const settings = await getSettings();
-  const items = await db.item.findMany({ where: { id: { in: input.lines.map((l) => l.itemId) } }, select: { id: true, purchaseUnit: true } });
+  const items = await db.item.findMany({
+    where: { id: { in: input.lines.map((l) => l.itemId) } },
+    select: { id: true, purchaseUnit: true },
+  });
   const units = new Map(items.map((i) => [i.id, i.purchaseUnit]));
-  const rate = input.currencyCode === "XOF" ? null : ((await latestRate(db, input.currencyCode, at))?.rate ?? null);
-  const last = await lastPrices(db, input.lines.map((l) => l.itemId));
+  const rate =
+    input.currencyCode === "XOF" ? null : ((await latestRate(db, input.currencyCode, at))?.rate ?? null);
+  const last = await lastPrices(
+    db,
+    input.lines.map((l) => l.itemId),
+  );
   return serialize(
     input.lines.map((l) => {
       const info = last.get(l.itemId) ?? null;
-      const res = checkPrice({ unitPrice: l.unitPrice, discountPct: l.discountPct, currencyCode: input.currencyCode, rate, unit: units.get(l.itemId) ?? "", last: info, thresholdPct: settings.purchaseOrderPriceAlertPct });
+      const res = checkPrice({
+        unitPrice: l.unitPrice,
+        discountPct: l.discountPct,
+        currencyCode: input.currencyCode,
+        rate,
+        unit: units.get(l.itemId) ?? "",
+        last: info,
+        thresholdPct: settings.purchaseOrderPriceAlertPct,
+      });
       return {
         itemId: l.itemId,
         lastPriceXof: res.lastPriceXof,
@@ -508,7 +670,14 @@ export async function priceCheckLines(user: OrderActor, raw: unknown, at: Date =
         lastSupplierCode: info?.supplierCode ?? null,
         deltaPct: res.deltaPct,
         alert: res.alert,
-        message: res.alert && res.deltaPct && res.lastPriceXof !== null && info ? priceAlertMessage(res.deltaPct, { lastPriceXof: res.lastPriceXof, date: new Date(info.date), supplierCode: info.supplierCode }) : null,
+        message:
+          res.alert && res.deltaPct && res.lastPriceXof !== null && info
+            ? priceAlertMessage(res.deltaPct, {
+                lastPriceXof: res.lastPriceXof,
+                date: new Date(info.date),
+                supplierCode: info.supplierCode,
+              })
+            : null,
       };
     }),
   );
@@ -528,12 +697,15 @@ export async function getReminderText(user: OrderActor, raw: unknown, at: Date =
   const po = await db.purchaseOrder.findUnique({
     where: { id },
     include: {
-      supplier: { include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] } } },
+      supplier: {
+        include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] } },
+      },
       lines: { orderBy: { lineNo: "asc" }, include: { item: { select: { code: true, name: true } } } },
     },
   });
   if (!po) throw new BusinessError("NOT_FOUND", "Bon de commande introuvable.");
-  if (!canViewOrder(user, po)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
+  if (!canViewOrder(user, po))
+    throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
   const settings = await getSettings();
   const buyer = await db.user.findUnique({ where: { id: user.id }, select: { name: true } });
   const contact = po.supplier.contacts[0] ?? null;
@@ -568,15 +740,26 @@ export async function getSendText(user: OrderActor, raw: unknown) {
   const { id } = parseInput(orderIdSchema, raw);
   const po = await db.purchaseOrder.findUnique({
     where: { id },
-    include: { supplier: { include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] } } } },
+    include: {
+      supplier: {
+        include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] } },
+      },
+    },
   });
   if (!po) throw new BusinessError("NOT_FOUND", "Bon de commande introuvable.");
-  if (!canViewOrder(user, po)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
+  if (!canViewOrder(user, po))
+    throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
   const settings = await getSettings();
   const buyer = await db.user.findUnique({ where: { id: user.id }, select: { name: true } });
   const contact = po.supplier.contacts[0] ?? null;
   const label = displayOrderNumber(po);
-  const text = sendText({ orderNumber: label, contactName: contact?.name ?? null, requestedDate: po.requestedDate, buyerName: buyer?.name ?? "", companyName: settings.company.name });
+  const text = sendText({
+    orderNumber: label,
+    contactName: contact?.name ?? null,
+    requestedDate: po.requestedDate,
+    buyerName: buyer?.name ?? "",
+    companyName: settings.company.name,
+  });
   const subject = `Bon de commande ${label}`;
   return {
     text,
@@ -594,11 +777,16 @@ export async function exportOrders(user: OrderActor, raw: ListOrdersInput = {}, 
   requireAction(user, "purchaseOrder.view");
   const f = parseInput(listOrdersSchema, raw);
   const settings = await getSettings();
-  const remindIds = f.relance ? await remindableIds(user, at, settings.purchaseOrderReminderAfterDays) : undefined;
+  const remindIds = f.relance
+    ? await remindableIds(user, at, settings.purchaseOrderReminderAfterDays)
+    : undefined;
   const where = buildOrderWhere(user, f, at, remindIds);
   const total = await db.purchaseOrderLine.count({ where: { order: where } });
   if (total > EXPORT_MAX_ROWS) {
-    throw new BusinessError("EXPORT_TOO_LARGE", `Trop de lignes (${total}) : affinez les filtres (maximum ${EXPORT_MAX_ROWS}).`);
+    throw new BusinessError(
+      "EXPORT_TOO_LARGE",
+      `Trop de lignes (${total}) : affinez les filtres (maximum ${EXPORT_MAX_ROWS}).`,
+    );
   }
   const orders = await db.purchaseOrder.findMany({
     where,
@@ -630,7 +818,12 @@ export async function exportOrders(user: OrderActor, raw: ListOrdersInput = {}, 
       discountPct: Number(l.discountPct),
       currency: po.currencyCode,
       netAmount: Number(l.netAmount),
-      netAmountXof: po.currencyCode === "XOF" ? Number(l.netAmount) : po.exchangeRate ? toFcfa(l.netAmount.toFixed(2), po.exchangeRate.toFixed(6)) : null,
+      netAmountXof:
+        po.currencyCode === "XOF"
+          ? Number(l.netAmount)
+          : po.exchangeRate
+            ? toFcfa(l.netAmount.toFixed(2), po.exchangeRate.toFixed(6))
+            : null,
       totalTtcXof: po.totalTtcXof,
       requestedDate: po.requestedDate,
       promisedDate: po.promisedDate,
@@ -652,18 +845,25 @@ export interface HomeOrderSummary {
 }
 
 export async function homeOrderSummary(user: OrderActor, at: Date = now()): Promise<HomeOrderSummary> {
-  if (!can(user, "purchaseOrder.view") || user.role === "MAGASINIER") return { toValidate: 0, late: 0, toRemind: 0 };
+  if (!can(user, "purchaseOrder.view") || user.role === "MAGASINIER")
+    return { toValidate: 0, late: 0, toRemind: 0 };
   const mine: Where = user.role === "ACHETEUR" ? { createdById: user.id } : {};
   const settings = await getSettings();
   const [toValidate, late, remindable] = await Promise.all([
-    user.role === "RESPONSABLE_ACHATS" ? db.purchaseOrder.count({ where: { status: "A_VALIDER" } }) : Promise.resolve(0),
+    user.role === "RESPONSABLE_ACHATS"
+      ? db.purchaseOrder.count({ where: { status: "A_VALIDER" } })
+      : Promise.resolve(0),
     db.purchaseOrder.count({ where: { AND: [visibilityWhere(user), mine, lateWhere(at)] } }),
     db.purchaseOrder.findMany({
       where: { AND: [visibilityWhere(user), mine, { status: { in: [...REMINDABLE_STATUSES] } }] },
       select: { status: true, sentAt: true, lastRemindedAt: true, expectedDate: true },
     }),
   ]);
-  return { toValidate, late, toRemind: remindable.filter((r) => needsReminder(r, at, settings.purchaseOrderReminderAfterDays)).length };
+  return {
+    toValidate,
+    late,
+    toRemind: remindable.filter((r) => needsReminder(r, at, settings.purchaseOrderReminderAfterDays)).length,
+  };
 }
 
 // ------------------------------------------------------------------ PDF
@@ -679,11 +879,19 @@ export interface OrderPdfSource {
  * Données du PDF : sans `version`, la version courante (aperçu filigrané tant que le BC n'est pas validé) ;
  * avec `version`, l'instantané de cette version validée.
  */
-export async function getOrderPdfSource(user: OrderActor, id: string, version?: number): Promise<OrderPdfSource> {
+export async function getOrderPdfSource(
+  user: OrderActor,
+  id: string,
+  version?: number,
+): Promise<OrderPdfSource> {
   requireAction(user, "purchaseOrder.view");
-  const po = await db.purchaseOrder.findUnique({ where: { id }, select: { id: true, number: true, version: true, status: true, createdById: true, type: true } });
+  const po = await db.purchaseOrder.findUnique({
+    where: { id },
+    select: { id: true, number: true, version: true, status: true, createdById: true, type: true },
+  });
   if (!po) throw new BusinessError("NOT_FOUND", "Bon de commande introuvable.");
-  if (!canViewOrder(user, po)) throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
+  if (!canViewOrder(user, po))
+    throw new BusinessError("FORBIDDEN", "Vous n'avez pas accès à ce bon de commande.");
   const pending = po.status === "BROUILLON" || po.status === "A_VALIDER";
   if (version === undefined && pending) {
     // Aperçu de l'état courant (jamais de numéro avant validation).
@@ -692,17 +900,27 @@ export async function getOrderPdfSource(user: OrderActor, id: string, version?: 
       include: {
         lines: { orderBy: { lineNo: "asc" }, include: { allocations: true, item: true } },
         charges: { orderBy: { id: "asc" } },
-        supplier: { include: { contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] } } },
+        supplier: {
+          include: {
+            contacts: { where: { active: true }, orderBy: [{ isPrimary: "desc" }, { name: "asc" }] },
+          },
+        },
         warehouse: true,
         currency: true,
         createdBy: { select: { id: true, name: true } },
         approvedBy: { select: { id: true, name: true } },
       },
     });
-    return { snapshot: buildSnapshot(full, null), preview: true, fileName: `BC-brouillon-${po.id.slice(-6).toUpperCase()}-apercu.pdf` };
+    return {
+      snapshot: buildSnapshot(full, null),
+      preview: true,
+      fileName: `BC-brouillon-${po.id.slice(-6).toUpperCase()}-apercu.pdf`,
+    };
   }
   const v = version ?? po.version;
-  const row = await db.purchaseOrderVersion.findUnique({ where: { orderId_version: { orderId: id, version: v } } });
+  const row = await db.purchaseOrderVersion.findUnique({
+    where: { orderId_version: { orderId: id, version: v } },
+  });
   if (!row) throw new BusinessError("NOT_FOUND", "Cette version du bon de commande n'existe pas.");
   const snapshot = row.snapshot as unknown as OrderSnapshot;
   return { snapshot, preview: false, fileName: `${po.number ?? snapshot.number ?? "BC"}-v${v}.pdf` };
