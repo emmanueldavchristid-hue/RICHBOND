@@ -40,6 +40,16 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   PARTIELLEMENT_COMMANDEE: { label: "Partiellement commandée", tone: "warning" },
   COMMANDEE: { label: "Commandée", tone: "success" },
   ANNULEE: { label: "Annulée", tone: "neutral" },
+  // Bons de commande (LOT-05) : BROUILLON est partagé avec les DA
+  A_VALIDER: { label: "À valider", tone: "info" },
+  VALIDE: { label: "Validé", tone: "success" },
+  ENVOYE: { label: "Envoyé", tone: "info" },
+  CONFIRME: { label: "Confirmé", tone: "success" },
+  PARTIELLEMENT_RECU: { label: "Partiellement reçu", tone: "warning" },
+  RECU: { label: "Reçu", tone: "success" },
+  CLOTURE: { label: "Clôturé", tone: "neutral" },
+  REFUSE: { label: "Refusé", tone: "danger" },
+  ANNULE: { label: "Annulé", tone: "neutral" },
 };
 
 export function StatusBadge({
