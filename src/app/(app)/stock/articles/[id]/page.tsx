@@ -13,7 +13,7 @@ import { ChangeCodeDialog } from "@/components/referentials/change-code-dialog";
 import { EntityJournal } from "@/components/referentials/entity-journal";
 import { StatusBadge } from "@/components/status-badge";
 import { isBusinessError } from "@/lib/errors";
-import { toFcfa } from "@/lib/money";
+import { formatNumber, toFcfa } from "@/lib/money";
 import { can } from "@/lib/permissions";
 import { requirePageAction } from "@/modules/auth/session";
 import { listCurrencies } from "@/modules/currencies";
@@ -68,7 +68,7 @@ function PriceHistory({ rows }: { rows: PriceRow[] }) {
               <td className="p-3 text-right tabular-nums">
                 <MoneyCell value={r.price} currency={r.currencyCode} />
               </td>
-              <td className="p-3 text-right tabular-nums">{r.currencyCode === "XOF" || !r.rateToXof ? "–" : Number(r.rateToXof).toLocaleString("fr-FR")}</td>
+              <td className="p-3 text-right tabular-nums">{r.currencyCode === "XOF" || !r.rateToXof ? "–" : formatNumber(r.rateToXof, 6)}</td>
               <td className="p-3 text-right tabular-nums">
                 <MoneyCell value={fcfa(r)} currency="XOF" />
               </td>

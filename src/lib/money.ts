@@ -30,14 +30,19 @@ export function formatAmount(value: number | string, currency: string, decimals 
   return `${n < 0 ? "-" : ""}${int}${f ? `,${f}` : ""}${NBSP}${currency}`;
 }
 
-/** Quantité décimale sans zéros inutiles : "200.000" -> "200", "12.5" -> "12,5". */
-export function formatQty(value: number | string): string {
+/** Nombre décimal sans zéros inutiles (espaces insécables, virgule) : "655.957000" -> "655,957". */
+export function formatNumber(value: number | string, maxDecimals = 3): string {
   const n = Number(typeof value === "string" ? value.trim().replace(",", ".") : value);
   if (!Number.isFinite(n)) return "–";
-  const [i, f = ""] = n.toFixed(3).split(".");
+  const [i, f = ""] = n.toFixed(maxDecimals).split(".");
   const int = i.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
   const frac = f.replace(/0+$/, "");
   return `${int}${frac ? `,${frac}` : ""}`;
+}
+
+/** Quantité décimale sans zéros inutiles : "200.000" -> "200", "12.5" -> "12,5". */
+export function formatQty(value: number | string): string {
+  return formatNumber(value, 3);
 }
 
 /** Arrondi au franc, demi vers +infini (pas d'arrondi bancaire). */

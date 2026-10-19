@@ -15,6 +15,7 @@ import { EntityJournal } from "@/components/referentials/entity-journal";
 import { RecordTabs } from "@/components/referentials/record-tabs";
 import { StatusBadge } from "@/components/status-badge";
 import { isBusinessError } from "@/lib/errors";
+import { formatFcfa } from "@/lib/money";
 import { can } from "@/lib/permissions";
 import { requirePageAction } from "@/modules/auth/session";
 import { listCurrencies } from "@/modules/currencies";
@@ -231,7 +232,7 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
         <KpiCard
           testId="kpi-amount-12m"
           label="Montant acheté (12 mois)"
-          value={ind?.amount12m != null ? `${ind.amount12m.toLocaleString("fr-FR")} FCFA` : "–"}
+          value={ind?.amount12m != null ? formatFcfa(ind.amount12m) : "–"}
           help="Total des commandes des 12 derniers mois, converti en FCFA au taux figé à la date de commande. Disponible avec le module Commandes."
         />
         <KpiCard
