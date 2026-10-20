@@ -4,14 +4,10 @@ import { useRouter } from "next/navigation";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatFcfa, formatNumber } from "@/lib/money";
 import type { TopSupplierPoint } from "@/modules/reporting/types";
-import { AXIS_TICK, CURSOR_FILL, ChartTooltipBox, GRID_STROKE } from "./chart-parts";
+import { AXIS_TICK, CURSOR_FILL, ChartTooltipBox, GRID_STROKE, SingleLineTick } from "./chart-parts";
 import { formatCompactFcfa } from "./format";
 
 const COLOR = "var(--chart-1)";
-
-function truncate(s: string, n: number): string {
-  return s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s;
-}
 
 /** Top 10 fournisseurs en montant sur 12 mois : barres horizontales, un clic ouvre la fiche fournisseur. */
 export function TopSuppliersChart({ data }: { data: TopSupplierPoint[] }) {
@@ -19,19 +15,34 @@ export function TopSuppliersChart({ data }: { data: TopSupplierPoint[] }) {
   const height = Math.max(180, data.length * 30 + 28);
   return (
     <div className="px-4 pb-4" data-testid="dash-chart-suppliers">
-      <div style={{ height }} className="w-full" role="img" aria-label={`Top ${data.length} fournisseurs par montant d'achats sur 12 mois`}>
+      <div
+        style={{ height }}
+        className="w-full"
+        role="img"
+        aria-label={`Top ${data.length} fournisseurs par montant d'achats sur 12 mois`}
+      >
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 420, height }}>
-          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }} barCategoryGap="24%">
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 0, right: 8, bottom: 0, left: 0 }}
+            barCategoryGap="24%"
+          >
             <CartesianGrid horizontal={false} stroke={GRID_STROKE} strokeDasharray="3 4" />
-            <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={formatCompactFcfa} />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={132}
+            <XAxis
+              type="number"
               tick={AXIS_TICK}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v: string) => truncate(v, 19)}
+              tickFormatter={formatCompactFcfa}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={178}
+              tick={<SingleLineTick max={22} />}
+              tickLine={false}
+              axisLine={false}
             />
             <Tooltip
               cursor={{ fill: CURSOR_FILL, opacity: 0.6 }}

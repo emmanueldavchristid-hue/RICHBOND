@@ -26,11 +26,18 @@ async function AccueilContent() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground" data-testid="accueil-bonjour">
-        <span className="text-[15px] font-semibold text-foreground">Bonjour {user.name}.</span> Connecté en tant que {roleLabel(user)} · <span className="first-letter:uppercase">{today}</span>
+        <span className="text-[15px] font-semibold text-foreground">Bonjour {user.name}.</span> Connecté en
+        tant que {roleLabel(user)} · <span className="first-letter:uppercase">{today}</span>
       </p>
       {data?.kind === "RESPONSABLE" ? <ResponsibleBoard data={data} /> : null}
       {data?.kind === "ACHETEUR" ? <BuyerBoard data={data} /> : null}
-      {data?.kind === "MAGASINIER" ? <StorekeeperBoard data={data} canReceive={can(user, "receipt.create")} canIssue={can(user, "stock.issue")} /> : null}
+      {data?.kind === "MAGASINIER" ? (
+        <StorekeeperBoard
+          data={data}
+          canReceive={can(user, "receipt.create")}
+          canIssue={can(user, "stock.issue")}
+        />
+      ) : null}
       {!data ? (
         <EmptyState
           icon={<LayoutDashboard aria-hidden />}

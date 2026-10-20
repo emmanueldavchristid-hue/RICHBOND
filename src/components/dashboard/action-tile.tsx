@@ -54,10 +54,17 @@ export function ActionTile({ card, large = false }: { card: ActionCard; large?: 
       <div className={cn("min-w-0 flex-1 px-4", large ? "py-5" : "py-3.5")}>
         <div className="flex items-start justify-between gap-2">
           <p className="text-[13px] leading-5 font-medium text-muted-foreground">{card.label}</p>
-          <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+          <ArrowUpRight
+            className="mt-0.5 size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+            aria-hidden
+          />
         </div>
         <p
-          className={cn("mt-0.5 font-semibold tracking-tight tabular-nums", large ? "text-4xl leading-10" : "text-[28px] leading-9", TONE_VALUE[tone])}
+          className={cn(
+            "mt-0.5 font-semibold tracking-tight tabular-nums",
+            large ? "text-4xl leading-10" : "text-[28px] leading-9",
+            TONE_VALUE[tone],
+          )}
           data-testid={`dash-action-${card.key}-count`}
         >
           {formatNumber(card.count, 0)}
@@ -69,7 +76,15 @@ export function ActionTile({ card, large = false }: { card: ActionCard; large?: 
 }
 
 /** Rangée de cartes « à traiter » ; `cols` adapte la grille au nombre de cartes. */
-export function ActionTiles({ cards, large = false, testId = "dash-actions" }: { cards: ActionCard[]; large?: boolean; testId?: string }) {
+export function ActionTiles({
+  cards,
+  large = false,
+  testId = "dash-actions",
+}: {
+  cards: ActionCard[];
+  large?: boolean;
+  testId?: string;
+}) {
   if (cards.length === 0) return null;
   const cols =
     cards.length >= 5

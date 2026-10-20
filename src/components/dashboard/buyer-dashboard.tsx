@@ -9,7 +9,11 @@ export function BuyerBoard({ data }: { data: BuyerDashboard }) {
     <div className="space-y-5" data-testid="dash-acheteur">
       <ActionTiles cards={data.cards} />
       <div className="grid gap-4 lg:grid-cols-2">
-        <MyRequestsList total={data.myRequests.total} rows={data.myRequests.rows} href={href("mes-da", "/achats/demandes?onglet=assignees")} />
+        <MyRequestsList
+          total={data.myRequests.total}
+          rows={data.myRequests.rows}
+          href={href("mes-da", "/achats/demandes?onglet=assignees")}
+        />
         <OrdersList
           kind="send"
           title="Bons de commande à envoyer"

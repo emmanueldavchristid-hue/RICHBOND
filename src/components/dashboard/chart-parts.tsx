@@ -3,9 +3,20 @@
 import type { ReactNode } from "react";
 
 /** Info-bulle de graphique : fond popover, ombre douce, libellé puis lignes « pastille – nom – valeur ». */
-export function ChartTooltipBox({ title, rows, footer }: { title: string; rows: { color: string; name: string; value: string }[]; footer?: ReactNode }) {
+export function ChartTooltipBox({
+  title,
+  rows,
+  footer,
+}: {
+  title: string;
+  rows: { color: string; name: string; value: string }[];
+  footer?: ReactNode;
+}) {
   return (
-    <div className="min-w-40 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-float" data-testid="dash-chart-tooltip">
+    <div
+      className="min-w-40 rounded-lg border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-float"
+      data-testid="dash-chart-tooltip"
+    >
       <p className="mb-1 font-semibold">{title}</p>
       <ul className="space-y-0.5">
         {rows.map((r) => (
@@ -40,3 +51,34 @@ export function ChartLegend({ items }: { items: { color: string; label: string }
 export const AXIS_TICK = { fill: "var(--muted-foreground)", fontSize: 12 } as const;
 export const GRID_STROKE = "var(--border)";
 export const CURSOR_FILL = "var(--muted)";
+
+/** Étiquette d'axe vertical sur une seule ligne, tronquée avec « … » (le nom complet est dans l'infobulle). */
+export function SingleLineTick({
+  x,
+  y,
+  payload,
+  max = 22,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  max?: number;
+}) {
+  const v = payload?.value ?? "";
+  let units = 0;
+  let cut = v.length;
+  for (let i = 0; i < v.length; i++) {
+    units += /[A-ZÀ-ÖMW]/.test(v[i]) ? 1.3 : 1;
+    if (units > max) {
+      cut = i;
+      break;
+    }
+  }
+  const text = cut < v.length ? `${v.slice(0, Math.max(1, cut - 1)).trimEnd()}…` : v;
+  return (
+    <text x={(x ?? 0) - 4} y={y} dy={4} textAnchor="end" fill="var(--muted-foreground)" fontSize={12}>
+      <title>{v}</title>
+      {text}
+    </text>
+  );
+}

@@ -26,7 +26,11 @@ export function Panel({
   bodyClassName?: string;
 }) {
   return (
-    <section className={cn("flex min-w-0 flex-col rounded-xl border bg-card", className)} data-testid={testId} aria-labelledby={`${testId}-title`}>
+    <section
+      className={cn("flex min-w-0 flex-col rounded-xl border bg-card", className)}
+      data-testid={testId}
+      aria-labelledby={`${testId}-title`}
+    >
       <header className="flex items-start justify-between gap-3 px-4 pt-4 pb-3">
         <div className="min-w-0">
           <h2 id={`${testId}-title`} className="flex items-center gap-2 text-[15px] leading-5 font-semibold">
@@ -51,9 +55,22 @@ export function Panel({
 }
 
 /** Message de panneau vide : une phrase utile, discrète, centrée. */
-export function PanelEmpty({ icon, title, hint, testId }: { icon: ReactNode; title: string; hint?: string; testId?: string }) {
+export function PanelEmpty({
+  icon,
+  title,
+  hint,
+  testId,
+}: {
+  icon: ReactNode;
+  title: string;
+  hint?: string;
+  testId?: string;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center gap-1.5 px-6 py-10 text-center" data-testid={testId ?? "dash-empty"}>
+    <div
+      className="flex flex-col items-center justify-center gap-1.5 px-6 py-10 text-center"
+      data-testid={testId ?? "dash-empty"}
+    >
       <div className="text-muted-foreground/60 [&_svg]:size-9 [&_svg]:stroke-[1.25]">{icon}</div>
       <p className="text-sm font-medium">{title}</p>
       {hint ? <p className="max-w-xs text-xs text-muted-foreground">{hint}</p> : null}

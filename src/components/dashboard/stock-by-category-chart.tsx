@@ -1,10 +1,18 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { formatFcfa, formatNumber } from "@/lib/money";
 import type { StockByCategoryPoint } from "@/modules/reporting/types";
-import { AXIS_TICK, CURSOR_FILL, ChartTooltipBox, GRID_STROKE } from "./chart-parts";
-import { formatCompactFcfa } from "./format";
+import { CURSOR_FILL, ChartTooltipBox, GRID_STROKE, SingleLineTick } from "./chart-parts";
 
 const COLOR = "var(--chart-2)";
 
@@ -17,12 +25,29 @@ export function StockByCategoryChart({ data }: { data: StockByCategoryPoint[] })
       <p className="mb-2 text-xs text-muted-foreground">
         Valeur totale : <span className="font-medium text-foreground tabular-nums">{formatFcfa(total)}</span>
       </p>
-      <div style={{ height }} className="w-full" role="img" aria-label={`Valeur du stock par catégorie, total ${formatFcfa(total)}`}>
+      <div
+        style={{ height }}
+        className="w-full"
+        role="img"
+        aria-label={`Valeur du stock par catégorie, total ${formatFcfa(total)}`}
+      >
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 420, height }}>
-          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 52, bottom: 0, left: 0 }} barCategoryGap="26%">
-            <CartesianGrid horizontal={false} stroke={GRID_STROKE} strokeDasharray="3 4" />
-            <XAxis type="number" tick={AXIS_TICK} tickLine={false} axisLine={false} tickFormatter={formatCompactFcfa} />
-            <YAxis type="category" dataKey="label" width={112} tick={AXIS_TICK} tickLine={false} axisLine={false} />
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 0, right: 52, bottom: 0, left: 0 }}
+            barCategoryGap="26%"
+          >
+            <CartesianGrid horizontal={false} vertical={false} stroke={GRID_STROKE} />
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="label"
+              width={136}
+              tick={<SingleLineTick max={20} />}
+              tickLine={false}
+              axisLine={false}
+            />
             <Tooltip
               cursor={{ fill: CURSOR_FILL, opacity: 0.6 }}
               content={({ active, payload }) => {
@@ -39,8 +64,19 @@ export function StockByCategoryChart({ data }: { data: StockByCategoryPoint[] })
                 );
               }}
             />
-            <Bar dataKey="valueXof" fill={COLOR} radius={[0, 4, 4, 0]} isAnimationActive={false} maxBarSize={20}>
-              <LabelList dataKey="sharePct" position="right" formatter={(v) => `${formatNumber(Number(v), 0)} %`} style={{ fill: "var(--muted-foreground)", fontSize: 12 }} />
+            <Bar
+              dataKey="valueXof"
+              fill={COLOR}
+              radius={[0, 4, 4, 0]}
+              isAnimationActive={false}
+              maxBarSize={20}
+            >
+              <LabelList
+                dataKey="sharePct"
+                position="right"
+                formatter={(v) => `${formatNumber(Number(v), 0)} %`}
+                style={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

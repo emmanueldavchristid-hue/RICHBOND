@@ -18,7 +18,10 @@ export function RuptureRiskTable({ total, rows }: { total: number; rows: Rupture
       hrefLabel="Réapprovisionnement"
       badge={
         total > 0 ? (
-          <span className="rounded-full bg-[#FEF2F2] px-2 py-0.5 text-xs font-semibold text-[#991B1B] tabular-nums dark:bg-red-950/50 dark:text-red-300" data-testid="dash-rupture-total">
+          <span
+            className="rounded-full bg-[#FEF2F2] px-2 py-0.5 text-xs font-semibold text-[#991B1B] tabular-nums dark:bg-red-950/50 dark:text-red-300"
+            data-testid="dash-rupture-total"
+          >
             {total}
           </span>
         ) : null
@@ -45,11 +48,21 @@ export function RuptureRiskTable({ total, rows }: { total: number; rows: Rupture
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.itemId} className="relative border-b last:border-b-0 hover:bg-background" data-testid={`dash-rupture-row-${r.code}`}>
+                <tr
+                  key={r.itemId}
+                  className="relative border-b last:border-b-0 hover:bg-background"
+                  data-testid={`dash-rupture-row-${r.code}`}
+                >
                   <td className="h-12 max-w-[260px] px-4">
-                    <Link href={r.href} className="block rounded outline-none after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-ring">
+                    <Link
+                      href={r.href}
+                      className="block rounded outline-none after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-ring"
+                    >
                       <span className="doc-number mr-2">{r.code}</span>
-                      <span className="inline-block max-w-[150px] truncate align-bottom font-medium" title={r.name}>
+                      <span
+                        className="inline-block max-w-[150px] truncate align-bottom font-medium"
+                        title={r.name}
+                      >
                         {r.name}
                       </span>
                     </Link>
@@ -63,14 +76,20 @@ export function RuptureRiskTable({ total, rows }: { total: number; rows: Rupture
                     {formatQty(r.onHand)} <span className="text-xs text-muted-foreground">{r.stockUnit}</span>
                   </td>
                   <td className="px-3">
-                    <CoverageGauge days={r.coverageDays} severity={r.severity} testId={`dash-rupture-gauge-${r.code}`} />
+                    <CoverageGauge
+                      days={r.coverageDays}
+                      severity={r.severity}
+                      testId={`dash-rupture-gauge-${r.code}`}
+                    />
                   </td>
                   <td className="px-2 whitespace-nowrap tabular-nums">{formatDay(r.stockoutDate)}</td>
                   <td className="px-4 whitespace-nowrap tabular-nums">
                     {r.nextDeliveryDate ? (
                       formatDay(r.nextDeliveryDate)
                     ) : (
-                      <span className="text-[13px] font-medium text-[#B91C1C] dark:text-red-400">Aucune prévue</span>
+                      <span className="text-[13px] font-medium text-[#B91C1C] dark:text-red-400">
+                        Aucune prévue
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -79,7 +98,8 @@ export function RuptureRiskTable({ total, rows }: { total: number; rows: Rupture
           </table>
           {total > rows.length ? (
             <p className="border-t px-4 py-2.5 text-xs text-muted-foreground" data-testid="dash-rupture-more">
-              {total - rows.length} autre{total - rows.length > 1 ? "s" : ""} article{total - rows.length > 1 ? "s" : ""} à risque : voir la page Réapprovisionnement.
+              {total - rows.length} autre{total - rows.length > 1 ? "s" : ""} article
+              {total - rows.length > 1 ? "s" : ""} à risque : voir la page Réapprovisionnement.
             </p>
           ) : null}
         </div>
