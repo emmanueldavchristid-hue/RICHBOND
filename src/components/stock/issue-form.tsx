@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/action-feedback";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, PackageMinus, Trash2 } from "lucide-react";
@@ -93,8 +94,8 @@ export function IssueForm({
         success: "Sortie enregistrée. Le stock est à jour.",
         refresh: false,
         onSuccess: (data) => router.push(`/stock/sorties/${(data as { id: string }).id}`),
-        onError: (f) => setServerError(f.message),
-        silentCodes: ["INSUFFICIENT_STOCK"],
+        onError: (f) => setServerError(errorMessage(f)),
+        silentCodes: ["STOCK_INSUFFICIENT"],
       },
     );
     if (res && !res.ok) setConfirmOpen(false);

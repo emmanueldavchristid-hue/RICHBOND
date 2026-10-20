@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/action-feedback";
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -49,7 +50,7 @@ export function AdjustDialog({
 function AdjustForm({ warehouses, prefilled, onDone }: { warehouses: { id: string; name: string }[]; prefilled?: PrefilledItem; onDone: () => void }) {
   const { run, pending } = useActionRunner();
   const [item, setItem] = useState<{ id: string; code: string; name: string; stockUnit: string } | null>(prefilled ?? null);
-  const [warehouseId, setWarehouseId] = useState(prefilled?.levels?.[0]?.warehouseId ?? warehouses[0]?.id ?? "");
+  const [warehouseId, setWarehouseId] = useState(prefilled?.levels?.find((l) => Number(l.quantity) > 0)?.warehouseId ?? prefilled?.levels?.[0]?.warehouseId ?? warehouses[0]?.id ?? "");
   const [sign, setSign] = useState<1 | -1>(1);
   const [qty, setQty] = useState("");
   const [reason, setReason] = useState("");
@@ -77,8 +78,8 @@ function AdjustForm({ warehouses, prefilled, onDone }: { warehouses: { id: strin
     const res = await run(() => adjustAction({ itemId: item.id, warehouseId, quantity: sign * q, reason: reason.trim() }), {
       success: "Ajustement enregistré. Le stock est à jour.",
       onSuccess: onDone,
-      onError: (f) => setServerError(f.message),
-      silentCodes: ["INSUFFICIENT_STOCK"],
+      onError: (f) => setServerError(errorMessage(f)),
+      silentCodes: ["STOCK_INSUFFICIENT"],
     });
     if (res && !res.ok) setConfirmOpen(false);
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/action-feedback";
 import { useState } from "react";
 import { Undo2 } from "lucide-react";
 import { ReasonDialog } from "@/components/purchase-requests/reason-dialog";
@@ -18,7 +19,7 @@ export function CancelIssueButton({ id, number }: { id: string; number: string }
     await run(() => cancelIssueAction({ id, reason }), {
       success: `Sortie ${number} annulée. Le stock a été remis.`,
       onSuccess: () => setOpen(false),
-      onError: (f) => setError(f.message),
+      onError: (f) => setError(errorMessage(f)),
     });
   }
 

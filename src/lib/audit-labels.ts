@@ -74,6 +74,18 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   PO_COMMENT: "Commentaire sur un bon de commande",
   PO_STATUS_SYNC: "Statut de bon de commande mis à jour",
   SETTINGS_LOGO: "Logo de la société",
+  RECEIPT_CREATE: "Réception de marchandises",
+  RECEIPT_CANCEL: "Contre-passation d'une réception",
+  NC_CREATE: "Non-conformité ouverte",
+  NC_DECIDE: "Décision sur une non-conformité",
+  RETURN_CREATE: "Retour fournisseur",
+  PO_CLOSE_REMAINDER: "Reliquat de commande soldé",
+  STOCK_ISSUE_CREATE: "Sortie de stock",
+  STOCK_ISSUE_CANCEL: "Annulation d'une sortie de stock",
+  STOCK_TRANSFER: "Transfert de stock entre dépôts",
+  STOCK_ADJUST: "Ajustement de stock",
+  ITEM_THRESHOLDS_APPLY: "Seuils de stock suggérés appliqués",
+  ITEM_ABC_RECOMPUTE: "Recalcul de la classe ABC",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
@@ -90,6 +102,11 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   Setting: "Réglage",
   PurchaseRequest: "Demande d'achat",
   PurchaseOrder: "Bon de commande",
+  Receipt: "Réception",
+  NonConformity: "Non-conformité",
+  SupplierReturn: "Retour fournisseur",
+  StockIssue: "Sortie de stock",
+  StockMovement: "Mouvement de stock",
 };
 
 export function auditActionLabel(action: string): string {

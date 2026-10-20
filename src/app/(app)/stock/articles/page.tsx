@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { KpiCard } from "@/components/kpi-card";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
+import { AbcRecomputeButton } from "@/components/stock/abc-recompute-button";
 import { StockTable } from "@/components/stock/stock-table";
 import { formatFcfa } from "@/lib/money";
 import { can } from "@/lib/permissions";
@@ -27,6 +28,11 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<SearchP
         <p role="alert" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" data-testid="articles-bad-filters">
           Certains filtres de l&apos;adresse sont invalides : ils ont été ignorés.
         </p>
+      ) : null}
+      {can(user, "stock.thresholds") ? (
+        <div className="mb-3 flex justify-end">
+          <AbcRecomputeButton />
+        </div>
       ) : null}
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="stk-kpis">
         {showCosts && t.value !== undefined ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { errorMessage } from "@/lib/action-feedback";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { ItemSearchCombobox, type ItemHit } from "@/components/purchase-requests/item-search-combobox";
@@ -82,8 +83,8 @@ function TransferForm({ warehouses, prefilled, onDone }: { warehouses: { id: str
       {
         success: "Transfert enregistré. Les deux stocks sont à jour.",
         onSuccess: onDone,
-        onError: (f) => setServerError(f.message),
-        silentCodes: ["INSUFFICIENT_STOCK"],
+        onError: (f) => setServerError(errorMessage(f)),
+        silentCodes: ["STOCK_INSUFFICIENT"],
       },
     );
   }
