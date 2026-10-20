@@ -1,9 +1,9 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getNow } from "@/lib/clock";
 import { can } from "@/lib/permissions";
+import { TabLink, TabsNav } from "@/components/tabs-nav";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { pickParams, type SearchParams } from "@/lib/search-params";
 import { requirePageAction } from "@/modules/auth/session";
@@ -18,29 +18,9 @@ const KEYS = ["onglet", "statut", "urgence", "service", "acheteur", "type", "q",
 
 type Tab = "a-valider" | "mes-demandes" | "assignees" | "toutes";
 
-function TabLink({ tab, active, label, count }: { tab: Tab; active: boolean; label: string; count?: number }) {
-  return (
-    <Link
-      href={`/achats/demandes?onglet=${tab}`}
-      role="tab"
-      aria-selected={active}
-      data-testid={`pr-tab-${tab}`}
-      className={`inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-medium whitespace-nowrap ${
-        active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {label}
-      {count !== undefined && count > 0 ? (
-        <span
-          data-testid={`pr-tab-${tab}-count`}
-          className="inline-flex min-w-6 items-center justify-center rounded-full bg-red-700 px-1.5 text-xs font-semibold text-white"
-        >
-          {count}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
+const TabItem = ({ tab, active, label, count, alert }: { tab: Tab; active: boolean; label: string; count?: number; alert?: boolean }) => (
+  <TabLink href={`/achats/demandes?onglet=${tab}`} active={active} label={label} count={count} alert={alert} testId={`pr-tab-${tab}`} />
+);
 
 async function RequestsContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requirePageAction("purchaseRequest.view");
@@ -76,12 +56,12 @@ async function RequestsContent({ searchParams }: { searchParams: Promise<SearchP
           Certains filtres de l&apos;adresse sont invalides : ils ont été ignorés.
         </p>
       ) : null}
-      <div role="tablist" aria-label="Vues des demandes d'achat" className="mb-4 flex overflow-x-auto border-b" data-testid="pr-tabs">
-        {canApprove ? <TabLink tab="a-valider" active={tab === "a-valider"} label="À valider" count={page.toValidate} /> : null}
-        <TabLink tab="mes-demandes" active={tab === "mes-demandes"} label="Mes demandes" />
-        {user.role === "ACHETEUR" ? <TabLink tab="assignees" active={tab === "assignees"} label="Assignées à moi" /> : null}
-        <TabLink tab="toutes" active={tab === "toutes"} label="Toutes" />
-      </div>
+      <TabsNav label="Vues des demandes d&apos;achat" testId="pr-tabs">
+        {canApprove ? <TabItem tab="a-valider" active={tab === "a-valider"} label="À valider" count={page.toValidate} alert /> : null}
+        <TabItem tab="mes-demandes" active={tab === "mes-demandes"} label="Mes demandes" />
+        {user.role === "ACHETEUR" ? <TabItem tab="assignees" active={tab === "assignees"} label="Assignées à moi" /> : null}
+        <TabItem tab="toutes" active={tab === "toutes"} label="Toutes" />
+      </TabsNav>
       <RequestsTable
         rows={page.rows}
         pageInfo={{ total: page.total, page: page.page, taille: page.taille, pageCount: page.pageCount }}

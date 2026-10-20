@@ -38,7 +38,7 @@ export function SuppliersTable({
         sticky: "first",
         mobile: "subtitle",
         cell: (r) => (
-          <Link href={`/fournisseurs/${r.id}`} className="font-mono text-sm font-medium text-primary underline-offset-4 hover:underline" data-testid="supplier-link">
+          <Link href={`/fournisseurs/${r.id}`} className="doc-number text-primary hover:underline" data-testid="supplier-link">
             {r.code}
           </Link>
         ),

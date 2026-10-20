@@ -1,14 +1,21 @@
+import type { CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
-/** Couleurs cohérentes par statut dans toute l'application. */
-export type StatusTone = "success" | "warning" | "danger" | "info" | "neutral";
+/**
+ * Couleurs cohérentes par statut dans toute l'application (DESIGN.md §3).
+ * brouillon gris · à valider ambre · validé bleu · envoyé/confirmé indigo · partiellement reçu violet ·
+ * reçu/conforme/terminé vert · refusé/annulé/rupture rouge.
+ */
+export type StatusTone = "success" | "warning" | "danger" | "info" | "neutral" | "indigo" | "violet";
 
-const TONES: Record<StatusTone, string> = {
-  success: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  warning: "bg-amber-50 text-amber-800 ring-amber-200",
-  danger: "bg-red-50 text-red-800 ring-red-200",
-  info: "bg-sky-50 text-sky-800 ring-sky-200",
-  neutral: "bg-slate-100 text-slate-700 ring-slate-200",
+export const TONE_COLORS: Record<StatusTone, string> = {
+  neutral: "#6b7280",
+  warning: "#d97706",
+  info: "#2f5bea",
+  indigo: "#4f46e5",
+  violet: "#7c3aed",
+  success: "#15803d",
+  danger: "#dc2626",
 };
 
 export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
@@ -29,27 +36,27 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   STANDARD: { label: "Standard", tone: "neutral" },
   // Types de fournisseur
   LOCAL: { label: "Local", tone: "neutral" },
-  IMPORT: { label: "Import", tone: "info" },
+  IMPORT: { label: "Import", tone: "indigo" },
   // Demandes d'achat (LOT-04)
   BROUILLON: { label: "Brouillon", tone: "neutral" },
-  SOUMISE: { label: "À valider", tone: "info" },
+  SOUMISE: { label: "À valider", tone: "warning" },
   A_COMPLETER: { label: "À compléter", tone: "warning" },
-  VALIDEE: { label: "Validée", tone: "success" },
+  VALIDEE: { label: "Validée", tone: "info" },
   REFUSEE: { label: "Refusée", tone: "danger" },
-  EN_CONSULTATION: { label: "En consultation", tone: "info" },
-  PARTIELLEMENT_COMMANDEE: { label: "Partiellement commandée", tone: "warning" },
-  COMMANDEE: { label: "Commandée", tone: "success" },
-  ANNULEE: { label: "Annulée", tone: "neutral" },
+  EN_CONSULTATION: { label: "En consultation", tone: "indigo" },
+  PARTIELLEMENT_COMMANDEE: { label: "Partiellement commandée", tone: "violet" },
+  COMMANDEE: { label: "Commandée", tone: "indigo" },
+  ANNULEE: { label: "Annulée", tone: "danger" },
   // Bons de commande (LOT-05) : BROUILLON est partagé avec les DA
-  A_VALIDER: { label: "À valider", tone: "info" },
-  VALIDE: { label: "Validé", tone: "success" },
-  ENVOYE: { label: "Envoyé", tone: "info" },
-  CONFIRME: { label: "Confirmé", tone: "success" },
-  PARTIELLEMENT_RECU: { label: "Partiellement reçu", tone: "warning" },
+  A_VALIDER: { label: "À valider", tone: "warning" },
+  VALIDE: { label: "Validé", tone: "info" },
+  ENVOYE: { label: "Envoyé", tone: "indigo" },
+  CONFIRME: { label: "Confirmé", tone: "indigo" },
+  PARTIELLEMENT_RECU: { label: "Partiellement reçu", tone: "violet" },
   RECU: { label: "Reçu", tone: "success" },
-  CLOTURE: { label: "Clôturé", tone: "neutral" },
+  CLOTURE: { label: "Clôturé", tone: "success" },
   REFUSE: { label: "Refusé", tone: "danger" },
-  ANNULE: { label: "Annulé", tone: "neutral" },
+  ANNULE: { label: "Annulé", tone: "danger" },
 };
 
 export function StatusBadge({
@@ -68,11 +75,9 @@ export function StatusBadge({
   return (
     <span
       data-testid={status ? `status-${status}` : undefined}
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
-        TONES[t],
-        className,
-      )}
+      data-tone={t}
+      style={{ "--tone": TONE_COLORS[t] } as CSSProperties}
+      className={cn("status-badge", className)}
     >
       {label ?? known?.label ?? status}
     </span>

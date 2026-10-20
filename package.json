@@ -17,7 +17,8 @@
     "postinstall": "prisma generate",
     "license:generate": "tsx scripts/license-generate.ts",
     "license:secret": "tsx scripts/license-secret.ts",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "captures": "playwright test -c playwright.captures.config.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

@@ -129,7 +129,7 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
         ) : (
           <div className="overflow-x-auto rounded-lg border bg-card" data-testid="supplier-items">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+              <thead className="text-left text-xs font-medium text-muted-foreground border-b">
                 <tr>
                   <th className="p-3">Article</th>
                   <th className="p-3">Référence fournisseur</th>
@@ -148,7 +148,7 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
                       </Link>
                       <div className="font-mono text-xs text-muted-foreground">{l.item.code}</div>
                     </td>
-                    <td className="p-3">{l.supplierRef ?? "–"}</td>
+                    <td className="p-3">{l.supplierRef ?? "—"}</td>
                     {showPrices ? (
                       <td className="p-3 text-right tabular-nums">
                         <MoneyCell value={l.lastPrice} currency={l.currencyCode} />
@@ -160,7 +160,7 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
                         <DateCell value={l.lastPriceDate} />
                       </td>
                     ) : null}
-                    <td className="p-3 text-right tabular-nums">{l.leadTimeDays ?? "–"}</td>
+                    <td className="p-3 text-right tabular-nums">{l.leadTimeDays ?? "—"}</td>
                     <td className="p-3 text-right tabular-nums">
                       <QtyCell value={l.minOrderQty} unit={l.minOrderQty ? l.item.purchaseUnit : null} />
                     </td>
@@ -239,25 +239,25 @@ async function SupplierContent({ params }: { params: Promise<{ id: string }> }) 
         <KpiCard
           testId="kpi-po-count"
           label="Bons de commande"
-          value={ind?.poCount != null ? String(ind.poCount) : "–"}
+          value={ind?.poCount != null ? String(ind.poCount) : "—"}
           help="Nombre de bons de commande passés à ce fournisseur. Disponible avec le module Commandes."
         />
         <KpiCard
           testId="kpi-amount-12m"
           label="Montant acheté (12 mois)"
-          value={ind?.amount12m != null ? formatFcfa(ind.amount12m) : "–"}
+          value={ind?.amount12m != null ? formatFcfa(ind.amount12m) : "—"}
           help="Total des commandes des 12 derniers mois, converti en FCFA au taux figé à la date de commande. Disponible avec le module Commandes."
         />
         <KpiCard
           testId="kpi-service-rate"
           label="Taux de service"
-          value={ind?.serviceRate != null ? `${ind.serviceRate} %` : "–"}
+          value={ind?.serviceRate != null ? `${ind.serviceRate} %` : "—"}
           help="Part des lignes livrées complètes et dans les délais annoncés. Disponible avec les réceptions."
         />
         <KpiCard
           testId="kpi-rating"
           label="Note fournisseur"
-          value={ind?.rating != null ? `${ind.rating} / 5` : "–"}
+          value={ind?.rating != null ? `${ind.rating} / 5` : "—"}
           help="Note d'évaluation (délais, qualité, prix) calculée à partir des réceptions et des évaluations. Disponible avec l'évaluation fournisseurs."
         />
       </div>

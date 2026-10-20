@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   // PDF des bons de commande (LOT-05) : @react-pdf/renderer charge ses polices et son moteur de mise en page depuis node_modules.

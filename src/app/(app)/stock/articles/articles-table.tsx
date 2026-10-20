@@ -37,14 +37,14 @@ export function ArticlesTable({
         sticky: "first",
         mobile: "subtitle",
         cell: (r) => (
-          <Link href={`/stock/articles/${r.id}`} className="font-mono text-sm font-medium text-primary underline-offset-4 hover:underline" data-testid="item-link">
+          <Link href={`/stock/articles/${r.id}`} className="doc-number text-primary hover:underline" data-testid="item-link">
             {r.code}
           </Link>
         ),
       },
       { id: "name", header: "Désignation", sortable: true, sticky: "second", mobile: "title", cell: (r) => r.name },
       { id: "category", header: "Catégorie", sortable: true, cell: (r) => ITEM_CATEGORY_LABELS[r.category as keyof typeof ITEM_CATEGORY_LABELS] ?? r.category },
-      { id: "family", header: "Famille", sortable: true, cell: (r) => r.family ?? "–" },
+      { id: "family", header: "Famille", sortable: true, cell: (r) => r.family ?? "—" },
       { id: "criticality", header: "Criticité", sortable: true, cell: (r) => <CriticalityBadge value={r.criticality} /> },
       {
         id: "stockUnit",
@@ -53,8 +53,8 @@ export function ArticlesTable({
         cell: (r) =>
           r.purchaseUnit !== r.stockUnit ? `${unitShort(r.stockUnit)} (achat : ${unitShort(r.purchaseUnit)})` : unitShort(r.stockUnit),
       },
-      { id: "equipment", header: "Équipement", sortable: true, cell: (r) => r.equipment ?? "–" },
-      { id: "mainSupplier", header: "Fournisseur principal", cell: (r) => r.mainSupplier?.name ?? "–" },
+      { id: "equipment", header: "Équipement", sortable: true, cell: (r) => r.equipment ?? "—" },
+      { id: "mainSupplier", header: "Fournisseur principal", cell: (r) => r.mainSupplier?.name ?? "—" },
       { id: "status", header: "Statut", sortable: true, cell: (r) => <StatusBadge status={r.status} label={ITEM_STATUS_LABELS[r.status]} /> },
     ],
     [],

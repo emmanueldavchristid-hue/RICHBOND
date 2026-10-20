@@ -8,7 +8,7 @@ export function MoneyCell({
   value,
   currency = "XOF",
   decimals,
-  empty = "–",
+  empty = "—",
   className,
 }: {
   value: number | string | null | undefined;
@@ -17,7 +17,7 @@ export function MoneyCell({
   empty?: string;
   className?: string;
 }) {
-  if (value === null || value === undefined || value === "") return <span className="text-muted-foreground">{empty}</span>;
+  if (value === null || value === undefined || value === "") return <span className="text-muted-foreground/70">{empty}</span>;
   return (
     <span className={className} data-testid="money">
       {formatAmount(value, currency ?? "XOF", decimals ?? 2)}

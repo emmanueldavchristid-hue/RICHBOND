@@ -32,17 +32,18 @@ export function LoginForm({ retour }: { retour?: string }) {
   }
 
   return (
-    <div className="w-full max-w-md rounded-xl border bg-card p-8 shadow-sm" data-testid="login-card">
-      <div className="mb-6 text-center">
-        <p className="text-3xl font-bold tracking-wide text-primary">RICHBOND</p>
-        <h1 className="mt-1 text-base text-muted-foreground">Achats &amp; Stocks</h1>
+    <div className="w-full" data-testid="login-card">
+      <div className="mb-8">
+        <p className="mb-6 text-base font-semibold tracking-[0.08em] lg:hidden">RICHBOND</p>
+        <h1 className="page-title">Connexion</h1>
+        <p className="mt-1 text-sm text-muted-foreground">RICHBOND Achats &amp; Stocks : connectez-vous avec votre adresse email.</p>
       </div>
       <form method="post" onSubmit={onSubmit} className="space-y-4" noValidate>
         {error ? (
           <div
             role="alert"
             data-testid="login-error"
-            className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+            className="flex items-start gap-2 rounded-lg border border-l-4 border-red-200 border-l-red-600 bg-red-50 p-3 text-sm text-red-800"
           >
             <AlertCircle className="mt-0.5 size-4 shrink-0" />
             <span>{error}</span>
@@ -57,7 +58,7 @@ export function LoginForm({ retour }: { retour?: string }) {
             autoComplete="username"
             inputMode="email"
             required
-            className="h-11"
+            className="h-10"
             data-testid="login-email"
           />
         </div>
@@ -71,7 +72,7 @@ export function LoginForm({ retour }: { retour?: string }) {
             data-testid="login-password"
           />
         </div>
-        <Button type="submit" className="h-12 w-full text-base" disabled={pending} data-testid="login-submit">
+        <Button type="submit" className="h-11 w-full text-sm" disabled={pending} data-testid="login-submit">
           {pending ? "Connexion en cours…" : "Se connecter"}
         </Button>
       </form>

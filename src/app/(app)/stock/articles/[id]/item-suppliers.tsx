@@ -280,7 +280,7 @@ export function ItemSuppliersTab({
       ) : (
         <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full text-sm" data-testid="item-suppliers-table">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+            <thead className="text-left text-xs font-medium text-muted-foreground border-b">
               <tr>
                 <th className="p-3">Fournisseur</th>
                 <th className="p-3">Référence</th>
@@ -306,7 +306,7 @@ export function ItemSuppliersTab({
                       ) : null}
                     </div>
                   </td>
-                  <td className="p-3">{l.supplierRef ?? "–"}</td>
+                  <td className="p-3">{l.supplierRef ?? "—"}</td>
                   {showPrices ? (
                     <td className="p-3 text-right tabular-nums">
                       <MoneyCell value={l.lastPrice} currency={l.currencyCode} />
@@ -318,7 +318,7 @@ export function ItemSuppliersTab({
                       <DateCell value={l.lastPriceDate} />
                     </td>
                   ) : null}
-                  <td className="p-3 text-right tabular-nums">{l.leadTimeDays ?? "–"}</td>
+                  <td className="p-3 text-right tabular-nums">{l.leadTimeDays ?? "—"}</td>
                   <td className="p-3 text-right tabular-nums">
                     <QtyCell value={l.minOrderQty} unit={l.minOrderQty ? purchaseUnit : null} />
                   </td>

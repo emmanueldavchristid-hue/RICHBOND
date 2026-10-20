@@ -48,7 +48,7 @@ function PriceHistory({ rows }: { rows: PriceRow[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border bg-card" data-testid="item-price-history">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+        <thead className="text-left text-xs font-medium text-muted-foreground border-b">
           <tr>
             <th className="p-3">Date</th>
             <th className="p-3">Fournisseur</th>
@@ -65,17 +65,17 @@ function PriceHistory({ rows }: { rows: PriceRow[] }) {
               <td className="p-3 whitespace-nowrap">
                 <DateCell value={r.date} />
               </td>
-              <td className="p-3">{r.supplier?.name ?? "–"}</td>
+              <td className="p-3">{r.supplier?.name ?? "—"}</td>
               <td className="p-3 text-right tabular-nums">
                 <MoneyCell value={r.price} currency={r.currencyCode} />
                 {r.priceUnit ? <span className="text-muted-foreground"> / {unitShort(r.priceUnit)}</span> : null}
               </td>
-              <td className="p-3 text-right tabular-nums">{r.currencyCode === "XOF" || !r.rateToXof ? "–" : formatNumber(r.rateToXof, 6)}</td>
+              <td className="p-3 text-right tabular-nums">{r.currencyCode === "XOF" || !r.rateToXof ? "—" : formatNumber(r.rateToXof, 6)}</td>
               <td className="p-3 text-right tabular-nums">
                 <MoneyCell value={fcfa(r)} currency="XOF" />
               </td>
               <td className="p-3">{PRICE_SOURCE_LABELS[r.source as keyof typeof PRICE_SOURCE_LABELS] ?? r.source}</td>
-              <td className="p-3">{r.sourceRef ?? "–"}</td>
+              <td className="p-3">{r.sourceRef ?? "—"}</td>
             </tr>
           ))}
         </tbody>

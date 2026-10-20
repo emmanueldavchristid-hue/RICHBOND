@@ -21,7 +21,7 @@ export async function EntityJournal({
   return (
     <div className="overflow-x-auto rounded-lg border bg-card" data-testid="entity-journal">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+        <thead className="text-left text-xs font-medium text-muted-foreground border-b">
           <tr>
             <th className="p-3">Date</th>
             <th className="p-3">Utilisateur</th>
