@@ -12,6 +12,7 @@ import { OrderTimeline, type OrderEvent } from "@/components/purchase-orders/ord
 import { OrderTotals } from "@/components/purchase-orders/order-totals";
 import { PriceAlertBadge } from "@/components/purchase-orders/price-alert-badge";
 import { StatusBadge } from "@/components/status-badge";
+import { StatusStepper, type StepDef } from "@/components/status-stepper";
 import { unitShort } from "@/components/unit-select";
 import { getNow } from "@/lib/clock";
 import { dayKeyOf, formatDateOnly, todayAbidjan } from "@/lib/dates";
@@ -24,16 +25,51 @@ import { OrderActions } from "./order-actions";
 
 export const metadata: Metadata = { title: "Bon de commande – RICHBOND" };
 
+const BC_STEPS: StepDef[] = [
+  { key: "BROUILLON", label: "Brouillon" },
+  { key: "A_VALIDER", label: "À valider" },
+  { key: "VALIDE", label: "Validé" },
+  { key: "ENVOYE", label: "Envoyé" },
+  { key: "CONFIRME", label: "Confirmé" },
+  { key: "RECU", label: "Reçu" },
+];
+
+/** Étape de la frise ; un bon refusé ou annulé reste sur l'étape où il s'est arrêté. */
+function stepOf(status: string, approved: boolean, submitted: boolean): string {
+  switch (status) {
+    case "BROUILLON":
+    case "A_VALIDER":
+    case "VALIDE":
+    case "ENVOYE":
+    case "CONFIRME":
+      return status;
+    case "PARTIELLEMENT_RECU":
+    case "RECU":
+    case "CLOTURE":
+      return "RECU";
+    case "REFUSE":
+      return "A_VALIDER";
+    default:
+      return approved ? "VALIDE" : submitted ? "A_VALIDER" : "BROUILLON";
+  }
+}
+
+function stoppedOf(status: string): { label: string } | null {
+  if (status === "REFUSE") return { label: "Refusé" };
+  if (status === "ANNULE") return { label: "Annulé" };
+  return null;
+}
+
 function Info2({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
   return (
     <div data-testid={testId}>
-      <dt className="text-xs text-muted-foreground uppercase">{label}</dt>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm font-medium">{children}</dd>
     </div>
   );
 }
 
-const dayOrDash = (d: Date | string | null | undefined) => (d ? formatDateOnly(new Date(d)) : "–");
+const dayOrDash = (d: Date | string | null | undefined) => (d ? formatDateOnly(new Date(d)) : "—");
 
 async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[id]">["params"] }) {
   const { id } = await params;
@@ -69,7 +105,8 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
       <PageHeader
         title={po.displayNumber}
         description={`${po.supplier.code} – ${po.supplier.name} · ${PO_TYPE_LABELS[po.type]} · ${PO_ORIGIN_LABELS[po.origin]}`}
-        actions={
+        titleClassName="page-title font-mono tracking-tight"
+        meta={
           <div className="flex flex-wrap items-center gap-2" data-testid="po-badges">
             <StatusBadge status={po.status} />
             {po.late ? <LateBadge daysLate={po.daysLate} /> : null}
@@ -78,6 +115,10 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
           </div>
         }
       />
+
+      <div className="mb-5">
+        <StatusStepper steps={po.status === "PARTIELLEMENT_RECU" ? BC_STEPS.map((x) => (x.key === "RECU" ? { ...x, label: "Partiellement reçu" } : x)) : BC_STEPS} current={stepOf(po.status, !!po.approvedAt, !!po.submittedAt)} stopped={stoppedOf(po.status)} testId="po-stepper" label="Avancement du bon de commande" />
+      </div>
 
       {pending ? (
         <p role="note" className="mb-4 rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm text-slate-800" data-testid="po-unvalidated-banner">
@@ -131,122 +172,9 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
         </section>
       ) : null}
 
-      <section className="mb-6 rounded-lg border bg-card p-5">
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="po-info">
-          <Info2 label="Fournisseur">
-            <Link href={`/fournisseurs/${po.supplier.id}`} className="text-primary underline-offset-4 hover:underline">
-              {po.supplier.name}
-            </Link>
-            {contact ? <span className="block text-xs font-normal text-muted-foreground">{[contact.name, contact.phone].filter(Boolean).join(" · ")}</span> : null}
-          </Info2>
-          <Info2 label="Créé par">
-            {po.createdBy.name}{" "}
-            <span className="font-normal text-muted-foreground">
-              le <DateCell value={po.createdAt} />
-            </span>
-          </Info2>
-          <Info2 label="Validé par" testId="po-approved-by">
-            {po.approvedBy ? (
-              <>
-                {po.approvedBy.name}{" "}
-                <span className="font-normal text-muted-foreground">
-                  le <DateCell value={po.approvedAt} />
-                </span>
-              </>
-            ) : (
-              "–"
-            )}
-          </Info2>
-          <Info2 label="Devise">
-            {po.currency.name} ({po.currencyCode})
-            {isForeign ? (
-              <span className="block text-xs font-normal text-muted-foreground">
-                {po.exchangeRate ? `Taux figé : ${formatNumber(po.exchangeRate, 6)} FCFA (au ${dayOrDash(po.rateDate)})` : "Taux figé à la validation"}
-              </span>
-            ) : null}
-          </Info2>
-          <Info2 label="Conditions de paiement">
-            {PAYMENT_TERM_LABELS[po.paymentTerm as keyof typeof PAYMENT_TERM_LABELS] ?? po.paymentTerm}
-            {po.paymentTermNote ? <span className="block text-xs font-normal text-muted-foreground">{po.paymentTermNote}</span> : null}
-          </Info2>
-          {po.incoterm ? (
-            <Info2 label="Incoterm">
-              {po.incoterm} {po.incotermPlace ?? ""}
-              <span className="block text-xs font-normal text-muted-foreground">{INCOTERM_LABELS[po.incoterm as keyof typeof INCOTERM_LABELS] ?? ""}</span>
-            </Info2>
-          ) : null}
-          <Info2 label="Livraison demandée le">{dayOrDash(po.requestedDate)}</Info2>
-          <Info2 label="Date promise" testId="po-promised">
-            {po.promisedDate ? dayOrDash(po.promisedDate) : "Pas encore confirmée"}
-            {po.promisedDateChanges > 0 ? (
-              <span className="block text-xs font-normal text-amber-800">
-                Reportée {po.promisedDateChanges} fois (1re date : {dayOrDash(po.firstPromisedDate)})
-              </span>
-            ) : null}
-          </Info2>
-          <Info2 label="Dépôt de livraison">
-            {po.warehouse.name}
-            <span className="block text-xs font-normal whitespace-pre-wrap text-muted-foreground">{po.deliveryAddress}</span>
-          </Info2>
-          <Info2 label="Envoyé" testId="po-sent">
-            {po.sentAt ? (
-              <>
-                <DateCell value={po.sentAt} />
-                {po.sentChannel ? <span className="block text-xs font-normal text-muted-foreground">{CONTACT_CHANNEL_LABELS[po.sentChannel as ContactChannelCode] ?? po.sentChannel}</span> : null}
-              </>
-            ) : (
-              "–"
-            )}
-          </Info2>
-          <Info2 label="Relances" testId="po-reminders">
-            {po.reminderCount > 0 ? (
-              <>
-                {po.reminderCount} <span className="font-normal text-muted-foreground">(dernière le </span>
-                <DateCell value={po.lastRemindedAt} />
-                <span className="font-normal text-muted-foreground">)</span>
-              </>
-            ) : (
-              "Aucune"
-            )}
-          </Info2>
-          {po.supplierRef ? <Info2 label="Référence fournisseur">{po.supplierRef}</Info2> : null}
-        </dl>
-        {po.directReason ? (
-          <div className="mt-4 border-t pt-3">
-            <p className="text-xs text-muted-foreground uppercase">Motif de la commande directe</p>
-            <p className="mt-0.5 text-sm whitespace-pre-wrap" data-testid="po-direct-reason">
-              {po.directReason}
-            </p>
-          </div>
-        ) : null}
-        {po.notes ? (
-          <div className="mt-4 border-t pt-3">
-            <p className="text-xs text-muted-foreground uppercase">Observations (imprimées sur le bon)</p>
-            <p className="mt-0.5 text-sm whitespace-pre-wrap">{po.notes}</p>
-          </div>
-        ) : null}
-        {po.internalNote ? (
-          <div className="mt-4 border-t pt-3">
-            <p className="text-xs text-muted-foreground uppercase">Note interne (jamais imprimée)</p>
-            <p className="mt-0.5 text-sm whitespace-pre-wrap">{po.internalNote}</p>
-          </div>
-        ) : null}
-        {po.sourceRequests.length > 0 ? (
-          <div className="mt-4 border-t pt-3" data-testid="po-sources">
-            <p className="text-xs text-muted-foreground uppercase">Demandes d&apos;achat sources</p>
-            <ul className="mt-1 flex flex-wrap gap-2 text-sm">
-              {po.sourceRequests.map((r) => (
-                <li key={r.id}>
-                  <Link href={`/achats/demandes/${r.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 font-mono text-primary hover:bg-muted" data-testid={`po-source-${r.displayNumber}`}>
-                    {r.displayNumber} <StatusBadge status={r.status} />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </section>
 
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
       <div className="mb-6">
         <OrderActions
           id={po.id}
@@ -269,7 +197,7 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
         </h2>
         <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full min-w-[56rem] text-sm" data-testid="po-lines">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+            <thead className="text-left text-xs font-medium text-muted-foreground">
               <tr>
                 <th className="p-3">N°</th>
                 <th className="p-3">Article</th>
@@ -323,7 +251,7 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
                   <td className="p-3 text-right whitespace-nowrap tabular-nums">
                     <MoneyCell value={l.unitPrice} currency={po.currencyCode} decimals={isForeign ? po.currency.decimals : 0} />
                   </td>
-                  <td className="p-3 text-right tabular-nums">{Number(l.discountPct) > 0 ? `${formatNumber(l.discountPct, 2)} %` : "–"}</td>
+                  <td className="p-3 text-right tabular-nums">{Number(l.discountPct) > 0 ? `${formatNumber(l.discountPct, 2)} %` : "—"}</td>
                   <td className="p-3 text-right tabular-nums">{formatNumber(l.vatRate, 2)} %</td>
                   <td className="p-3 text-right whitespace-nowrap tabular-nums">
                     <MoneyCell value={l.netAmount} currency={po.currencyCode} decimals={isForeign ? po.currency.decimals : 0} />
@@ -350,7 +278,8 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
         </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+          <div className="mb-6">
+
         <section aria-labelledby="po-versions-title" data-testid="po-versions">
           <h2 id="po-versions-title" className="mb-2 font-medium">
             Versions validées (PDF)
@@ -381,12 +310,131 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
             </ul>
           )}
         </section>
-        <section aria-labelledby="po-history-title">
-          <h2 id="po-history-title" className="mb-3 font-medium">
+          </div>
+        </div>
+        <aside className="space-y-4" aria-label="Informations et chronologie">
+      <section className="rounded-xl border bg-card p-4" aria-label="Informations clés">
+        <dl className="grid gap-3.5" data-testid="po-info">
+          <Info2 label="Fournisseur">
+            <Link href={`/fournisseurs/${po.supplier.id}`} className="text-primary underline-offset-4 hover:underline">
+              {po.supplier.name}
+            </Link>
+            {contact ? <span className="block text-xs font-normal text-muted-foreground">{[contact.name, contact.phone].filter(Boolean).join(" · ")}</span> : null}
+          </Info2>
+          <Info2 label="Créé par">
+            {po.createdBy.name}{" "}
+            <span className="font-normal text-muted-foreground">
+              le <DateCell value={po.createdAt} />
+            </span>
+          </Info2>
+          <Info2 label="Validé par" testId="po-approved-by">
+            {po.approvedBy ? (
+              <>
+                {po.approvedBy.name}{" "}
+                <span className="font-normal text-muted-foreground">
+                  le <DateCell value={po.approvedAt} />
+                </span>
+              </>
+            ) : (
+              "—"
+            )}
+          </Info2>
+          <Info2 label="Devise">
+            {po.currency.name} ({po.currencyCode})
+            {isForeign ? (
+              <span className="block text-xs font-normal text-muted-foreground">
+                {po.exchangeRate ? `Taux figé : ${formatNumber(po.exchangeRate, 6)} FCFA (au ${dayOrDash(po.rateDate)})` : "Taux figé à la validation"}
+              </span>
+            ) : null}
+          </Info2>
+          <Info2 label="Conditions de paiement">
+            {PAYMENT_TERM_LABELS[po.paymentTerm as keyof typeof PAYMENT_TERM_LABELS] ?? po.paymentTerm}
+            {po.paymentTermNote ? <span className="block text-xs font-normal text-muted-foreground">{po.paymentTermNote}</span> : null}
+          </Info2>
+          {po.incoterm ? (
+            <Info2 label="Incoterm">
+              {po.incoterm} {po.incotermPlace ?? ""}
+              <span className="block text-xs font-normal text-muted-foreground">{INCOTERM_LABELS[po.incoterm as keyof typeof INCOTERM_LABELS] ?? ""}</span>
+            </Info2>
+          ) : null}
+          <Info2 label="Livraison demandée le">{dayOrDash(po.requestedDate)}</Info2>
+          <Info2 label="Date promise" testId="po-promised">
+            {po.promisedDate ? dayOrDash(po.promisedDate) : "Pas encore confirmée"}
+            {po.promisedDateChanges > 0 ? (
+              <span className="block text-xs font-normal text-amber-800">
+                Reportée {po.promisedDateChanges} fois (1re date : {dayOrDash(po.firstPromisedDate)})
+              </span>
+            ) : null}
+          </Info2>
+          <Info2 label="Dépôt de livraison">
+            {po.warehouse.name}
+            <span className="block text-xs font-normal whitespace-pre-wrap text-muted-foreground">{po.deliveryAddress}</span>
+          </Info2>
+          <Info2 label="Envoyé" testId="po-sent">
+            {po.sentAt ? (
+              <>
+                <DateCell value={po.sentAt} />
+                {po.sentChannel ? <span className="block text-xs font-normal text-muted-foreground">{CONTACT_CHANNEL_LABELS[po.sentChannel as ContactChannelCode] ?? po.sentChannel}</span> : null}
+              </>
+            ) : (
+              "—"
+            )}
+          </Info2>
+          <Info2 label="Relances" testId="po-reminders">
+            {po.reminderCount > 0 ? (
+              <>
+                {po.reminderCount} <span className="font-normal text-muted-foreground">(dernière le </span>
+                <DateCell value={po.lastRemindedAt} />
+                <span className="font-normal text-muted-foreground">)</span>
+              </>
+            ) : (
+              "Aucune"
+            )}
+          </Info2>
+          {po.supplierRef ? <Info2 label="Référence fournisseur">{po.supplierRef}</Info2> : null}
+        </dl>
+        {po.directReason ? (
+          <div className="mt-4 border-t pt-3">
+            <p className="text-xs text-muted-foreground">Motif de la commande directe</p>
+            <p className="mt-0.5 text-sm whitespace-pre-wrap" data-testid="po-direct-reason">
+              {po.directReason}
+            </p>
+          </div>
+        ) : null}
+        {po.notes ? (
+          <div className="mt-4 border-t pt-3">
+            <p className="text-xs text-muted-foreground">Observations (imprimées sur le bon)</p>
+            <p className="mt-0.5 text-sm whitespace-pre-wrap">{po.notes}</p>
+          </div>
+        ) : null}
+        {po.internalNote ? (
+          <div className="mt-4 border-t pt-3">
+            <p className="text-xs text-muted-foreground">Note interne (jamais imprimée)</p>
+            <p className="mt-0.5 text-sm whitespace-pre-wrap">{po.internalNote}</p>
+          </div>
+        ) : null}
+        {po.sourceRequests.length > 0 ? (
+          <div className="mt-4 border-t pt-3" data-testid="po-sources">
+            <p className="text-xs text-muted-foreground">Demandes d&apos;achat sources</p>
+            <ul className="mt-1 flex flex-wrap gap-2 text-sm">
+              {po.sourceRequests.map((r) => (
+                <li key={r.id}>
+                  <Link href={`/achats/demandes/${r.id}`} className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 font-mono text-primary hover:bg-muted" data-testid={`po-source-${r.displayNumber}`}>
+                    {r.displayNumber} <StatusBadge status={r.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </section>
+        <section aria-labelledby="po-history-title" className="rounded-xl border bg-card p-4">
+          <h2 id="po-history-title" className="mb-4 text-[15px] font-semibold">
             Chronologie
           </h2>
           <OrderTimeline events={events} />
         </section>
+        </aside>
       </div>
     </>
   );
@@ -395,7 +443,7 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
 export default function OrderPage({ params }: PageProps<"/achats/commandes/[id]">) {
   return (
     <>
-      <Link href="/achats/commandes" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/achats/commandes" className="mb-3 inline-flex lg:hidden min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Retour aux bons de commande
       </Link>
       <Suspense fallback={<PageSkeleton />}>

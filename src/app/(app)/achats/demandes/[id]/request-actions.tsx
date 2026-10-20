@@ -342,7 +342,7 @@ export function RequestActions({
           ) : null}
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-sm" data-testid="pr-approve-lines">
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+              <thead className="text-left text-xs font-medium text-muted-foreground border-b">
                 <tr>
                   <th className="p-2">Article</th>
                   <th className="p-2 text-right">Demandé</th>

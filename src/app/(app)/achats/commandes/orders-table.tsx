@@ -22,7 +22,7 @@ const optionsOf = (labels: Record<string, string>) => Object.entries(labels).map
 
 /** Date « jour » (stockée à minuit UTC) : affichée sans décalage de fuseau. */
 function DayCell({ value }: { value: Date | string | null }) {
-  if (!value) return <span className="text-muted-foreground">–</span>;
+  if (!value) return <span className="text-muted-foreground">—</span>;
   const iso = (typeof value === "string" ? value : value.toISOString()).slice(0, 10);
   const [y, m, d] = iso.split("-");
   return <span>{`${d}/${m}/${y}`}</span>;
@@ -57,7 +57,7 @@ export function OrdersTable({
         sortable: true,
         mobile: "title",
         cell: (r) => (
-          <Link href={`/achats/commandes/${r.id}`} className="font-mono text-sm font-medium text-primary underline-offset-4 hover:underline" data-testid="po-link">
+          <Link href={`/achats/commandes/${r.id}`} className="doc-number text-primary hover:underline" data-testid="po-link">
             {r.displayNumber}
           </Link>
         ),
@@ -69,12 +69,12 @@ export function OrdersTable({
         sortable: true,
         mobile: "subtitle",
         cell: (r) => (
-          <span>
-            <span className="font-mono text-xs text-muted-foreground">{r.supplier.code}</span> {r.supplier.name}
+          <span className="block max-w-48 truncate" title={`${r.supplier.code} – ${r.supplier.name}`}>
+            {r.supplier.name}
           </span>
         ),
       },
-      { id: "type", header: "Type", cell: (r) => PO_TYPE_LABELS[r.type] },
+      { id: "type", header: "Type", cell: (r) => <span className="whitespace-nowrap">{PO_TYPE_LABELS[r.type]}</span> },
       {
         id: "totalTtcXof",
         header: "Montant TTC",
@@ -99,16 +99,16 @@ export function OrdersTable({
           <span className="flex flex-wrap gap-1.5">
             {r.late ? <LateBadge daysLate={r.daysLate} /> : null}
             {r.needsReminder ? <RemindBadge /> : null}
-            {!r.late && !r.needsReminder ? <span className="text-muted-foreground">–</span> : null}
+            {!r.late && !r.needsReminder ? <span className="text-muted-foreground">—</span> : null}
           </span>
         ),
       },
       {
         id: "age",
         header: "Ancienneté",
-        cell: (r) => (r.status === "A_VALIDER" || r.status === "ENVOYE" ? <AgeBadge days={r.ageDays} severity={r.ageSeverity} /> : <span className="text-muted-foreground">–</span>),
+        cell: (r) => (r.status === "A_VALIDER" || r.status === "ENVOYE" ? <AgeBadge days={r.ageDays} severity={r.ageSeverity} /> : <span className="text-muted-foreground">—</span>),
       },
-      { id: "buyer", header: "Acheteur", cell: (r) => r.createdBy.name },
+      { id: "buyer", header: "Acheteur", cell: (r) => <span className="whitespace-nowrap">{r.createdBy.name}</span> },
     ],
     [],
   );

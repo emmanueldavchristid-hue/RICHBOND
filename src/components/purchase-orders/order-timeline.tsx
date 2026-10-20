@@ -1,7 +1,6 @@
-import { DateCell } from "@/components/date-cell";
+import { TimelineItem } from "@/components/timeline-item";
 import { formatDateOnly } from "@/lib/dates";
 import { formatFcfa } from "@/lib/money";
-import { cn } from "@/lib/utils";
 import { CONTACT_CHANNEL_LABELS, PO_EVENT_LABELS, PO_STATUS_LABELS, type ContactChannelCode, type PoStatus } from "@/modules/purchase-orders/labels";
 
 export interface OrderEvent {
@@ -15,17 +14,6 @@ export interface OrderEvent {
   payload: unknown;
   user: { id: string; name: string };
 }
-
-const TONE: Record<string, string> = {
-  APPROVED: "bg-emerald-600",
-  CONFIRMED: "bg-emerald-600",
-  REJECTED: "bg-red-600",
-  CANCELLED: "bg-slate-500",
-  RETURNED: "bg-amber-500",
-  REMINDED: "bg-amber-500",
-  PROMISED_DATE_CHANGED: "bg-amber-500",
-  AMENDMENT_STARTED: "bg-violet-600",
-};
 
 type Payload = Record<string, unknown>;
 const asPayload = (p: unknown): Payload => (p && typeof p === "object" ? (p as Payload) : {});
@@ -61,7 +49,7 @@ function detail(e: OrderEvent): string[] {
     case "PROMISED_DATE_CHANGED": {
       const b = day(p.before);
       const a = day(p.after);
-      if (a) out.push(`${b ?? "–"} → ${a}${typeof p.changes === "number" ? ` (report n° ${p.changes})` : ""}`);
+      if (a) out.push(`${b ?? "—"} → ${a}${typeof p.changes === "number" ? ` (report n° ${p.changes})` : ""}`);
       break;
     }
     case "REMINDED": {
@@ -79,39 +67,32 @@ function detail(e: OrderEvent): string[] {
 export function OrderTimeline({ events }: { events: OrderEvent[] }) {
   if (events.length === 0) return <p className="text-sm text-muted-foreground">Aucun événement.</p>;
   return (
-    <ol className="space-y-4" data-testid="po-timeline">
-      {events.map((e) => {
+    <ol data-testid="po-timeline">
+      {events.map((e, i) => {
         const lines = detail(e);
         return (
-          <li key={e.id} className="flex gap-3" data-testid={`po-event-${e.type}`}>
-            <span className={cn("mt-1.5 size-3 shrink-0 rounded-full", TONE[e.type] ?? "bg-sky-600")} aria-hidden />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm">
-                <span className="font-medium">{PO_EVENT_LABELS[e.type] ?? e.type}</span>
-                {e.version > 1 ? <span className="text-muted-foreground"> (v{e.version})</span> : null}
-                {e.fromStatus && e.toStatus && e.fromStatus !== e.toStatus ? (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    ({statusLabel(e.fromStatus)} → {statusLabel(e.toStatus)})
-                  </span>
-                ) : null}
-                <span className="text-muted-foreground"> · {e.user.name} · </span>
+          <TimelineItem key={e.id} name={e.user.name} at={e.createdAt} testId={`po-event-${e.type}`} last={i === events.length - 1}>
+            <p className="text-sm">
+              <span className="font-medium">{PO_EVENT_LABELS[e.type] ?? e.type}</span>
+              {e.version > 1 ? <span className="text-muted-foreground"> (v{e.version})</span> : null}
+              {e.fromStatus && e.toStatus && e.fromStatus !== e.toStatus ? (
                 <span className="text-muted-foreground">
-                  <DateCell value={e.createdAt} withTime />
+                  {" "}
+                  ({statusLabel(e.fromStatus)} → {statusLabel(e.toStatus)})
                 </span>
-              </p>
-              {lines.map((l, i) => (
-                <p key={i} className="text-sm text-muted-foreground">
-                  {l}
-                </p>
-              ))}
-              {e.comment ? (
-                <p className="mt-1 rounded-md bg-muted/60 px-3 py-2 text-sm whitespace-pre-wrap" data-testid="po-event-comment">
-                  {e.comment}
-                </p>
               ) : null}
-            </div>
-          </li>
+            </p>
+            {lines.map((l, j) => (
+              <p key={j} className="text-[13px] text-muted-foreground">
+                {l}
+              </p>
+            ))}
+            {e.comment ? (
+              <p className="mt-1 rounded-md bg-muted px-3 py-2 text-sm whitespace-pre-wrap" data-testid="po-event-comment">
+                {e.comment}
+              </p>
+            ) : null}
+          </TimelineItem>
         );
       })}
     </ol>

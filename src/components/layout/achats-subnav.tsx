@@ -11,7 +11,7 @@ export interface SubnavItem {
   id: string;
 }
 
-/** Sous-navigation de la rubrique Achats : Demandes · À commander · Commandes (cibles tactiles de 44 px). */
+/** Sous-navigation de la rubrique Achats : Demandes · À commander · Commandes (contrôle segmenté, cibles tactiles de 44 px sur tablette). */
 export function AchatsSubnav({ items }: { items: SubnavItem[] }) {
   const pathname = usePathname();
   const active = (item: SubnavItem) => {
@@ -19,7 +19,7 @@ export function AchatsSubnav({ items }: { items: SubnavItem[] }) {
     return pathname === item.href || pathname.startsWith(item.href + "/");
   };
   return (
-    <nav aria-label="Rubriques des achats" className="mb-4 flex gap-1 overflow-x-auto border-b" data-testid="achats-subnav">
+    <nav aria-label="Rubriques des achats" className="mb-5 inline-flex max-w-full gap-0.5 overflow-x-auto rounded-lg bg-muted p-1" data-testid="achats-subnav">
       {items.map((item) => (
         <Link
           key={item.id}
@@ -27,8 +27,8 @@ export function AchatsSubnav({ items }: { items: SubnavItem[] }) {
           aria-current={active(item) ? "page" : undefined}
           data-testid={`achats-subnav-${item.id}`}
           className={cn(
-            "inline-flex min-h-11 items-center border-b-2 px-4 text-sm font-medium whitespace-nowrap",
-            active(item) ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            "inline-flex min-h-9 items-center rounded-md px-3.5 text-[13px] font-medium whitespace-nowrap transition-colors max-lg:min-h-11",
+            active(item) ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
           )}
         >
           {item.label}

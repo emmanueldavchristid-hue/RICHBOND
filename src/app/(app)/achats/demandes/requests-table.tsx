@@ -100,7 +100,7 @@ export function RequestsTable({
         headerContent: (
           <input
             type="checkbox"
-            className="size-6"
+            className="size-[18px]"
             aria-label="Tout sélectionner (demandes à valider de cette page)"
             checked={allChecked}
             disabled={selectable.length === 0}
@@ -113,7 +113,7 @@ export function RequestsTable({
           r.status === "SOUMISE" ? (
             <input
               type="checkbox"
-              className="size-6"
+              className="size-[18px]"
               aria-label={`Sélectionner ${r.displayNumber}`}
               checked={selected.has(r.id)}
               onChange={() => toggle(r.id)}
@@ -131,7 +131,7 @@ export function RequestsTable({
         cell: (r) => (
           <Link
             href={`/achats/demandes/${r.id}`}
-            className="font-mono text-sm font-medium text-primary underline-offset-4 hover:underline"
+            className="doc-number text-primary hover:underline"
             data-testid="pr-link"
           >
             {r.displayNumber}
@@ -141,11 +141,11 @@ export function RequestsTable({
       { id: "urgency", header: "Urgence", cell: (r) => <UrgencyBadge urgency={r.urgency} /> },
       { id: "status", header: "Statut", sortable: true, cell: (r) => <StatusBadge status={r.status} /> },
       { id: "department", header: "Service", mobile: "subtitle", cell: (r) => r.department.name },
-      { id: "requester", header: "Demandeur", cell: (r) => r.requesterName },
+      { id: "requester", header: "Demandeur", cell: (r) => <span className="whitespace-nowrap">{r.requesterName}</span> },
       {
         id: "reason",
         header: "Motif",
-        className: "max-w-64",
+        className: "max-w-44",
         cell: (r) => (
           <span className="line-clamp-2" title={r.reason}>
             {r.reason}
@@ -153,7 +153,7 @@ export function RequestsTable({
         ),
       },
       { id: "neededBy", header: "Besoin", sortable: true, cell: (r) => <DateCell value={r.neededBy} /> },
-      { id: "type", header: "Type", cell: (r) => PR_TYPE_LABELS[r.type] },
+      { id: "type", header: "Type", cell: (r) => <span className="whitespace-nowrap">{PR_TYPE_LABELS[r.type]}</span> },
     );
     if (showPrices) {
       cols.push({
@@ -167,7 +167,7 @@ export function RequestsTable({
     cols.push({
       id: "buyer",
       header: "Acheteur",
-      cell: (r) => r.assignedBuyer?.name ?? <span className="text-muted-foreground">–</span>,
+      cell: (r) => r.assignedBuyer?.name ?? <span className="text-muted-foreground">—</span>,
     });
     // LOT-05 (D21) : « Assignées à moi » montre ce qui traîne : ancienneté de la validation et reste à commander.
     if (tab === "assignees") {
@@ -176,7 +176,7 @@ export function RequestsTable({
         {
           id: "approvedAge",
           header: "Validée",
-          cell: (r) => (r.approvedAt && r.linesToOrder > 0 ? <AgeBadge days={ageInDays(r.approvedAt, now)} severity={ageSeverity(r.approvedAt, now)} prefix="depuis" /> : <span className="text-muted-foreground">–</span>),
+          cell: (r) => (r.approvedAt && r.linesToOrder > 0 ? <AgeBadge days={ageInDays(r.approvedAt, now)} severity={ageSeverity(r.approvedAt, now)} prefix="depuis" /> : <span className="text-muted-foreground">—</span>),
         },
         {
           id: "linesToOrder",
@@ -187,7 +187,7 @@ export function RequestsTable({
                 {r.linesToOrder} ligne{r.linesToOrder > 1 ? "s" : ""}
               </span>
             ) : (
-              <span className="text-muted-foreground">–</span>
+              <span className="text-muted-foreground">—</span>
             ),
         },
       );

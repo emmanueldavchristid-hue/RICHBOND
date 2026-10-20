@@ -5,13 +5,13 @@ import { unitShort } from "@/components/unit-select";
 export function QtyCell({
   value,
   unit,
-  empty = "–",
+  empty = "—",
 }: {
   value: number | string | null | undefined;
   unit?: string | null;
   empty?: string;
 }) {
-  if (value === null || value === undefined || value === "") return <span className="text-muted-foreground">{empty}</span>;
+  if (value === null || value === undefined || value === "") return <span className="text-muted-foreground/70">{empty}</span>;
   return (
     <span>
       {formatQty(value)}

@@ -11,6 +11,7 @@ import { Timeline, type TimelineEvent } from "@/components/purchase-requests/tim
 import { UrgencyBadge } from "@/components/purchase-requests/urgency-badge";
 import { AllocationCell } from "@/components/purchase-orders/allocation-cell";
 import { StatusBadge } from "@/components/status-badge";
+import { StatusStepper, type StepDef } from "@/components/status-stepper";
 import { unitShort } from "@/components/unit-select";
 import { isBusinessError } from "@/lib/errors";
 import { formatFcfa, formatQty } from "@/lib/money";
@@ -23,10 +24,42 @@ import { RequestDuplicates } from "./request-duplicates";
 
 export const metadata: Metadata = { title: "Demande d'achat – RICHBOND" };
 
+const DA_STEPS: StepDef[] = [
+  { key: "BROUILLON", label: "Brouillon" },
+  { key: "SOUMISE", label: "Soumise" },
+  { key: "VALIDEE", label: "Validée" },
+  { key: "COMMANDEE", label: "Commandée" },
+];
+
+/** Étape de la frise pour un statut de DA ; une DA refusée ou annulée reste sur l'étape où elle s'est arrêtée. */
+function stepOf(status: string, submitted: boolean): string {
+  switch (status) {
+    case "BROUILLON":
+      return "BROUILLON";
+    case "SOUMISE":
+    case "A_COMPLETER":
+    case "REFUSEE":
+      return "SOUMISE";
+    case "ANNULEE":
+      return submitted ? "SOUMISE" : "BROUILLON";
+    case "VALIDEE":
+    case "EN_CONSULTATION":
+      return "VALIDEE";
+    default:
+      return "COMMANDEE";
+  }
+}
+
+function stoppedOf(status: string): { label: string } | null {
+  if (status === "REFUSEE") return { label: "Refusée" };
+  if (status === "ANNULEE") return { label: "Annulée" };
+  return null;
+}
+
 function Info({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
   return (
     <div data-testid={testId}>
-      <dt className="text-xs text-muted-foreground uppercase">{label}</dt>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 text-sm font-medium">{children}</dd>
     </div>
   );
@@ -67,7 +100,8 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
       <PageHeader
         title={pr.displayNumber}
         description={`${PR_KIND_LABELS[pr.kind]} · ${pr.department.name}`}
-        actions={
+        titleClassName="page-title font-mono tracking-tight"
+        meta={
           <div className="flex flex-wrap items-center gap-2" data-testid="pr-badges">
             <StatusBadge status={pr.status} />
             <UrgencyBadge urgency={pr.urgency} />
@@ -75,8 +109,12 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
         }
       />
 
+      <div className="mb-5">
+        <StatusStepper steps={DA_STEPS} current={stepOf(pr.status, !!pr.submittedAt)} stopped={stoppedOf(pr.status)} testId="pr-stepper" label="Avancement de la demande" />
+      </div>
+
       {pr.urgency === "ARRET_PRODUCTION" && decisionOpen ? (
-        <p role="alert" className="mb-4 flex items-center gap-2 rounded-lg bg-red-700 p-3 text-sm font-medium text-white" data-testid="pr-stop-banner">
+        <p role="alert" className="mb-4 flex items-center gap-2 rounded-lg border-l-4 border-l-red-600 bg-red-50 p-3 text-sm font-medium text-red-800" data-testid="pr-stop-banner">
           <AlertTriangle className="size-5 shrink-0" aria-hidden /> Arrêt de production : cette demande attend une décision immédiate.
         </p>
       ) : null}
@@ -101,52 +139,9 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
         </p>
       ) : null}
 
-      <section className="mb-6 rounded-lg border bg-card p-5">
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="pr-info">
-          <Info label="Service">{pr.department.name}</Info>
-          <Info label="Demandeur">{pr.requesterName}</Info>
-          <Info label="Date de besoin">
-            <DateCell value={pr.neededBy} />
-          </Info>
-          <Info label="Type d'achat">{PR_TYPE_LABELS[pr.type]}</Info>
-          <Info label="Créée par">
-            {pr.createdBy.name}{" "}
-            <span className="font-normal text-muted-foreground">
-              le <DateCell value={pr.createdAt} />
-            </span>
-          </Info>
-          <Info label="Soumise le">
-            <DateCell value={pr.submittedAt} />
-          </Info>
-          <Info label="Validée par" testId="pr-approved-by">
-            {pr.approvedBy ? (
-              <>
-                {pr.approvedBy.name}{" "}
-                <span className="font-normal text-muted-foreground">
-                  le <DateCell value={pr.approvedAt} />
-                </span>
-              </>
-            ) : (
-              "–"
-            )}
-          </Info>
-          <Info label="Acheteur assigné" testId="pr-buyer">
-            {pr.assignedBuyer?.name ?? (pr.status === "VALIDEE" ? <span className="text-amber-800">Non assignée</span> : "–")}
-          </Info>
-          {showPrices ? (
-            <Info label="Montant estimé" testId="pr-total">
-              <MoneyCell value={pr.estimatedTotal} decimals={0} empty="non chiffré" />
-            </Info>
-          ) : null}
-        </dl>
-        <div className="mt-4 border-t pt-3">
-          <p className="text-xs text-muted-foreground uppercase">Motif</p>
-          <p className="mt-0.5 text-sm whitespace-pre-wrap" data-testid="pr-reason">
-            {pr.reason}
-          </p>
-        </div>
-      </section>
 
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
       <div className="mb-6">
         <RequestActions
           id={pr.id}
@@ -183,7 +178,7 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
         </h2>
         <div className="overflow-x-auto rounded-lg border bg-card">
           <table className="w-full min-w-[44rem] text-sm" data-testid="pr-lines">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+            <thead className="text-left text-xs font-medium text-muted-foreground">
               <tr>
                 <th className="p-3">N°</th>
                 <th className="p-3">Article</th>
@@ -217,7 +212,7 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
                     <td className="p-3 text-right tabular-nums">{formatQty(l.quantity)}</td>
                     {hasApproved ? (
                       <td className={`p-3 text-right tabular-nums ${diff ? "font-semibold text-amber-800" : ""}`} data-testid={`pr-line-${l.lineNo}-approved`}>
-                        {l.approvedQty != null ? formatQty(l.approvedQty) : "–"}
+                        {l.approvedQty != null ? formatQty(l.approvedQty) : "—"}
                         {diff ? <span className="block text-xs font-normal">{Number(l.approvedQty) === 0 ? "ligne retirée" : "modifié"}</span> : null}
                       </td>
                     ) : null}
@@ -273,19 +268,69 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
         </section>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+          <div className="mb-6">
+
         <section aria-labelledby="pr-att-title">
           <h2 id="pr-att-title" className="mb-2 font-medium">
             Pièces jointes
           </h2>
           <AttachmentsPanel requestId={pr.id} items={pr.attachments} canEdit={pr.actions.includes("attach")} />
         </section>
-        <section aria-labelledby="pr-history-title">
-          <h2 id="pr-history-title" className="mb-3 font-medium">
+          </div>
+        </div>
+        <aside className="space-y-4" aria-label="Informations et chronologie">
+      <section className="rounded-xl border bg-card p-4" aria-label="Informations clés">
+        <dl className="grid gap-3.5" data-testid="pr-info">
+          <Info label="Service">{pr.department.name}</Info>
+          <Info label="Demandeur">{pr.requesterName}</Info>
+          <Info label="Date de besoin">
+            <DateCell value={pr.neededBy} />
+          </Info>
+          <Info label="Type d'achat">{PR_TYPE_LABELS[pr.type]}</Info>
+          <Info label="Créée par">
+            {pr.createdBy.name}{" "}
+            <span className="font-normal text-muted-foreground">
+              le <DateCell value={pr.createdAt} />
+            </span>
+          </Info>
+          <Info label="Soumise le">
+            <DateCell value={pr.submittedAt} />
+          </Info>
+          <Info label="Validée par" testId="pr-approved-by">
+            {pr.approvedBy ? (
+              <>
+                {pr.approvedBy.name}{" "}
+                <span className="font-normal text-muted-foreground">
+                  le <DateCell value={pr.approvedAt} />
+                </span>
+              </>
+            ) : (
+              "—"
+            )}
+          </Info>
+          <Info label="Acheteur assigné" testId="pr-buyer">
+            {pr.assignedBuyer?.name ?? (pr.status === "VALIDEE" ? <span className="text-amber-800">Non assignée</span> : "—")}
+          </Info>
+          {showPrices ? (
+            <Info label="Montant estimé" testId="pr-total">
+              <MoneyCell value={pr.estimatedTotal} decimals={0} empty="non chiffré" />
+            </Info>
+          ) : null}
+        </dl>
+        <div className="mt-4 border-t pt-3">
+          <p className="text-xs text-muted-foreground">Motif</p>
+          <p className="mt-0.5 text-sm whitespace-pre-wrap" data-testid="pr-reason">
+            {pr.reason}
+          </p>
+        </div>
+      </section>
+        <section aria-labelledby="pr-history-title" className="rounded-xl border bg-card p-4">
+          <h2 id="pr-history-title" className="mb-4 text-[15px] font-semibold">
             Chronologie
           </h2>
           <Timeline events={events} />
         </section>
+        </aside>
       </div>
     </>
   );
@@ -294,7 +339,7 @@ async function RequestContent({ params }: { params: PageProps<"/achats/demandes/
 export default function RequestPage({ params }: PageProps<"/achats/demandes/[id]">) {
   return (
     <>
-      <Link href="/achats/demandes" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/achats/demandes" className="mb-3 inline-flex lg:hidden min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Retour aux demandes d&apos;achat
       </Link>
       <Suspense fallback={<PageSkeleton />}>

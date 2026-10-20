@@ -1,23 +1,37 @@
+import type { CSSProperties } from "react";
+import { AlertTriangle } from "lucide-react";
+import { TONE_COLORS } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import { PR_URGENCY_LABELS, type PrUrgency } from "@/modules/purchase-requests/labels";
 
-const TONES: Record<PrUrgency, string> = {
-  NORMALE: "bg-slate-100 text-slate-700 ring-slate-200",
-  URGENTE: "bg-amber-100 text-amber-900 ring-amber-300",
-  // Rouge plein : l'arrêt de production doit se voir au premier coup d'oeil.
-  ARRET_PRODUCTION: "bg-red-700 text-white ring-red-800",
-};
-
+/**
+ * Urgences (DESIGN.md §3) : Normale = texte simple atténué ; Urgente = badge ambre ;
+ * Arrêt de production = badge rouge plein avec icône.
+ */
 export function UrgencyBadge({ urgency, className }: { urgency: PrUrgency; className?: string }) {
+  if (urgency === "NORMALE") {
+    return (
+      <span data-testid={`urgency-${urgency}`} className={cn("text-[13px] text-muted-foreground", className)}>
+        {PR_URGENCY_LABELS[urgency]}
+      </span>
+    );
+  }
+  if (urgency === "ARRET_PRODUCTION") {
+    return (
+      <span
+        data-testid={`urgency-${urgency}`}
+        className={cn("inline-flex h-[22px] items-center gap-1 rounded-md bg-red-600 px-2 text-xs font-semibold whitespace-nowrap text-white", className)}
+      >
+        <AlertTriangle className="size-3.5" aria-hidden />
+        {PR_URGENCY_LABELS[urgency]}
+      </span>
+    );
+  }
   return (
     <span
       data-testid={`urgency-${urgency}`}
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ring-1 ring-inset",
-        urgency === "ARRET_PRODUCTION" && "font-semibold",
-        TONES[urgency],
-        className,
-      )}
+      style={{ "--tone": TONE_COLORS.warning } as CSSProperties}
+      className={cn("status-badge", className)}
     >
       {PR_URGENCY_LABELS[urgency]}
     </span>

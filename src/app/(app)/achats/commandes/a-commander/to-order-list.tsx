@@ -157,7 +157,7 @@ export function ToOrderList({
             ) : null}
             <div className="overflow-x-auto">
               <table className="w-full min-w-[48rem] text-sm">
-                <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+                <thead className="text-left text-xs font-medium text-muted-foreground border-b">
                   <tr>
                     <th className="w-14 p-3">
                       <span className="sr-only">Sélection</span>

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { TabLink, TabsNav } from "@/components/tabs-nav";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { getNow } from "@/lib/clock";
 import { can } from "@/lib/permissions";
@@ -17,29 +17,9 @@ const KEYS = ["onglet", "statut", "fournisseur", "acheteur", "type", "devise", "
 
 type Tab = "a-valider" | "en-cours" | "en-retard" | "recus" | "tous";
 
-function TabLink({ tab, active, label, count, tone = "red" }: { tab: Tab; active: boolean; label: string; count?: number; tone?: "red" | "amber" }) {
-  return (
-    <Link
-      href={`/achats/commandes?onglet=${tab}`}
-      role="tab"
-      aria-selected={active}
-      data-testid={`po-tab-${tab}`}
-      className={`inline-flex min-h-11 items-center gap-2 border-b-2 px-4 text-sm font-medium whitespace-nowrap ${
-        active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-      }`}
-    >
-      {label}
-      {count !== undefined && count > 0 ? (
-        <span
-          data-testid={`po-tab-${tab}-count`}
-          className={`inline-flex min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-white ${tone === "red" ? "bg-red-700" : "bg-amber-600"}`}
-        >
-          {count}
-        </span>
-      ) : null}
-    </Link>
-  );
-}
+const TabItem = ({ tab, active, label, count, alert }: { tab: Tab; active: boolean; label: string; count?: number; alert?: boolean }) => (
+  <TabLink href={`/achats/commandes?onglet=${tab}`} active={active} label={label} count={count} alert={alert} testId={`po-tab-${tab}`} />
+);
 
 async function OrdersContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requirePageAction("purchaseOrder.view");
@@ -65,13 +45,13 @@ async function OrdersContent({ searchParams }: { searchParams: Promise<SearchPar
           Certains filtres de l&apos;adresse sont invalides : ils ont été ignorés.
         </p>
       ) : null}
-      <div role="tablist" aria-label="Vues des bons de commande" className="mb-4 flex overflow-x-auto border-b" data-testid="po-tabs">
-        <TabLink tab="a-valider" active={tab === "a-valider"} label="À valider" count={page.counts.aValider} />
-        <TabLink tab="en-cours" active={tab === "en-cours"} label="En cours" />
-        <TabLink tab="en-retard" active={tab === "en-retard"} label="En retard" count={page.counts.enRetard} />
-        <TabLink tab="recus" active={tab === "recus"} label="Reçus" />
-        <TabLink tab="tous" active={tab === "tous"} label="Tous" />
-      </div>
+      <TabsNav label="Vues des bons de commande" testId="po-tabs">
+        <TabItem tab="a-valider" active={tab === "a-valider"} label="À valider" count={page.counts.aValider} alert />
+        <TabItem tab="en-cours" active={tab === "en-cours"} label="En cours" />
+        <TabItem tab="en-retard" active={tab === "en-retard"} label="En retard" count={page.counts.enRetard} alert />
+        <TabItem tab="recus" active={tab === "recus"} label="Reçus" />
+        <TabItem tab="tous" active={tab === "tous"} label="Tous" />
+      </TabsNav>
       <OrdersTable
         rows={serialize(page.rows)}
         pageInfo={{ total: page.total, page: page.page, taille: page.taille, pageCount: page.pageCount }}

@@ -4,13 +4,13 @@ import { formatDate, formatDateTime } from "@/lib/dates";
 export function DateCell({
   value,
   withTime = false,
-  empty = "–",
+  empty = "—",
 }: {
   value: Date | string | null | undefined;
   withTime?: boolean;
   empty?: string;
 }) {
-  if (!value) return <span className="text-muted-foreground">{empty}</span>;
+  if (!value) return <span className="text-muted-foreground/70">{empty}</span>;
   const d = typeof value === "string" ? new Date(value) : value;
   return <span>{withTime ? formatDateTime(d) : formatDate(d)}</span>;
 }

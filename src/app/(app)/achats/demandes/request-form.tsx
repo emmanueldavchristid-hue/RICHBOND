@@ -459,7 +459,7 @@ export function RequestForm({
         ) : (
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full min-w-[44rem] text-sm" data-testid="pr-lines-table">
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+              <thead className="text-left text-xs font-medium text-muted-foreground border-b">
                 <tr>
                   <th className="p-2">N°</th>
                   <th className="p-2">Article</th>
@@ -573,7 +573,7 @@ export function RequestForm({
                         </td>
                       ) : null}
                       <td className="p-2 align-top">
-                        {l.itemId ? <StockCoverageCell snapshot={stock?.[l.itemId] ?? null} unit={l.stockUnit} /> : <span className="text-muted-foreground">–</span>}
+                        {l.itemId ? <StockCoverageCell snapshot={stock?.[l.itemId] ?? null} unit={l.stockUnit} /> : <span className="text-muted-foreground">—</span>}
                       </td>
                       <td className="p-2 align-top">
                         <Button type="button" variant="ghost" className="size-12 p-0" aria-label={`Retirer la ligne ${i + 1}`} onClick={() => removeLine(l.key)} data-testid={`pr-line-${i + 1}-remove`}>

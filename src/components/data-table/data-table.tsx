@@ -135,7 +135,7 @@ export function DataTable<T extends { id: string }>({
   const rowKey = (r: T) => rowTestId?.(r) ?? `${testId}-row`;
 
   return (
-    <div className="space-y-4" data-testid={testId} aria-busy={url.isPending}>
+    <div className="space-y-3" data-testid={testId} aria-busy={url.isPending}>
       <Toolbar
         testId={testId}
         searchValue={url.get("q")}
@@ -156,9 +156,9 @@ export function DataTable<T extends { id: string }>({
         ) : (
           <>
             {/* Tablette et ordinateur : tableau */}
-            <div className="hidden overflow-x-auto rounded-lg border bg-card md:block">
+            <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
               <table className="w-full caption-bottom text-sm" data-testid={`${testId}-table`}>
-                <thead className="bg-muted/50 [&_tr]:border-b">
+                <thead className="[&_tr]:border-b">
                   {table.getHeaderGroups().map((hg) => (
                     <tr key={hg.id}>
                       {hg.headers.map((h) => {
@@ -171,24 +171,24 @@ export function DataTable<T extends { id: string }>({
                             scope="col"
                             aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
                             className={cn(
-                              "h-12 px-3 text-left align-middle text-xs font-semibold tracking-wide whitespace-nowrap text-muted-foreground uppercase",
+                              "h-10 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground",
                               col?.align === "right" && "text-right",
                               col?.sticky && STICKY[col.sticky],
-                              col?.sticky && "bg-muted",
+                              col?.sticky && "bg-card",
                             )}
                           >
                             {canSort ? (
                               <button
                                 type="button"
                                 onClick={h.column.getToggleSortingHandler()}
-                                className="-mx-2 inline-flex h-11 items-center gap-1 rounded-md px-2 uppercase hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+                                className={cn("-mx-2 inline-flex h-8 items-center gap-1 rounded-md px-2 transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", active && "text-foreground")}
                                 data-testid={`${testId}-sort-${h.column.id}`}
                               >
                                 {col?.header}
                                 {active ? (
-                                  sortDir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />
+                                  sortDir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
                                 ) : (
-                                  <ArrowUpDown className="size-3.5 opacity-40" />
+                                  <ArrowUpDown className="size-3 opacity-30" />
                                 )}
                               </button>
                             ) : (
@@ -215,7 +215,7 @@ export function DataTable<T extends { id: string }>({
                               }
                             : undefined
                         }
-                        className={cn("border-b transition-colors hover:bg-muted/50", href && "cursor-pointer", rowClassName?.(row.original))}
+                        className={cn("group/row h-11 border-b border-border/60 transition-colors duration-150 hover:bg-background", href && "cursor-pointer", rowClassName?.(row.original))}
                       >
                         {row.getAllCells().map((cell) => {
                           const col = byId.get(cell.column.id);
@@ -223,7 +223,7 @@ export function DataTable<T extends { id: string }>({
                             <td
                               key={cell.id}
                               className={cn(
-                                "min-h-12 px-3 py-3 align-middle",
+                                "px-3 py-1.5 align-middle",
                                 col?.align === "right" && "text-right tabular-nums",
                                 col?.sticky && STICKY[col.sticky],
                                 col?.className,
@@ -261,7 +261,7 @@ export function DataTable<T extends { id: string }>({
                   </>
                 );
                 return (
-                  <li key={r.id} data-testid={`${rowKey(r)}-card`} className={cn("rounded-lg border bg-card", rowClassName?.(r))}>
+                  <li key={r.id} data-testid={`${rowKey(r)}-card`} className={cn("rounded-xl border bg-card", rowClassName?.(r))}>
                     {/* Carte entière cliquable (le lien du code reste le lien accessible : pas d'ancre imbriquée). */}
                     <div
                       className={cn("min-h-14 rounded-lg p-4", href && "cursor-pointer hover:bg-muted/50")}

@@ -108,7 +108,7 @@ export function ExportButton({ href, query, testId }: { href: string; query: str
     <Button
       type="button"
       variant="outline"
-      className="h-11 px-4"
+      className="h-9 px-3"
       disabled={busy}
       onClick={() => void download()}
       data-testid={testId}
@@ -144,28 +144,28 @@ export function Toolbar({
   extra?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end gap-3" data-testid={`${testId}-toolbar`}>
-      <div className="relative min-w-60 flex-1">
-        <Search className="pointer-events-none absolute top-3.5 left-3 size-4 text-muted-foreground" />
+    <div className="flex flex-wrap items-center gap-2" data-testid={`${testId}-toolbar`}>
+      <div className="relative min-w-52 max-w-xs flex-1">
+        <Search className="pointer-events-none absolute top-2.5 left-3 size-4 text-muted-foreground" />
         <DebouncedInput
           value={searchValue}
           onCommit={onSearch}
           placeholder={searchPlaceholder}
           aria-label={searchPlaceholder}
-          className="h-11 pl-9"
+          className="h-9 pl-9"
           data-testid={`${testId}-search`}
         />
       </div>
       {filters.map((f) =>
         f.type === "text" ? (
-          <div key={f.param} className="w-48">
+          <div key={f.param} className="w-44">
             <DebouncedInput
               value={getParam(f.param)}
               onCommit={(v) => onFilter(f.param, v)}
               placeholder={f.placeholder ?? f.label}
               aria-label={f.label}
               maxLength={f.maxLength}
-              className="h-11"
+              className="h-8 rounded-full px-3 text-[13px]"
               data-testid={`${testId}-filter-${f.param}`}
             />
           </div>
@@ -175,7 +175,7 @@ export function Toolbar({
             value={getParam(f.param)}
             onChange={(e) => onFilter(f.param, e.target.value)}
             aria-label={f.label}
-            className="w-auto min-w-44"
+            className="h-8 w-auto min-w-40 rounded-full bg-card px-3 text-[13px] md:text-[13px]"
             data-testid={`${testId}-filter-${f.param}`}
           >
             {(f.options ?? []).map((o) => (
@@ -190,15 +190,17 @@ export function Toolbar({
         <Button
           type="button"
           variant="ghost"
-          className="h-11 px-3"
+          className="h-8 px-2.5 text-[13px] text-muted-foreground"
           onClick={onReset}
           data-testid={`${testId}-reset`}
         >
-          <X /> Réinitialiser
+          <X className="size-3.5" /> Réinitialiser
         </Button>
       ) : null}
-      {exportButton}
-      {extra}
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        {exportButton}
+        {extra}
+      </div>
     </div>
   );
 }

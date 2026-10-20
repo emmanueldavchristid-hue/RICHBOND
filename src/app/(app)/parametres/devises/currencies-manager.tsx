@@ -171,7 +171,7 @@ function RateDialog({
         open={confirmCode !== null}
         onOpenChange={(o) => (!o ? setConfirmCode(null) : undefined)}
         title={confirmCode === "RATE_DEVIATION_CONFIRM" ? "Taux très différent du dernier taux" : "Taux EUR différent de la parité fixe"}
-        description={`${confirmMessage} Valeur saisie : ${rate || "–"}.`}
+        description={`${confirmMessage} Valeur saisie : ${rate || "—"}.`}
         confirmLabel="Oui, enregistrer ce taux"
         pending={pending}
         testId="rate-eur-confirm"
@@ -309,7 +309,7 @@ export function CurrenciesManager({
 
       <div className="overflow-x-auto rounded-lg border bg-card">
         <table className="w-full text-sm" data-testid="currencies-table">
-          <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+          <thead className="text-left text-xs font-medium text-muted-foreground border-b">
             <tr>
               <th className="p-3">Devise</th>
               <th className="p-3">Dernier taux (FCFA pour 1 unité)</th>
@@ -325,10 +325,10 @@ export function CurrenciesManager({
                   <span className="font-mono font-medium">{c.code}</span> <span className="text-muted-foreground">{c.name} ({c.symbol})</span>
                 </td>
                 <td className="p-3 tabular-nums" data-testid={`currency-rate-${c.code}`}>
-                  {c.isBase ? "1 (devise de base)" : c.latestRate ? formatNumber(c.latestRate.rate, 6) : "–"}
+                  {c.isBase ? "1 (devise de base)" : c.latestRate ? formatNumber(c.latestRate.rate, 6) : "—"}
                 </td>
                 <td className="p-3">
-                  {c.isBase ? "–" : <DateCell value={c.latestRate?.date} />}
+                  {c.isBase ? "—" : <DateCell value={c.latestRate?.date} />}
                   {!c.isBase && c.active && c.latestRate?.stale ? (
                     <span className="ml-2">
                       <StatusBadge tone="warning" label={`Taux ancien (${c.ageDays} j)`} />
@@ -420,7 +420,7 @@ export function CurrenciesManager({
           {history && history.rates.length > 0 ? (
             <div className="max-h-96 overflow-auto rounded-lg border">
               <table className="w-full text-sm" data-testid="rate-history-table">
-                <thead className="bg-muted/50 text-left text-xs text-muted-foreground uppercase">
+                <thead className="text-left text-xs font-medium text-muted-foreground border-b">
                   <tr>
                     <th className="p-3">Date</th>
                     <th className="p-3 text-right">Taux</th>
@@ -435,7 +435,7 @@ export function CurrenciesManager({
                         <DateCell value={r.date} />
                       </td>
                       <td className="p-3 text-right tabular-nums">{formatNumber(r.rate, 6)}</td>
-                      <td className="p-3">{r.note ?? "–"}</td>
+                      <td className="p-3">{r.note ?? "—"}</td>
                       <td className="p-3 text-right">
                         {canEnterRates ? (
                           <WriteButton

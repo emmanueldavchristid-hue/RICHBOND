@@ -32,7 +32,7 @@ export function SettingsForm({ showPurchasePrice }: { showPurchasePrice: boolean
         </p>
       </div>
       <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border p-3 has-[:checked]:border-primary has-[:checked]:bg-muted">
-        <input type="checkbox" className="size-6" checked={value} onChange={(e) => setValue(e.target.checked)} data-testid="setting-show-purchase-price" />
+        <input type="checkbox" className="size-[18px]" checked={value} onChange={(e) => setValue(e.target.checked)} data-testid="setting-show-purchase-price" />
         <span className="text-sm">Afficher les prix d&apos;achat au Magasinier</span>
       </label>
       <div className="flex justify-end">

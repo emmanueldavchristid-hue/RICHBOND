@@ -30,7 +30,7 @@ export function Pagination({
   const from = shown === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = shown === 0 ? 0 : (page - 1) * pageSize + shown;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm" data-testid={`${testId}-pagination`}>
+    <div className="flex flex-wrap items-center justify-between gap-3 text-[13px]" data-testid={`${testId}-pagination`}>
       <span className="text-muted-foreground" data-testid={`${testId}-range`} aria-live="polite">
         {from}–{to} sur {total}
       </span>
@@ -40,7 +40,7 @@ export function Pagination({
           <NativeSelect
             value={String(pageSize)}
             onChange={(e) => onSize(Number(e.target.value))}
-            className="w-24"
+            className="h-8 w-20 text-[13px] md:text-[13px]"
             aria-label="Lignes par page"
             data-testid={`${testId}-size`}
           >
@@ -54,7 +54,7 @@ export function Pagination({
         <Button
           type="button"
           variant="outline"
-          className="h-11 px-3"
+          className="h-8 px-2.5 text-[13px]"
           disabled={page <= 1 || pending}
           onClick={() => onPage(page - 1)}
           data-testid={`${testId}-prev`}
@@ -67,7 +67,7 @@ export function Pagination({
         <Button
           type="button"
           variant="outline"
-          className="h-11 px-3"
+          className="h-8 px-2.5 text-[13px]"
           disabled={page >= pageCount || pending}
           onClick={() => onPage(page + 1)}
           data-testid={`${testId}-next`}

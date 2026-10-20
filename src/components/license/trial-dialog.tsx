@@ -48,16 +48,22 @@ export function TrialDialog({ sessionId }: { sessionId: string }) {
   if (status === "ACTIVE") return null;
   const expired = status === "EXPIRED";
   const progress = trialProgress(state.trialStartsAt, state.trialEndsAt, serverNow);
-  const tone = state.tone === "danger" ? "text-red-700" : state.tone === "warning" ? "text-amber-700" : "text-primary";
+  const tone = state.tone === "danger" ? "text-red-700" : state.tone === "warning" ? "text-amber-700" : "text-foreground";
+  const totalMin = Math.floor(Math.max(0, state.msLeft) / 60_000);
+  const tiles = [
+    { label: "jours", value: Math.floor(totalMin / 1440) },
+    { label: "heures", value: Math.floor((totalMin % 1440) / 60) },
+    { label: "minutes", value: totalMin % 60 },
+  ];
 
   return (
     <Dialog open={dialogOpen} onOpenChange={(o) => (o ? openDialog() : closeDialog())}>
-      <DialogContent className="sm:max-w-lg" data-testid="trial-dialog" data-status={status}>
+      <DialogContent className="sm:max-w-md" data-testid="trial-dialog" data-status={status}>
         <DialogHeader>
-          <DialogTitle className="text-xl" data-testid="trial-dialog-title">
+          <DialogTitle className="text-lg font-semibold tracking-tight" data-testid="trial-dialog-title">
             {expired ? "Période d'essai terminée" : "Version d'essai"}
           </DialogTitle>
-          <DialogDescription className="text-base text-foreground/80" data-testid="trial-dialog-text">
+          <DialogDescription className="text-sm text-foreground/80" data-testid="trial-dialog-text">
             {expired ? (
               <>
                 La version d&apos;essai de l&apos;application RICHBOND Achats &amp; Stocks s&apos;est terminée le{" "}
@@ -83,12 +89,17 @@ export function TrialDialog({ sessionId }: { sessionId: string }) {
             </li>
           </ul>
         ) : (
-          <div className="space-y-3">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Temps restant</p>
-              <p className={`text-4xl font-bold tabular-nums ${tone}`} data-testid="trial-countdown">
-                {formatCountdown(state.msLeft)}
-              </p>
+          <div className="space-y-4">
+            <p className="sr-only" data-testid="trial-countdown">
+              {formatCountdown(state.msLeft)}
+            </p>
+            <div className="grid grid-cols-3 gap-3" aria-hidden data-testid="trial-tiles">
+              {tiles.map((t) => (
+                <div key={t.label} className="rounded-xl border bg-background px-3 py-4 text-center" data-testid={`trial-tile-${t.label}`}>
+                  <p className={`text-4xl leading-none font-semibold tracking-tight tabular-nums ${tone}`}>{String(t.value).padStart(2, "0")}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{t.label}</p>
+                </div>
+              ))}
             </div>
             <div>
               <div
@@ -97,18 +108,19 @@ export function TrialDialog({ sessionId }: { sessionId: string }) {
                 aria-valuemax={100}
                 aria-valuenow={progress}
                 aria-label="Avancement de la période d'essai"
-                className="h-3 overflow-hidden rounded-full bg-muted"
+                className="h-2 overflow-hidden rounded-full bg-muted"
                 data-testid="trial-progress"
               >
-                <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
+                <div className="h-full rounded-full bg-warn transition-[width] duration-300" style={{ width: `${progress}%` }} />
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{progress} % de la période d&apos;essai écoulée</p>
+              <p className="mt-1.5 text-xs text-muted-foreground">{progress} % de la période d&apos;essai écoulée</p>
             </div>
+            <p className="text-sm text-muted-foreground">Profitez-en pour tout essayer : vos données sont conservées et votre avis nous aide à améliorer l&apos;application.</p>
           </div>
         )}
 
         <DialogFooter>
-          <Button className="h-12 px-8 text-base" onClick={closeDialog} data-testid="trial-continue">
+          <Button className="h-11 px-8 text-sm" onClick={closeDialog} data-testid="trial-continue">
             Continuer
           </Button>
         </DialogFooter>

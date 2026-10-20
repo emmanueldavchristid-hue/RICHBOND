@@ -11,7 +11,7 @@ async function LoginContent({ searchParams }: { searchParams: PageProps<"/connex
 
 export default function ConnexionPage({ searchParams }: PageProps<"/connexion">) {
   return (
-    <Suspense fallback={<div className="h-96 w-full max-w-md" />}>
+    <Suspense fallback={<div className="h-96 w-full" />}>
       <LoginContent searchParams={searchParams} />
     </Suspense>
   );
