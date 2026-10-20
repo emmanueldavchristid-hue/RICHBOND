@@ -69,9 +69,8 @@ export function OrdersTable({
         sortable: true,
         mobile: "subtitle",
         cell: (r) => (
-          <span className="block max-w-56 truncate" title={`${r.supplier.code} – ${r.supplier.name}`}>
+          <span className="block max-w-48 truncate" title={`${r.supplier.code} – ${r.supplier.name}`}>
             {r.supplier.name}
-            <span className="doc-number ml-1.5 text-[11px] font-normal text-muted-foreground">{r.supplier.code}</span>
           </span>
         ),
       },

@@ -39,7 +39,7 @@ async function AccueilContent() {
         <p className="text-[15px] font-semibold" data-testid="accueil-bonjour">
           Bonjour {user.name}. Connecté en tant que {roleLabel(user)}.
         </p>
-        <p className="mt-0.5 text-sm text-muted-foreground">Voici ce qui demande votre attention aujourd&apos;hui.</p>
+        {requestCards || orders ? <p className="mt-0.5 text-sm text-muted-foreground">Voici ce qui demande votre attention aujourd&apos;hui.</p> : null}
       </div>
 
       {requestCards || orders ? (

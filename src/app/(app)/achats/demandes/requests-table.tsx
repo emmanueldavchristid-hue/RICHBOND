@@ -141,11 +141,11 @@ export function RequestsTable({
       { id: "urgency", header: "Urgence", cell: (r) => <UrgencyBadge urgency={r.urgency} /> },
       { id: "status", header: "Statut", sortable: true, cell: (r) => <StatusBadge status={r.status} /> },
       { id: "department", header: "Service", mobile: "subtitle", cell: (r) => r.department.name },
-      { id: "requester", header: "Demandeur", cell: (r) => r.requesterName },
+      { id: "requester", header: "Demandeur", cell: (r) => <span className="whitespace-nowrap">{r.requesterName}</span> },
       {
         id: "reason",
         header: "Motif",
-        className: "max-w-64",
+        className: "max-w-44",
         cell: (r) => (
           <span className="line-clamp-2" title={r.reason}>
             {r.reason}
@@ -153,7 +153,7 @@ export function RequestsTable({
         ),
       },
       { id: "neededBy", header: "Besoin", sortable: true, cell: (r) => <DateCell value={r.neededBy} /> },
-      { id: "type", header: "Type", cell: (r) => PR_TYPE_LABELS[r.type] },
+      { id: "type", header: "Type", cell: (r) => <span className="whitespace-nowrap">{PR_TYPE_LABELS[r.type]}</span> },
     );
     if (showPrices) {
       cols.push({
