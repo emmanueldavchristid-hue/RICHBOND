@@ -16,6 +16,8 @@ const LABELS: Record<string, string> = {
   import: "Import",
   stock: "Stock",
   articles: "Articles",
+  receptions: "Réceptions",
+  "non-conformites": "Non-conformités",
   fournisseurs: "Fournisseurs",
   rapports: "Rapports",
   parametres: "Paramètres",

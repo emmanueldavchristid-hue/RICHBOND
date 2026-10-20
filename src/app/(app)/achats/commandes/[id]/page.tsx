@@ -285,7 +285,7 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
         </div>
       </section>
 
-          {receiving ? (
+          {receiving && (receiving.receipts.length > 0 || receiving.receivable) ? (
             <div className="mb-6">
               <OrderReceiptsPanel
                 orderId={po.id}

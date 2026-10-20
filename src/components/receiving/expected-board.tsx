@@ -46,7 +46,7 @@ function Row({ row, block, canReceive }: { row: ExpectedOrder; block: BlockKey; 
           <span className="text-xs font-medium text-red-700 dark:text-red-400">En retard de {row.daysLate} j</span>
         ) : null}
       </div>
-      <div className="w-24 text-right text-sm text-muted-foreground tabular-nums">
+      <div className="w-36 text-right text-sm whitespace-nowrap text-muted-foreground tabular-nums">
         {row.openLineCount} ligne{row.openLineCount > 1 ? "s" : ""} à recevoir
       </div>
       {canReceive ? (
