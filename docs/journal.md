@@ -2,6 +2,15 @@
 
 Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 
+## 2026-10-20 · LOT-D partie 1 · Fondations du design
+- Fait : Inter/JetBrains Mono (bug serif corrigé), tokens clair/sombre, menu latéral, en-tête, recherche Ctrl+K, composants partagés (DataTable, KpiCard, StatusStepper, Timeline, EmptyState, Skeleton), connexion, fenêtre d'essai, toutes les pages existantes. Captures dans docs/captures/.
+- Reste (LOT-D partie 2) : revue web-design-guidelines, formulaires en profondeur, graphiques, PDF du BC, raccourci N, barre d'actions groupées flottante.
+
+## 2026-10-20 · LOT-06 · Réceptions
+- Fait : schéma commun réceptions + stock (migration receptions_stock, CHECK SQL), cœur stock applyMovement/PMP, réception contre BC (partielle, refus → non-conformité, sur-livraison avec accord Responsable, contre-passation, solde de reliquat, retour fournisseur côté serveur), écrans tablette, Magasinier sans prix. 999 tests, e2e S0/S1/S2 verts (desktop + S2 tablette).
+- Décisions à confirmer (H67 à H74, docs/plans/LOT-06.md) : reliquat soldé jamais rouvert automatiquement ; tolérance de sur-livraison sur (commandé − soldé) ; livraison anticipée (> 7 jours) invisible dans « Attendues » (option : bloc « Plus tard »).
+- Reste : écran du retour fournisseur ; la migration a été complétée à la main sur la base de dev (checksum) : vérifier avec migrate reset à la finalisation.
+
 ## 2026-10-19 · LOT-05 · Bons de commande
 - Fait : BC (brouillon, validation avec numéro, envoi, confirmation avec date promise, relance, avenant, annulation, clôture), PDF à la demande, écran « À commander » regroupé par fournisseur, retour de statut des DA, pastilles d'accueil, paramètres société/logo/règles BC, adresse des dépôts. 917 tests, 104 e2e (S1 étendu, SC1 à SC6, desktop + tablette).
 - Décisions : H51 à H66 (à confirmer) dans docs/plans/LOT-05.md. Mode express : recette métier du lot reportée à la recette globale (étape finalisation démo).
