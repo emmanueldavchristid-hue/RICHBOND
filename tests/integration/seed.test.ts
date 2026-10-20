@@ -51,7 +51,7 @@ describe("seed idempotent", () => {
     expect(demo.filter((d) => d.number === null).map((d) => d.status)).toEqual(["BROUILLON", "BROUILLON"]);
     const numbers = demo.filter((d) => d.number).map((d) => Number(d.number!.slice(-5)));
     expect(numbers.sort((a, b) => a - b)).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
-    expect((await db.counter.findFirstOrThrow({ where: { key: "DA" } })).value).toBe(9);
+    expect((await db.counter.findFirstOrThrow({ where: { key: "DA" } })).value).toBe(9 + 42 + 4); // 9 DA du LOT-04 + 46 DA de l'historique LOT-08
     expect(await db.purchaseRequestEvent.count()).toBeGreaterThanOrEqual(20);
     expect(await db.purchaseRequestLine.count({ where: { freeDesignation: { not: null } } })).toBe(1);
     expect(await db.purchaseRequestLine.count({ where: { request: { kind: "REAPPRO" }, estimatedUnitPrice: { not: null } } })).toBe(0);
@@ -64,12 +64,12 @@ describe("seed idempotent", () => {
     const bcNumbers = bc.filter((o) => o.number).map((o) => Number(o.number!.slice(-5))).sort((a, b) => a - b);
     expect(bcNumbers).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
     expect(bc.filter((o) => !o.number).map((o) => o.status).sort()).toEqual(["A_VALIDER", "BROUILLON"]);
-    expect((await db.counter.findFirstOrThrow({ where: { key: "BC" } })).value).toBe(9);
+    expect((await db.counter.findFirstOrThrow({ where: { key: "BC" } })).value).toBe(9 + 41); // 9 BC du LOT-05 + 41 BC validés de l'historique LOT-08 (le 42e reste à valider)
     // Réceptions fictives (LOT-06) : créées par le service, une seule fois malgré deux exécutions.
     const receipts = await db.receipt.findMany({ orderBy: { number: "asc" }, include: { lines: true } });
-    expect(receipts.map((r) => r.number.slice(-5))).toEqual(["00001", "00002"]);
-    expect(await db.nonConformity.count({ where: { status: "OUVERTE" } })).toBe(1);
-    expect(await db.stockMovement.count({ where: { type: "ENTREE_RECEPTION", receiptLineId: { not: null } } })).toBe(2);
+    expect(receipts.slice(0, 2).map((r) => r.number.slice(-5))).toEqual(["00001", "00002"]);
+    expect(await db.nonConformity.count({ where: { status: "OUVERTE" } })).toBe(1 + 2); // 1 du LOT-06 + 2 de l'historique LOT-08
+    expect(await db.stockMovement.count({ where: { type: "ENTREE_RECEPTION", receiptLineId: { not: null } } })).toBeGreaterThanOrEqual(2);
     // Stock fictif (LOT-07) : 6 mois de sorties via applyMovement, un critique sous son point de commande, 2 dormants, ABC.
     const r6205 = await db.item.findFirstOrThrow({ where: { name: "Roulement 6205" } });
     expect(Number((await db.stockLevel.findFirstOrThrow({ where: { itemId: r6205.id } })).quantity)).toBe(25);
@@ -80,6 +80,19 @@ describe("seed idempotent", () => {
     const dormantNames = ["Variateur de fréquence 7,5 kW", "Buse de mélange"];
     expect(await db.stockMovement.count({ where: { item: { name: { in: dormantNames } }, type: "SORTIE" } })).toBe(0);
     expect(await db.stockLevel.count({ where: { quantity: { gt: 0 } } })).toBeGreaterThanOrEqual(9);
+    // Historique fictif sur 6 mois (LOT-08) : BC validés répartis sur 6 mois, reçus pour la plupart, quelques retards, tout via les services.
+    const history = await db.purchaseOrder.findMany({ where: { internalNote: { startsWith: "seed:lot08:" } }, include: { receipts: true } });
+    expect(history).toHaveLength(42);
+    expect(history.filter((o) => o.approvedAt).length).toBe(41);
+    const monthsCovered = new Set(history.filter((o) => o.approvedAt).map((o) => o.approvedAt!.toISOString().slice(0, 7)));
+    expect(monthsCovered.size).toBeGreaterThanOrEqual(6);
+    expect(history.filter((o) => o.type === "IMPORT").length).toBeGreaterThanOrEqual(8);
+    expect(history.filter((o) => o.receipts.some((r) => r.daysLate > 0)).length).toBeGreaterThanOrEqual(5);
+    expect(history.filter((o) => o.receipts.length > 0).length).toBeGreaterThanOrEqual(25);
+    expect(await db.receipt.count({ where: { daysLate: { gt: 0 } } })).toBeGreaterThanOrEqual(5);
+    expect(await db.purchaseRequest.count({ where: { status: "SOUMISE", reason: { startsWith: "[démo historique DA" } } })).toBe(2);
+    expect(await db.purchaseRequest.count({ where: { status: "VALIDEE", assignedBuyerId: { not: null }, reason: { startsWith: "[démo historique DA" } } })).toBe(2);
+    expect(await db.stockMovement.count({ where: { comment: { contains: "seed LOT-08" }, type: "SORTIE", stockAfter: 0 } })).toBeGreaterThanOrEqual(3);
     const amended = bc.filter((o) => o.version === 2);
     expect(amended).toHaveLength(1);
     expect(amended[0].versions.map((v) => v.version).sort()).toEqual([1, 2]);
