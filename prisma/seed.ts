@@ -5,6 +5,7 @@ import { createPrismaClient } from "../src/lib/prisma-client";
 import { seedReferentials } from "./seed/referentials";
 import { seedPurchaseRequests } from "./seed/purchase-requests";
 import { seedPurchaseOrders } from "./seed/purchase-orders";
+import { seedReceipts } from "./seed/receipts";
 import type { PurchaseScope, Role } from "../src/generated/prisma/client";
 
 const prisma = createPrismaClient();
@@ -75,6 +76,7 @@ async function seedAll() {
   await seedReferentials(prisma);
   await seedPurchaseRequests(prisma);
   await seedPurchaseOrders(prisma);
+  await seedReceipts(prisma);
 }
 
 seedAll()

@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { afterAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
+import { cleanStock } from "../helpers/stock";
 
 afterAll(async () => {
   await db.$disconnect();
@@ -9,6 +10,7 @@ afterAll(async () => {
 describe("seed idempotent", () => {
   it("exécuté deux fois : pas de doublon", async () => {
     // Base de test uniquement (DATABASE_URL forcé à DATABASE_URL_TEST par vitest.config.ts).
+    await cleanStock(); // réceptions (LOT-06), mouvements et niveaux référencent les BC et les articles
     await db.auditLog.deleteMany();
     await db.notification.deleteMany();
     await db.purchaseOrder.deleteMany(); // cascade : lignes, allocations, frais, événements, versions
@@ -57,11 +59,18 @@ describe("seed idempotent", () => {
     const bc = await db.purchaseOrder.findMany({ where: { events: { some: { payload: { path: ["seedKey"], string_starts_with: "lot05:" } } } }, orderBy: { createdAt: "asc" }, include: { lines: { include: { allocations: true } }, versions: true } });
     expect(bc).toHaveLength(11);
     const bcStatus = (st: string) => bc.filter((o) => o.status === st).length;
-    expect([bcStatus("BROUILLON"), bcStatus("A_VALIDER"), bcStatus("VALIDE"), bcStatus("ENVOYE"), bcStatus("CONFIRME"), bcStatus("RECU"), bcStatus("ANNULE")]).toEqual([1, 1, 4, 1, 2, 1, 1]);
+    expect([bcStatus("BROUILLON"), bcStatus("A_VALIDER"), bcStatus("VALIDE"), bcStatus("ENVOYE"), bcStatus("CONFIRME"), bcStatus("RECU"), bcStatus("ANNULE")]).toEqual([1, 1, 4, 1, 1, 1, 1]); // le BC des EPI est livré en partie par la réception fictive (LOT-06)
+    expect(bcStatus("PARTIELLEMENT_RECU")).toBe(1);
     const bcNumbers = bc.filter((o) => o.number).map((o) => Number(o.number!.slice(-5))).sort((a, b) => a - b);
     expect(bcNumbers).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
     expect(bc.filter((o) => !o.number).map((o) => o.status).sort()).toEqual(["A_VALIDER", "BROUILLON"]);
     expect((await db.counter.findFirstOrThrow({ where: { key: "BC" } })).value).toBe(9);
+    // Réceptions fictives (LOT-06) : créées par le service, une seule fois malgré deux exécutions.
+    const receipts = await db.receipt.findMany({ orderBy: { number: "asc" }, include: { lines: true } });
+    expect(receipts.map((r) => r.number.slice(-5))).toEqual(["00001", "00002"]);
+    expect(await db.nonConformity.count({ where: { status: "OUVERTE" } })).toBe(1);
+    expect(await db.stockMovement.count({ where: { type: "ENTREE_RECEPTION" } })).toBe(2);
+    expect(await db.stockLevel.count({ where: { quantity: { gt: 0 } } })).toBe(2);
     const amended = bc.filter((o) => o.version === 2);
     expect(amended).toHaveLength(1);
     expect(amended[0].versions.map((v) => v.version).sort()).toEqual([1, 2]);
