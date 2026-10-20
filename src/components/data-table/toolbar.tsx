@@ -17,7 +17,7 @@ export interface FilterDef {
   param: string;
   label: string;
   /** « select » par défaut. La première option (valeur vide) est le choix par défaut. */
-  type?: "select" | "text";
+  type?: "select" | "text" | "date";
   options?: FilterOption[];
   placeholder?: string;
   maxLength?: number;
@@ -157,15 +157,17 @@ export function Toolbar({
         />
       </div>
       {filters.map((f) =>
-        f.type === "text" ? (
-          <div key={f.param} className="w-44">
+        f.type === "text" || f.type === "date" ? (
+          <div key={f.param} className={f.type === "date" ? "flex items-center gap-1.5" : "w-44"}>
+            {f.type === "date" ? <span className="text-xs text-muted-foreground">{f.label.split(" ")[0]}</span> : null}
             <DebouncedInput
+              type={f.type === "date" ? "date" : undefined}
               value={getParam(f.param)}
               onCommit={(v) => onFilter(f.param, v)}
               placeholder={f.placeholder ?? f.label}
               aria-label={f.label}
               maxLength={f.maxLength}
-              className="h-8 rounded-full px-3 text-[13px]"
+              className={f.type === "date" ? "h-8 w-36 rounded-full px-3 text-[13px]" : "h-8 rounded-full px-3 text-[13px]"}
               data-testid={`${testId}-filter-${f.param}`}
             />
           </div>
