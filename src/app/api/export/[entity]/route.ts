@@ -25,10 +25,11 @@ import {
 import { exportOrders } from "@/modules/purchase-orders/queries";
 import { PO_STATUS_LABELS, PO_TYPE_LABELS } from "@/modules/purchase-orders/labels";
 import { viewerCanSeePrices } from "@/modules/settings";
+import { exportMovements, exportStock, MOVEMENT_TYPE_LABELS, STOCK_SITUATION_LABELS } from "@/modules/stock";
 import { exportSuppliers } from "@/modules/suppliers";
 
 /**
- * GET /api/export/articles | /fournisseurs | /demandes | /commandes : mêmes filtres que la liste (query string).
+ * GET /api/export/articles | /fournisseurs | /demandes | /commandes | /mouvements | /stock : mêmes filtres que la liste (query string).
  * Autorisé en lecture seule (essai expiré) : pas de contrôle d'écriture.
  * Articles et fournisseurs : aucune colonne de prix d'achat (R15/R18). Demandes : prix estimés (FCFA) inclus
  * uniquement si l'utilisateur a le droit de voir les prix (le Magasinier ne les reçoit pas, sauf réglage explicite).
@@ -163,6 +164,53 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
       ];
       file = await buildWorkbook("Bons de commande", cols, rows);
       name = `commandes_${stamp}.xlsx`;
+    } else if (entity === "mouvements") {
+      // LOT-07 : journal des mouvements, mêmes filtres que l'écran. Coûts masqués selon le droit de voir les prix.
+      if (!can(user, "stock.view")) return forbidden();
+      const rows = await exportMovements(user, filters);
+      type R = (typeof rows)[number];
+      const cols: ExcelColumn<R>[] = [
+        { header: "Date", value: (r) => r.occurredAt },
+        { header: "Type", value: (r) => MOVEMENT_TYPE_LABELS[r.type] },
+        { header: "Pièce", width: 20, value: (r) => r.documentRef },
+        { header: "Code article", width: 16, value: (r) => r.itemCode },
+        { header: "Désignation", width: 40, value: (r) => r.itemName },
+        { header: "Dépôt", width: 20, value: (r) => r.warehouseName },
+        { header: "Quantité (signée)", format: "0.###", value: (r) => Number(r.quantity) },
+        { header: "Unité", value: (r) => r.stockUnit },
+        { header: "Stock après", format: "0.###", value: (r) => Number(r.stockAfter) },
+        { header: "Service", width: 20, value: (r) => r.departmentName },
+        { header: "Coût unitaire (FCFA)", format: "#,##0.00", value: (r) => (r.unitCost === undefined ? null : Number(r.unitCost)) },
+        { header: "Valeur (FCFA)", format: "#,##0", value: (r) => r.value },
+        { header: "Commentaire", width: 36, value: (r) => r.comment },
+        { header: "Saisi par", width: 22, value: (r) => r.createdByName },
+      ];
+      file = await buildWorkbook("Mouvements", cols, rows);
+      name = `mouvements_${stamp}.xlsx`;
+    } else if (entity === "stock") {
+      // LOT-07 : stock par article (mêmes filtres que /stock/articles).
+      if (!can(user, "stock.view")) return forbidden();
+      const rows = await exportStock(user, filters, (await getNow()).now);
+      type R = (typeof rows)[number];
+      const cols: ExcelColumn<R>[] = [
+        { header: "Code", width: 16, value: (r) => r.code },
+        { header: "Désignation", width: 40, value: (r) => r.name },
+        { header: "Catégorie", value: (r) => ITEM_CATEGORY_LABELS[r.category as keyof typeof ITEM_CATEGORY_LABELS] ?? r.category },
+        { header: "Criticité", value: (r) => CRITICALITY_LABELS[r.criticality as keyof typeof CRITICALITY_LABELS] ?? r.criticality },
+        { header: "Classe ABC", value: (r) => r.abcClass },
+        { header: "Unité de stock", value: (r) => r.stockUnit },
+        { header: "Stock", format: "0.###", value: (r) => Number(r.onHand) },
+        { header: "En commande", format: "0.###", value: (r) => Number(r.onOrder) },
+        { header: "PMP (FCFA)", format: "#,##0.00", value: (r) => r.pmp },
+        { header: "Valeur (FCFA)", format: "#,##0", value: (r) => r.value },
+        { header: "Point de commande", format: "0.###", value: (r) => (r.reorderPoint === null ? null : Number(r.reorderPoint)) },
+        { header: "Délai (jours)", value: (r) => r.leadTimeDays },
+        { header: "Couverture (jours)", format: "0.0", value: (r) => r.coverageDays },
+        { header: "Rupture prévue", value: (r) => r.stockoutDate },
+        { header: "Situation", value: (r) => (r.belowReorderPoint ? STOCK_SITUATION_LABELS.SOUS_POINT : r.dormant ? STOCK_SITUATION_LABELS.DORMANT : r.severity ? STOCK_SITUATION_LABELS[r.severity] : "") },
+      ];
+      file = await buildWorkbook("Stock", cols, rows);
+      name = `stock_${stamp}.xlsx`;
     } else {
       return NextResponse.json({ code: "NOT_FOUND", message: "Export inconnu." }, { status: 404 });
     }

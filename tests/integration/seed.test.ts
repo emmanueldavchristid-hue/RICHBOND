@@ -69,8 +69,17 @@ describe("seed idempotent", () => {
     const receipts = await db.receipt.findMany({ orderBy: { number: "asc" }, include: { lines: true } });
     expect(receipts.map((r) => r.number.slice(-5))).toEqual(["00001", "00002"]);
     expect(await db.nonConformity.count({ where: { status: "OUVERTE" } })).toBe(1);
-    expect(await db.stockMovement.count({ where: { type: "ENTREE_RECEPTION" } })).toBe(2);
-    expect(await db.stockLevel.count({ where: { quantity: { gt: 0 } } })).toBe(2);
+    expect(await db.stockMovement.count({ where: { type: "ENTREE_RECEPTION", receiptLineId: { not: null } } })).toBe(2);
+    // Stock fictif (LOT-07) : 6 mois de sorties via applyMovement, un critique sous son point de commande, 2 dormants, ABC.
+    const r6205 = await db.item.findFirstOrThrow({ where: { name: "Roulement 6205" } });
+    expect(Number((await db.stockLevel.findFirstOrThrow({ where: { itemId: r6205.id } })).quantity)).toBe(25);
+    expect(await db.stockMovement.count({ where: { itemId: r6205.id, type: "SORTIE" } })).toBe(26);
+    expect(r6205.abcClass).not.toBeNull();
+    expect(await db.stockMovement.count({ where: { comment: { contains: "seed LOT-07" } } })).toBe(await db.stockMovement.count({ where: { comment: { contains: "seed LOT-07" }, documentRef: { contains: "-DEMO-" } } }));
+    expect(await db.item.count({ where: { stocked: true, abcClass: "A" } })).toBeGreaterThanOrEqual(1);
+    const dormantNames = ["Variateur de fréquence 7,5 kW", "Buse de mélange"];
+    expect(await db.stockMovement.count({ where: { item: { name: { in: dormantNames } }, type: "SORTIE" } })).toBe(0);
+    expect(await db.stockLevel.count({ where: { quantity: { gt: 0 } } })).toBeGreaterThanOrEqual(9);
     const amended = bc.filter((o) => o.version === 2);
     expect(amended).toHaveLength(1);
     expect(amended[0].versions.map((v) => v.version).sort()).toEqual([1, 2]);

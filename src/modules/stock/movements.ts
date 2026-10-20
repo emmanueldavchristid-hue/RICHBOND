@@ -64,6 +64,21 @@ export async function getStockLevel(
   return { quantity: level ? new Decimal(level.quantity) : new Decimal(0), pmp: level ? new Decimal(level.pmp) : new Decimal(0) };
 }
 
+/**
+ * Crée si besoin puis verrouille (FOR UPDATE) les lignes StockLevel, dans l'ordre (itemId, warehouseId).
+ * À appeler d'entrée par un document qui enchaîne plusieurs `applyMovements` (transfert) : tous les verrous sont pris
+ * dans le même ordre, donc pas d'interblocage entre deux transferts inverses.
+ */
+export async function lockStockLevels(tx: Tx, targets: { itemId: string; warehouseId: string }[]): Promise<void> {
+  const pairs = [...new Map(targets.map((r) => [key(r), { itemId: r.itemId, warehouseId: r.warehouseId }])).values()].sort((a, b) =>
+    a.itemId === b.itemId ? a.warehouseId.localeCompare(b.warehouseId) : a.itemId.localeCompare(b.itemId),
+  );
+  await tx.stockLevel.createMany({ data: pairs, skipDuplicates: true });
+  for (const p of pairs) {
+    await tx.$queryRaw`SELECT id FROM stock_levels WHERE item_id = ${p.itemId} AND warehouse_id = ${p.warehouseId} FOR UPDATE`;
+  }
+}
+
 /** Applique un mouvement. Voir `applyMovements` pour plusieurs lignes d'un même document. */
 export async function applyMovement(tx: Tx, input: MovementInput): Promise<StockMovement> {
   const [movement] = await applyMovements(tx, [input]);
@@ -137,13 +152,7 @@ export async function applyMovements(tx: Tx, inputs: MovementInput[]): Promise<S
   }
 
   // 3. Verrous : lignes créées si absentes, puis FOR UPDATE dans l'ordre (itemId, warehouseId).
-  const pairs = [...new Map(resolved.map((r) => [key(r), { itemId: r.itemId, warehouseId: r.warehouseId }])).values()].sort(
-    (a, b) => (a.itemId === b.itemId ? a.warehouseId.localeCompare(b.warehouseId) : a.itemId.localeCompare(b.itemId)),
-  );
-  await tx.stockLevel.createMany({ data: pairs, skipDuplicates: true });
-  for (const p of pairs) {
-    await tx.$queryRaw`SELECT id FROM stock_levels WHERE item_id = ${p.itemId} AND warehouse_id = ${p.warehouseId} FOR UPDATE`;
-  }
+  await lockStockLevels(tx, resolved);
 
   // 4. Application séquentielle.
   const created: StockMovement[] = [];

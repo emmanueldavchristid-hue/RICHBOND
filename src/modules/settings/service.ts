@@ -30,6 +30,9 @@ export async function getSettings(): Promise<AppSettings> {
     purchaseOrderPdfConditions: get<string>("purchaseOrder.pdfConditions"),
     receiptOverDeliveryPct: get<number>("receipt.overDeliveryPct"),
     receiptShowPricesToStorekeeper: get<boolean>("receipt.showPricesToStorekeeper"),
+    stockConsumptionWindowDays: get<number>("stock.consumptionWindowDays"),
+    stockDefaultLeadTimeDays: get<number>("stock.defaultLeadTimeDays"),
+    stockDormantDays: get<number>("stock.dormantDays"),
   };
 }
 

@@ -1,4 +1,9 @@
 import "server-only";
+import { db } from "@/lib/db";
+import { now } from "@/lib/clock";
+import { todayAbidjan } from "@/lib/dates";
+import { getSettings } from "@/modules/settings/service";
+import { FORECAST_ITEM_SELECT, buildForecast, loadStats } from "@/modules/stock/stats";
 
 export interface StockSnapshot {
   /** Quantité disponible en unité de stock (chaîne décimale). */
@@ -7,12 +12,20 @@ export interface StockSnapshot {
   coverageDays: number | null;
 }
 
-/**
- * D14 : stock actuel et couverture par article. Renvoie `null` tant que la gestion des stocks (LOT-07,
- * `StockLevel`) n'existe pas : l'interface affiche « – » plutôt qu'une fausse donnée.
- * Signature figée pour LOT-07.
- */
+/** D14 : stock actuel et couverture par article (LOT-07 : niveaux de stock et consommation réels). */
 export async function getStockSnapshot(itemIds: string[]): Promise<Record<string, StockSnapshot> | null> {
-  void itemIds;
-  return null;
+  if (itemIds.length === 0) return {};
+  const at = now();
+  const settings = await getSettings();
+  const [items, stats] = await Promise.all([
+    db.item.findMany({ where: { id: { in: itemIds } }, select: FORECAST_ITEM_SELECT }),
+    loadStats(db, { itemIds, at, settings }),
+  ]);
+  const out: Record<string, StockSnapshot> = {};
+  for (const item of items) {
+    if (!item.stocked) continue;
+    const fc = buildForecast(item, stats.get(item.id), settings, todayAbidjan(at));
+    out[item.id] = { onHand: fc.onHand, coverageDays: fc.coverageDays };
+  }
+  return out;
 }
