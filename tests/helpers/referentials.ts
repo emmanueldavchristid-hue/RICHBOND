@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { cleanStock } from "./stock";
 
 export const IT_PREFIX = "IT-";
 
@@ -24,6 +25,7 @@ export async function cleanReferentials() {
   const suppliers = await db.supplier.findMany({ where: mine(IT_PREFIX), select: { id: true } });
   const warehouses = await db.warehouse.findMany({ where: { code: { startsWith: IT_PREFIX } }, select: { id: true } });
   const departments = await db.department.findMany({ where: { code: { startsWith: IT_PREFIX } }, select: { id: true } });
+  await cleanStock(); // mouvements et niveaux référencent articles et dépôts
   const itemIds = items.map((i) => i.id);
   const supplierIds = suppliers.map((s) => s.id);
   // Articles et fournisseurs générés automatiquement (ART-/FRS-) pendant les tests : repérés par createdById de test.

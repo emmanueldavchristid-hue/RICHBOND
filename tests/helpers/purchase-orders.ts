@@ -1,6 +1,7 @@
 import { rm } from "node:fs/promises";
 import path from "node:path";
 import { db } from "@/lib/db";
+import { cleanStock } from "./stock";
 
 /**
  * Supprime tous les BC de la base de test (comptes `it-*`, seed, scénarios e2e),
@@ -12,6 +13,7 @@ export async function cleanPurchaseOrders() {
   // Tous les BC de la base de test : ceux des scénarios e2e (comptes du seed) fausseraient sinon les compteurs et les listes.
   const orders = await db.purchaseOrder.findMany({ select: { id: true } });
   const ids = orders.map((o) => o.id);
+  await cleanStock(); // réceptions, mouvements et niveaux référencent BC, articles et dépôts
   await db.notification.deleteMany({ where: { OR: [{ recipientId: { in: users } }, { entityId: { in: ids } }] } });
   await db.auditLog.deleteMany({ where: { entity: "PurchaseOrder", entityId: { in: ids } } });
   // Journal de l'avenant/validation écrit sur des DA : conservé (nettoyé avec les DA).
