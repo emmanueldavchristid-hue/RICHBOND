@@ -48,6 +48,7 @@ for (const vp of VIEWPORTS) {
         }
       }, theme);
       const page = await context.newPage();
+      page.setDefaultTimeout(20_000);
       const dir = path.join(OUT, vp.name, theme);
       const snap = async (name: string, fullPage = true) => {
         await settle(page);
@@ -65,14 +66,24 @@ for (const vp of VIEWPORTS) {
       await snap("magasinier-sortie-vide");
       await page.getByTestId("sor-submit").click();
       await snap("magasinier-sortie-erreurs");
+      await page.getByTestId("sor-warehouse").selectOption({ label: "MAGASIN PDR" });
       await page.getByTestId("sor-item-search").click();
+      await page.getByTestId("sor-item-search").fill("Roulement 6205");
       const option = page.locator('[data-testid^="sor-item-option-"]').first();
-      if (await option.count()) {
-        await option.click();
-        const qty = page.locator('[data-testid^="sor-qty-"]').first();
-        await qty.fill("999999");
-        await snap("magasinier-sortie-stock-insuffisant");
-      }
+      await option.waitFor();
+      await option.click();
+      const qty = page.locator('[data-testid^="sor-qty-"]').first();
+      await qty.fill("999");
+      await page.getByTestId("sor-equipment").fill("Ligne mousse continue");
+      await snap("magasinier-sortie-stock-insuffisant");
+      await qty.fill("1");
+      await page.getByTestId("sor-department").selectOption({ label: "Maintenance" });
+      await page.getByTestId("sor-requester").fill("Kouadio Yao");
+      await page.getByTestId("sor-reason").fill("Remplacement palier ligne 2");
+      await page.getByTestId("sor-submit").click();
+      await page.getByTestId("sor-confirm-confirm").click();
+      await page.waitForURL(/\/stock\/sorties\/(?!nouvelle)[^/]+$/);
+      await snap("magasinier-sortie-fiche");
       await page.goto("/stock/reappro");
       await snap("magasinier-reappro");
       await page.goto("/stock/mouvements");
@@ -87,16 +98,18 @@ for (const vp of VIEWPORTS) {
       await snap("responsable-mouvements");
       await page.getByTestId("mvt-transfer").click();
       await page.getByTestId("stk-transfer-dialog").waitFor();
-      await page.getByTestId("stk-transfer-qty").click();
+      await page.locator('[data-testid^="stk-transfer-item-option-"]').first().click();
+      await page.getByTestId("stk-transfer-qty").fill("2");
       await snap("responsable-dialogue-transfert", false);
-      await page.keyboard.press("Escape");
-      await page.keyboard.press("Escape");
+      await page.getByTestId("stk-transfer-cancel").click();
+      await page.getByTestId("stk-transfer-dialog").waitFor({ state: "hidden" });
       await page.getByTestId("mvt-adjust").click();
       await page.getByTestId("stk-adjust-dialog").waitFor();
-      await page.getByTestId("stk-adjust-qty").click();
+      await page.locator('[data-testid^="stk-adjust-item-option-"]').first().click();
+      await page.getByTestId("stk-adjust-qty").fill("2");
       await snap("responsable-dialogue-ajustement", false);
-      await page.keyboard.press("Escape");
-      await page.keyboard.press("Escape");
+      await page.getByTestId("stk-adjust-cancel").click();
+      await page.getByTestId("stk-adjust-dialog").waitFor({ state: "hidden" });
       await page.goto("/stock/sorties");
       await snap("responsable-sorties");
       const issue = page.locator('[data-testid="sor-link"]:visible').first();

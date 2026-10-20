@@ -10,8 +10,7 @@ import { DateCell } from "@/components/date-cell";
 import { WriteButton } from "@/components/license/write-button";
 import { MoneyCell } from "@/components/money-cell";
 import { QtyCell } from "@/components/qty-cell";
-import { StatusBadge } from "@/components/status-badge";
-import { CRITICALITY_LABELS, ITEM_CATEGORY_LABELS, ITEM_STATUS_LABELS } from "@/modules/referentials/labels";
+import { CRITICALITY_LABELS, ITEM_CATEGORY_LABELS } from "@/modules/referentials/labels";
 import { CoverageBadge, CoverageLegend } from "./coverage";
 import { STOCK_SITUATION_OPTIONS } from "./labels";
 import type { StockListRow } from "./types";
@@ -51,8 +50,7 @@ export function StockTable({
           </Link>
         ),
       },
-      { id: "name", header: "Désignation", sortable: true, sticky: "second", mobile: "title", cell: (r) => <span className="block max-w-72 truncate" title={r.name}>{r.name}</span> },
-      { id: "category", header: "Catégorie", className: "whitespace-nowrap", cell: (r) => ITEM_CATEGORY_LABELS[r.category as keyof typeof ITEM_CATEGORY_LABELS] ?? r.category },
+      { id: "name", header: "Désignation", sortable: true, sticky: "second", mobile: "title", cell: (r) => <span className="block max-w-56 truncate" title={r.name}>{r.name}</span> },
       { id: "criticality", header: "Criticité", cell: (r) => <CriticalityBadge value={r.criticality} /> },
       {
         id: "stock",
@@ -86,7 +84,6 @@ export function StockTable({
         sortable: true,
         cell: (r) => <DateCell value={r.stockoutDate} />,
       },
-      { id: "status", header: "Statut", cell: (r) => <StatusBadge status={r.status} label={ITEM_STATUS_LABELS[r.status as keyof typeof ITEM_STATUS_LABELS]} /> },
     );
     return cols;
   }, [showCosts]);
