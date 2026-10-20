@@ -441,7 +441,7 @@ export async function belowReorderItems(at: Date): Promise<{ total: number; rows
     });
   }
   rows.sort((a, b) => a.sort - b.sort || (a.coverageDays ?? 9999) - (b.coverageDays ?? 9999) || a.code.localeCompare(b.code));
-  return { total: rows.length, rows: rows.slice(0, DASHBOARD_LIST_LIMIT).map(({ sort: _s, ...r }) => r) };
+  return { total: rows.length, rows: rows.slice(0, DASHBOARD_LIST_LIMIT).map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, stockUnit: r.stockUnit, onHand: r.onHand, onOrder: r.onOrder, reorderPoint: r.reorderPoint, coverageDays: r.coverageDays, severity: r.severity, href: r.href })) };
 }
 
 /** Magasinier : AUCUN champ monétaire (ni valeur, ni PMP, ni prix) dans la réponse. */
