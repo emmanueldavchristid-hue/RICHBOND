@@ -146,6 +146,17 @@ Fichier `tests/e2e/scenarios/SD-demandes.spec.ts`, joué en desktop et en tablet
 3. Magasinier : génère la DA depuis la liste → DA soumise avec la quantité suggérée.
 4. Sortie supérieure au stock refusée avec message clair.
 
+### S3 – partie automatisée (LOT-07, EX-31)
+Fichier `tests/e2e/scenarios/S3-reappro.spec.ts` (+ `tests/e2e/helpers/stock.ts`), joué en desktop et en tablette. Article : « Roulement 6205 » du seed (PDR critique, 25 U au Magasin PDR, point de commande 40 U, délai 20 jours, consommation régulière sur 6 mois). Arrangement : les DA ouvertes du seed qui portent l'article sont mises de côté pendant le test (sinon l'article serait déjà « DA en cours »), puis rétablies ; les DA de réappro créées par le test sont annulées.
+1. **Constat** (Magasinier) : `/stock/articles` montre l'article avec une couverture rouge ; « Recalculer » (ABC) absent pour le Magasinier.
+2. **Sortie refusée** : formulaire vide (4 messages de champs obligatoires) ; quantité supérieure au stock : « Stock insuffisant : N U disponibles », validation bloquée, aucun mouvement ; si le stock a baissé entre-temps (écart simulé en base), le serveur refuse avec « Stock insuffisant : 3 U disponibles au dépôt MAGASIN PDR » et rien n'est écrit.
+3. **Sortie valide** de 2 U (machine obligatoire pour une PDR ; champs tactiles >= 44 px en tablette) : bon `SOR-AAAA-NNNNN` « Validée », stock -2, un mouvement `SORTIE` de -2 (valeur négative, stock après), audit `STOCK_ISSUE_CREATE`, ligne dans `/stock/mouvements`.
+4. **Réappro** : l'article est sur `/stock/reappro` (couverture rouge, point de commande 40 U, sans DA en cours). « Créer les DA » refuse 0 article et une quantité nulle ; avec l'article seul, une DA `REAPPRO` au statut `SOUMISE` à la quantité suggérée (audit, notification au Responsable) ; l'article est ensuite signalé « DA-… en cours » et décoché.
+5. **Transfert** (Magasinier, depuis la fiche de stock) : quantité excessive refusée ; 2 U PDR vers MAGASIN CENTRAL : deux mouvements `TRANSFERT` (-2 / +2) liés par `TRF-AAAA-NNNNN`, stocks par dépôt à jour, fiche de stock à jour.
+6. **Ajustement** : aucun bouton pour le Magasinier (fiche de stock et Mouvements). Responsable : motif obligatoire (5 caractères), puis -1 U : mouvement `AJUSTEMENT` `AJU-AAAA-NNNNN`, audit `STOCK_ADJUST`. Le Responsable consulte la sortie avec sa valeur et peut l'annuler ; « Recalculer » l'ABC est tracé (`ITEM_ABC_RECOMPUTE`) ; « Appliquer les valeurs suggérées » lui est réservé.
+7. **Essai expiré** : stock, sorties, mouvements, réappro consultables ; « Nouvelle sortie », « Valider la sortie », « Transfert », « Créer les DA », « Ajuster le stock », « Recalculer » désactivés ; rien ne change en base.
+- Le PMP et la valeur sont visibles du Magasinier (droit `price.viewPmp`), jamais le prix d'achat. Le test « 2 sorties parallèles sur le dernier stock » reste couvert par les tests d'intégration. Le tableau de bord « Risques de rupture » arrive avec le LOT-08.
+
 ## S4 – Consultation et comparatif (LOT-10)
 1. DA validée de 3 articles ; consultation de 3 fournisseurs (dont 1 local suggéré).
 2. Saisie de 3 offres (une en EUR) ; le comparatif convertit et classe ; recommandation affichée.

@@ -50,6 +50,15 @@ export const ERROR_MESSAGES: Record<string, string> = {
   ATTACHMENT_INVALID: "Format non accepté : PDF, image JPEG ou PNG, fichier Excel (.xlsx) ou Word (.docx).",
   ATTACHMENT_TOO_LARGE: "La pièce jointe dépasse 5 Mo : réduisez-la avant de l'envoyer.",
   ATTACHMENT_LIMIT: "Une demande ne peut pas dépasser 5 pièces jointes.",
+  // Stock (LOT-07)
+  STOCK_INSUFFICIENT: "Stock insuffisant pour cette opération.",
+  MACHINE_OBLIGATOIRE: "La machine concernée est obligatoire pour une pièce de rechange.",
+  HORS_REAPPRO: "Un article choisi n'est plus sous son point de commande : actualisez la liste.",
+  ISSUE_ALREADY_CANCELLED: "Cette sortie est déjà annulée.",
+  DATE_TROP_ANCIENNE: "La date est trop ancienne pour être saisie.",
+  DATE_FUTURE: "La date ne peut pas être dans le futur.",
+  COUT_INVALIDE: "Le coût est invalide.",
+  ARTICLE_NON_STOCKE: "Cet article n'est pas géré en stock.",
   INTERNAL:"Une erreur technique est survenue. Réessayez ou contactez l'administrateur.",
 };
 

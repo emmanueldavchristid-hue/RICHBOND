@@ -64,6 +64,22 @@ export const SETTING_DEFS = {
   },
   /** R11 : le Magasinier voit prix et montants sur les écrans de réception. */
   "receipt.showPricesToStorekeeper": { schema: z.boolean({ error: "Valeur invalide." }), default: false },
+  // ---------------------------------------------------------------- LOT-07 : stock, prévision, réapprovisionnement
+  /** K6 : fenêtre (jours) de calcul de la consommation moyenne journalière. */
+  "stock.consumptionWindowDays": {
+    schema: z.number({ error: "Nombre de jours invalide." }).int("Nombre de jours invalide.").min(7, "Au moins 7 jours.").max(365, "365 jours au maximum."),
+    default: 90,
+  },
+  /** K6 : délai de réapprovisionnement (jours) quand ni l'article ni son fournisseur principal n'en portent. */
+  "stock.defaultLeadTimeDays": {
+    schema: z.number({ error: "Nombre de jours invalide." }).int("Nombre de jours invalide.").min(1, "Au moins 1 jour.").max(365, "365 jours au maximum."),
+    default: 30,
+  },
+  /** K9 : un article en stock sans aucun mouvement depuis ce nombre de jours est dit dormant. */
+  "stock.dormantDays": {
+    schema: z.number({ error: "Nombre de jours invalide." }).int("Nombre de jours invalide.").min(30, "Au moins 30 jours.").max(1095, "1095 jours au maximum."),
+    default: 180,
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFS;
@@ -93,4 +109,8 @@ export interface AppSettings {
   /** LOT-06 : voir `SETTING_DEFS`. */
   receiptOverDeliveryPct: number;
   receiptShowPricesToStorekeeper: boolean;
+  /** LOT-07 : voir `SETTING_DEFS`. */
+  stockConsumptionWindowDays: number;
+  stockDefaultLeadTimeDays: number;
+  stockDormantDays: number;
 }

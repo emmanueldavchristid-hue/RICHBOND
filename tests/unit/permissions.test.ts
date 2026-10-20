@@ -107,13 +107,13 @@ describe("matrice des permissions", () => {
 describe("menu par rôle", () => {
   const labels = (u: PermissionUser) => visibleNav(u).map((n) => n.label);
   it("Responsable : tout", () => {
-    expect(labels(RESP)).toEqual(["Accueil", "Achats", "Import", "Stock", "Réceptions", "Non-conformités", "Articles", "Fournisseurs", "Rapports", "Paramètres"]);
+    expect(labels(RESP)).toEqual(["Accueil", "Achats", "Import", "Stock", "Réceptions", "Non-conformités", "Articles", "Mouvements", "Sorties", "Réappro", "Fournisseurs", "Rapports", "Paramètres"]);
   });
   it("Acheteur", () => {
-    expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Fournisseurs", "Rapports", "Paramètres"]);
+    expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Mouvements", "Sorties", "Réappro", "Fournisseurs", "Rapports", "Paramètres"]);
   });
-  it("Magasinier : Accueil, Achats, Stock, Réceptions, Non-conformités, Articles, Rapports", () => {
-    expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Rapports"]);
+  it("Magasinier : Accueil, Achats, Stock, Réceptions, Non-conformités, Articles, Mouvements, Sorties, Réappro, Rapports", () => {
+    expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Mouvements", "Sorties", "Réappro", "Rapports"]);
   });
   it("Super-admin : consultation + Paramètres", () => {
     expect(labels(SUPER)).toContain("Paramètres");

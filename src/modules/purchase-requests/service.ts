@@ -780,3 +780,71 @@ export async function refreshOrderedStatus(
   });
   return result(after);
 }
+
+// ------------------------------------------------------------------ réapprovisionnement depuis le stock (LOT-07, K8)
+
+export interface ReplenishmentDraft {
+  type: PrType;
+  departmentId: string;
+  requesterName: string;
+  reason: string;
+  urgency: "NORMALE" | "URGENTE";
+  /** yyyy-MM-dd */
+  neededBy: string;
+  /** Quantité en unité d'achat de l'article. */
+  lines: { itemId: string; quantity: number }[];
+}
+
+/**
+ * DA de réapprovisionnement créée directement au statut SOUMISE (numéro DA attribué), dans la transaction de l'appelant.
+ * Le droit de l'appelant (`stock.reorder`) est contrôlé par le service du stock ; les articles doivent être stockés et actifs.
+ */
+export async function createSubmittedReplenishment(
+  tx: Tx,
+  actor: { id: string },
+  draft: ReplenishmentDraft,
+  ip?: string | null,
+  at: Date = now(),
+): Promise<RequestResult> {
+  assertNeededByNotPast(draft.neededBy, todayIso(at));
+  await assertDepartmentUsable(tx, draft.departmentId);
+  const lines = await buildLines(
+    tx,
+    draft.lines.map((l) => ({ itemId: l.itemId, freeDesignation: null, quantity: l.quantity, unit: null, estimatedUnitPrice: null, note: null })),
+    { kind: "REAPPRO", allowPrices: false },
+  );
+  const year = currentYear(at);
+  const number = formatDocumentNumber("DA", year, await nextNumber("DA", year, tx));
+  const pr = await tx.purchaseRequest.create({
+    data: {
+      number,
+      status: "SOUMISE",
+      kind: "REAPPRO",
+      urgency: draft.urgency,
+      priority: priorityOf(draft.urgency),
+      type: draft.type,
+      departmentId: draft.departmentId,
+      requesterName: draft.requesterName,
+      reason: draft.reason,
+      neededBy: dateOnly(draft.neededBy),
+      estimatedTotal: estimatedTotal(lines),
+      createdById: actor.id,
+      submittedAt: at,
+      lines: { create: lines },
+    },
+  });
+  await recordEvent(tx, { requestId: pr.id, type: "CREATED", userId: actor.id, to: "BROUILLON", at });
+  await recordEvent(tx, { requestId: pr.id, type: "SUBMITTED", userId: actor.id, from: "BROUILLON", to: "SOUMISE", payload: { number, origin: "REORDER" }, at });
+  await log(tx, { userId: actor.id, action: "PR_CREATE", entity: "PurchaseRequest", entityId: pr.id, after: { ...auditView(pr, lines.length), origin: "REORDER" }, ip });
+  await log(tx, { userId: actor.id, action: "PR_SUBMIT", entity: "PurchaseRequest", entityId: pr.id, before: { status: "BROUILLON", number: null }, after: { status: pr.status, number, urgency: pr.urgency }, ip });
+  await notify(tx, await activeResponsableIds(tx, actor.id), {
+    type: "PR_SUBMITTED",
+    severity: draft.urgency === "URGENTE" ? "IMPORTANT" : "INFO",
+    title: `${number} à valider`,
+    body: `Réapprovisionnement – ${lines.length} article(s) sous le point de commande : ${draft.reason.slice(0, 120)}`,
+    link: link(pr.id),
+    entity: "PurchaseRequest",
+    entityId: pr.id,
+  });
+  return result(pr);
+}

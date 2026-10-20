@@ -13,7 +13,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 | LOT-04 | Demandes d'achat et workflow de validation | EX-20, 21 | Terminé |
 | LOT-05 | Bons de commande, PDF, suivi des délais et relances | EX-21, 22, 23 | Terminé |
 | LOT-06 | Réceptions, contrôle, non-conformités, retours | EX-24, 30 | Terminé |
-| LOT-07 | Stock : mouvements, sorties, PMP, seuils, prévision de rupture, réappro | EX-30, 31, 33 | À faire |
+| LOT-07 | Stock : mouvements, sorties, PMP, seuils, prévision de rupture, réappro | EX-30, 31, 33 | Terminé |
 | LOT-08 | Tableau de bord d'accueil par rôle | EX-60, 61 | À faire |
 | **Jalon** | **DÉMO 1 au client** (parcours complet DA → stock + tableau de bord) | | |
 | LOT-09 | Import Excel/CSV des données initiales | EX-12 | À faire |

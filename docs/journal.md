@@ -2,6 +2,11 @@
 
 Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 
+## 2026-10-20 · LOT-07 · Stock
+- Fait : sorties (SOR) tablette, transferts (TRF), ajustements (AJU, Responsable), fiche de stock, PMP par article et dépôt, consommation/couverture/date de rupture, seuils suggérés (jamais appliqués sans clic), réappro → DA REAPPRO par type, ABC, dormants, exports Excel, seed de 6 mois de sorties. 1043 tests, e2e S0 à S3 verts (S3 aussi en tablette).
+- Hypothèses à confirmer (H75 à H82) : service « Logistique » pour la DA de réappro ; DA urgente si couverture < délai ; Magasinier voit PMP/valeur (droit price.viewPmp).
+- À améliorer : dépôt par défaut du formulaire de sortie (déduire du dépôt de l'article) ; écran des réglages stock.* ; filtre service sur les mouvements.
+
 ## 2026-10-20 · LOT-D partie 1 · Fondations du design
 - Fait : Inter/JetBrains Mono (bug serif corrigé), tokens clair/sombre, menu latéral, en-tête, recherche Ctrl+K, composants partagés (DataTable, KpiCard, StatusStepper, Timeline, EmptyState, Skeleton), connexion, fenêtre d'essai, toutes les pages existantes. Captures dans docs/captures/.
 - Reste (LOT-D partie 2) : revue web-design-guidelines, formulaires en profondeur, graphiques, PDF du BC, raccourci N, barre d'actions groupées flottante.

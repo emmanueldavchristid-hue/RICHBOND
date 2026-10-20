@@ -2,10 +2,11 @@ import { Suspense, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Package } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { CriticalityBadge } from "@/components/criticality-badge";
 import { DateCell } from "@/components/date-cell";
 import { EmptyState } from "@/components/empty-state";
+import { StockSheet } from "@/components/stock/stock-sheet";
 import { MoneyCell } from "@/components/money-cell";
 import { PageHeader, PageSkeleton } from "@/components/page-header";
 import { RecordTabs } from "@/components/referentials/record-tabs";
@@ -16,6 +17,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { isBusinessError } from "@/lib/errors";
 import { formatNumber, toFcfa } from "@/lib/money";
 import { can } from "@/lib/permissions";
+import { pickParams, type SearchParams } from "@/lib/search-params";
 import { requirePageAction } from "@/modules/auth/session";
 import { listCurrencies } from "@/modules/currencies";
 import { getItem, listFamilies, listPriceHistory } from "@/modules/items";
@@ -84,7 +86,8 @@ function PriceHistory({ rows }: { rows: PriceRow[] }) {
   );
 }
 
-async function ItemContent({ params }: { params: Promise<{ id: string }> }) {
+async function ItemContent({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<SearchParams> }) {
+  const { onglet } = pickParams(await searchParams, ["onglet"]);
   const user = await requirePageAction("item.view");
   const { id } = await params;
   const showPrices = await viewerCanSeePrices(user);
@@ -189,13 +192,16 @@ async function ItemContent({ params }: { params: Promise<{ id: string }> }) {
       ),
     },
     {
-      value: "stock",
-      label: "Stock",
+      value: "fiche-de-stock",
+      label: "Fiche de stock",
       content: (
-        <EmptyState
-          icon={<Package className="size-8" />}
-          title="Disponible avec la gestion des stocks"
-          description="Les quantités en stock, les mouvements et le PMP de cet article s'afficheront ici."
+        <StockSheet
+          user={user}
+          itemId={item.id}
+          code={item.code}
+          name={item.name}
+          stockUnit={item.stockUnit}
+          warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
         />
       ),
     },
@@ -226,19 +232,19 @@ async function ItemContent({ params }: { params: Promise<{ id: string }> }) {
           </div>
         }
       />
-      <RecordTabs tabs={tabs} testId="item-tabs" />
+      <RecordTabs tabs={tabs} testId="item-tabs" defaultValue={tabs.some((t) => t.value === onglet) ? onglet : undefined} />
     </>
   );
 }
 
-export default function ItemPage({ params }: PageProps<"/stock/articles/[id]">) {
+export default function ItemPage({ params, searchParams }: PageProps<"/stock/articles/[id]">) {
   return (
     <>
       <Link href="/stock/articles" className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="size-4" /> Retour aux articles
       </Link>
       <Suspense fallback={<PageSkeleton />}>
-        <ItemContent params={params} />
+        <ItemContent params={params} searchParams={searchParams} />
       </Suspense>
     </>
   );
