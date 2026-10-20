@@ -57,6 +57,9 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   CLOTURE: { label: "Clôturé", tone: "success" },
   REFUSE: { label: "Refusé", tone: "danger" },
   ANNULE: { label: "Annulé", tone: "danger" },
+  // Non-conformités (LOT-06)
+  OUVERTE: { label: "Ouverte", tone: "warning" },
+  CLOTUREE: { label: "Clôturée", tone: "success" },
 };
 
 export function StatusBadge({

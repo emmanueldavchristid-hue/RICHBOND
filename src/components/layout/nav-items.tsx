@@ -11,6 +11,8 @@ import {
   ShoppingCart,
   Truck,
   Package,
+  PackageCheck,
+  ShieldAlert,
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
@@ -31,13 +33,13 @@ export interface NavBadge {
   label: string;
 }
 
-const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Package, Truck, BarChart3, Settings, KeyRound };
+const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Package, PackageCheck, ShieldAlert, Truck, BarChart3, Settings, KeyRound };
 
 /** Sections du menu (DESIGN.md §5). Un élément absent de la liste rejoint la dernière section. */
 const SECTIONS: { title: string | null; hrefs: string[] }[] = [
   { title: null, hrefs: ["/accueil"] },
   { title: "Achats", hrefs: ["/achats", "/import"] },
-  { title: "Stock", hrefs: ["/stock", "/stock/articles"] },
+  { title: "Stock", hrefs: ["/stock", "/stock/receptions", "/stock/receptions/non-conformites", "/stock/articles"] },
   { title: "Fournisseurs", hrefs: ["/fournisseurs"] },
   { title: "Pilotage", hrefs: ["/rapports"] },
   { title: "Paramètres", hrefs: ["/parametres", "/parametres/licence"] },
@@ -79,8 +81,8 @@ export function NavItems({
           ) : null}
           {g.items.map((item) => {
             const Icon = ICONS[item.icon] ?? Home;
-            const hasChildEntry = items.some((o) => o.href !== item.href && o.href.startsWith(item.href + "/"));
-            const active = pathname === item.href || (!hasChildEntry && pathname.startsWith(item.href + "/"));
+            const inChildEntry = items.some((o) => o.href !== item.href && o.href.startsWith(item.href + "/") && (pathname === o.href || pathname.startsWith(o.href + "/")));
+            const active = pathname === item.href || (!inChildEntry && pathname.startsWith(item.href + "/"));
             const itemBadges = (badges[item.href] ?? []).filter((b) => b.count > 0);
             return (
               <Link
