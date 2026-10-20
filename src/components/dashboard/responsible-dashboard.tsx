@@ -10,7 +10,7 @@ import { StockByCategoryChart } from "./stock-by-category-chart";
 import { TopSuppliersChart } from "./top-suppliers-chart";
 
 /** 6 KPI au maximum (DESIGN.md §5) : ordre de priorité des indicateurs affichés. */
-const KPI_ORDER = ["purchased-amount", "po-count", "lead-da-po", "on-time-rate", "stock-value", "stockouts", "lead-po-receipt"];
+const KPI_ORDER = ["montant-commande", "nombre-bc", "delai-da-bc", "taux-a-temps", "valeur-stock", "ruptures", "delai-bc-reception"];
 
 /** Cockpit du Responsable Achats : à traiter, KPI du mois, graphiques, risques de rupture. */
 export function ResponsibleBoard({ data }: { data: ResponsibleDashboard }) {
@@ -66,7 +66,7 @@ export function ResponsibleBoard({ data }: { data: ResponsibleDashboard }) {
             <PanelEmpty icon={<Boxes aria-hidden />} title="Aucun stock valorisé" hint="La valeur apparaît après les premières réceptions." />
           )}
         </Panel>
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 [&>section]:h-full">
           <RuptureRiskTable total={data.ruptureRisks.total} rows={data.ruptureRisks.rows} />
         </div>
       </div>
@@ -80,5 +80,5 @@ function rank(key: string): number {
 }
 
 function isAmountKpi(key: string): boolean {
-  return key === "purchased-amount";
+  return key === "montant-commande";
 }

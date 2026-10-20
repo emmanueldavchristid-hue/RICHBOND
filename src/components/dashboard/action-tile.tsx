@@ -10,10 +10,11 @@ import type { ActionCard, CardTone } from "@/modules/reporting/types";
  */
 const LEGACY_LINK_TESTIDS: Record<string, string> = {
   "da-a-valider": "accueil-a-valider",
-  "da-assignees": "accueil-assignees",
+  "mes-da": "accueil-assignees",
   "bc-a-valider": "accueil-bc-a-valider",
   "bc-en-retard": "accueil-bc-en-retard",
-  "bc-a-relancer": "accueil-bc-a-relancer",
+  "mes-bc-en-retard": "accueil-bc-en-retard",
+  "mes-bc-a-relancer": "accueil-bc-a-relancer",
 };
 
 const TONE_VALUE: Record<CardTone, string> = {
