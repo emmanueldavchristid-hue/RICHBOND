@@ -83,7 +83,7 @@ export const TRANSITIONS: Record<PoAction, readonly Rule[]> = {
   close: [{ from: ["RECU"], to: "CLOTURE", who: "responsable" }],
   comment: [{ from: ALL, to: null, who: "reader" }],
   pdf: [{ from: ALL, to: null, who: "reader" }],
-  markPartiallyReceived: [{ from: RECEIVABLE, to: "PARTIELLEMENT_RECU", who: "system" }],
+  markPartiallyReceived: [{ from: [...RECEIVABLE, "RECU"], to: "PARTIELLEMENT_RECU", who: "system" }],
   markReceived: [{ from: RECEIVABLE, to: "RECU", who: "system" }],
   markReceptionReverted: [{ from: ["PARTIELLEMENT_RECU", "RECU"], to: null, who: "system" }],
 };
@@ -255,13 +255,19 @@ export function isUnderApprovalThreshold(totalTtcXof: number | null, threshold: 
 export interface ReceiptLine {
   quantity: { toString(): string } | string | number;
   receivedQty: { toString(): string } | string | number;
+  /** Reliquat soldé (LOT-06, R8) : reçu + soldé >= commandé => ligne complète. */
+  closedQty?: { toString(): string } | string | number;
 }
 
-/** Statut de réception d'après les quantités reçues : RECU si toutes les lignes sont soldées, PARTIELLEMENT_RECU si au moins une reçue, sinon null. */
+/**
+ * Statut de réception d'après les quantités reçues : RECU si toutes les lignes sont soldées (reçu + reliquat soldé >= commandé),
+ * PARTIELLEMENT_RECU si au moins une quantité est reçue, sinon null.
+ */
 export function receivedStatusOf(lines: ReceiptLine[]): "PARTIELLEMENT_RECU" | "RECU" | null {
   if (lines.length === 0) return null;
   const qty = (v: ReceiptLine["quantity"]) => Number(String(v));
-  if (lines.every((l) => qty(l.receivedQty) >= qty(l.quantity))) return "RECU";
+  const closed = (l: ReceiptLine) => (l.closedQty === undefined ? 0 : qty(l.closedQty));
+  if (lines.every((l) => qty(l.receivedQty) + closed(l) >= qty(l.quantity))) return "RECU";
   if (lines.some((l) => qty(l.receivedQty) > 0)) return "PARTIELLEMENT_RECU";
   return null;
 }

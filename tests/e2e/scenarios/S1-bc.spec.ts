@@ -32,9 +32,10 @@ import {
   poLines,
   sendFromPage,
 } from "../helpers/po";
+import { fillReceipt, orderReceiptState, orderWarehouseId, receiptByNumber, receiptMovements, stockOf, submitReceipt } from "../helpers/rec";
 
 /**
- * S1 étendu – étapes 3 à 5 (LOT-05, EX-21) : de la DA validée au BC envoyé puis confirmé.
+ * S1 étendu – étapes 3 à 6 (LOT-05, EX-21 ; LOT-06, EX-24) : de la DA validée au BC envoyé, confirmé puis réceptionné en totalité.
  * Joué en desktop et en tablette (projets Playwright). Les étapes 1 et 2 sont rejouées rapidement pour partir d'une DA neuve.
  */
 
@@ -280,5 +281,66 @@ test("S1 (étapes 3 à 5) – DA validée, BC créé et soumis, validé avec num
     await ready(page, `/achats/commandes/${poId}`);
     await expect(t(page, "po-action-approve")).toHaveCount(0);
     expect(await auditCount((await prRow(da)).id, "PR_APPROVE")).toBe(1);
+  });
+
+  // ---- Étape 6 (LOT-06, EX-24) : réception de la totalité par le Magasinier ----
+  const pmpAfter = (s: number, p: number, q: number, c: number) => (s <= 0 ? c : Math.round(((s * p + q * c) / (s + q)) * 1e4) / 1e4);
+  const stockBefore: Record<string, { qty: number; pmp: number }> = {};
+  let whId = "";
+  let rec = "";
+
+  await test.step("Étape 6 – Magasinier : écran de réception du BC, quantités pré-remplies (rame 10 cartons, toner 1), aucun prix", async () => {
+    whId = await orderWarehouseId(poId);
+    stockBefore["Rame papier A4"] = await stockOf("Rame papier A4", whId);
+    stockBefore["Toner imprimante"] = await stockOf("Toner imprimante", whId);
+    await logout(page);
+    await loginAs(page, "MAGASINIER");
+    // Le BC est promis à J+10 : hors de la semaine affichée par « Livraisons attendues », on ouvre la saisie par son lien.
+    await ready(page, `/stock/receptions/nouvelle?bc=${poId}`);
+    await expect(t(page, "rec-form")).toBeVisible();
+    await expect(title(page)).toHaveText(`Réception du ${poNumber}`);
+    await expect(t(page, "rec-line-1-due")).toContainText("Restant dû : 10");
+    await expect(t(page, "rec-line-2-due")).toContainText("Restant dû : 1");
+    expect(norm(await page.locator("main").innerText())).not.toMatch(/FCFA|XOF/);
+  });
+
+  await test.step("Étape 6 – « Tout accepter », N° de bon de livraison, validation : fiche REC-AAAA-NNNNN, BC soldé", async () => {
+    await t(page, "rec-accept-all").click();
+    await fillReceipt(page, { bl: `BL-${tag}` });
+    rec = await submitReceipt(page);
+    await expect(t(page, "rec-badges")).toContainText("Bon soldé");
+    await expect(t(page, "rec-refusal-banner")).toHaveCount(0);
+    await expect(t(page, "rec-line-1-accepted")).toContainText("10");
+    await expect(t(page, "rec-line-2-accepted")).toContainText("1");
+  });
+
+  await test.step("Étape 6 – Effet métier : stock augmenté (rame : 10 cartons = 50 U), PMP mis à jour, BC « Reçu », audit", async () => {
+    const r = await receiptByNumber(rec);
+    expect(r.order_id).toBe(poId);
+    expect(r.in_full).toBe(true);
+    const st = {
+      rame: await stockOf("Rame papier A4", whId),
+      toner: await stockOf("Toner imprimante", whId),
+    };
+    const b = stockBefore;
+    expect(st.rame.qty).toBe(b["Rame papier A4"].qty + 50);
+    expect(st.rame.pmp).toBeCloseTo(pmpAfter(b["Rame papier A4"].qty, b["Rame papier A4"].pmp, 50, 3100), 2);
+    expect(st.toner.qty).toBe(b["Toner imprimante"].qty + 1);
+    expect(st.toner.pmp).toBeCloseTo(pmpAfter(b["Toner imprimante"].qty, b["Toner imprimante"].pmp, 1, tonerPrice), 2);
+    const mv = await receiptMovements(r.id);
+    expect(mv.map((m) => [m.type, Number(m.quantity)]).sort()).toEqual([["ENTREE_RECEPTION", 1], ["ENTREE_RECEPTION", 50]]);
+    const po = await poById(poId);
+    expect(po.status).toBe("RECU");
+    expect((await orderReceiptState(poId)).map((l) => [Number(l.quantity), Number(l.received_qty)])).toEqual([[10, 10], [1, 1]]);
+    expect(await auditCount(r.id, "RECEIPT_CREATE")).toBe(1);
+  });
+
+  await test.step("Étape 6 – L'acheteur voit le BC « Reçu » et la réception sur la fiche ; plus rien à réceptionner", async () => {
+    await logout(page);
+    await loginAs(page, "ACHETEUR_LOCAL");
+    await ready(page, `/achats/commandes/${poId}`);
+    await expect(t(page, "status-RECU")).toBeVisible();
+    await expect(t(page, `po-receipt-${rec}`)).toBeVisible();
+    await expect(t(page, "po-receive")).toHaveCount(0);
   });
 });

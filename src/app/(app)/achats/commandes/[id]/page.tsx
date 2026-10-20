@@ -11,14 +11,18 @@ import { LateBadge, RemindBadge } from "@/components/purchase-orders/late-badge"
 import { OrderTimeline, type OrderEvent } from "@/components/purchase-orders/order-timeline";
 import { OrderTotals } from "@/components/purchase-orders/order-totals";
 import { PriceAlertBadge } from "@/components/purchase-orders/price-alert-badge";
+import { CloseRemainderButton } from "@/components/receiving/close-remainder-button";
+import { OrderReceiptsPanel } from "@/components/receiving/order-receipts-panel";
 import { StatusBadge } from "@/components/status-badge";
 import { StatusStepper, type StepDef } from "@/components/status-stepper";
 import { unitShort } from "@/components/unit-select";
 import { getNow } from "@/lib/clock";
 import { dayKeyOf, formatDateOnly, todayAbidjan } from "@/lib/dates";
 import { isBusinessError } from "@/lib/errors";
+import { can } from "@/lib/permissions";
 import { formatNumber, formatQty } from "@/lib/money";
 import { requirePageAction } from "@/modules/auth/session";
+import { getOrderForReceipt } from "@/modules/receiving";
 import { CONTACT_CHANNEL_LABELS, getOrder, PO_ORIGIN_LABELS, PO_STATUS_LABELS, PO_TYPE_LABELS, type ContactChannelCode, type PoStatus } from "@/modules/purchase-orders";
 import { INCOTERM_LABELS, PAYMENT_TERM_LABELS } from "@/modules/referentials/labels";
 import { OrderActions } from "./order-actions";
@@ -99,6 +103,9 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
   const promisedDay = po.promisedDate ? new Date(po.promisedDate).toISOString().slice(0, 10) : null;
   const contact = po.supplier.contacts[0] ?? null;
   const amendmentInProgress = po.version > 1 && pending;
+  // Bloc « Réceptions » : seulement pour un bon réellement émis (la lecture sans prix est faite par le module).
+  const receiving = !pending && can(user, "receipt.view") ? await getOrderForReceipt(user, { orderId: po.id }).catch(() => null) : null;
+  const remainderLines = receiving ? receiving.lines.filter((l) => Number(l.remainingQty) > 0) : [];
 
   return (
     <>
@@ -277,6 +284,21 @@ async function OrderContent({ params }: { params: PageProps<"/achats/commandes/[
           <OrderTotals currency={po.currencyCode} totals={totalsView} rate={po.exchangeRate} rateIndicative={!po.exchangeRate} decimals={po.currency.decimals} />
         </div>
       </section>
+
+          {receiving && (receiving.receipts.length > 0 || receiving.receivable) ? (
+            <div className="mb-6">
+              <OrderReceiptsPanel
+                orderId={po.id}
+                receipts={receiving.receipts}
+                canReceive={receiving.receivable && can(user, "receipt.create")}
+                closeButton={
+                  status === "PARTIELLEMENT_RECU" && can(user, "purchaseOrder.closeRemainder") && remainderLines.length > 0 ? (
+                    <CloseRemainderButton orderId={po.id} number={po.displayNumber} lines={remainderLines} />
+                  ) : null
+                }
+              />
+            </div>
+          ) : null}
 
           <div className="mb-6">
 

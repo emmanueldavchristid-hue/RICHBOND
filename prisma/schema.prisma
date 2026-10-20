@@ -61,6 +61,11 @@ model User {
   purchaseOrdersApproved PurchaseOrder[]      @relation("PurchaseOrderApprover")
   purchaseOrderEvents    PurchaseOrderEvent[]
 
+  receiptsCreated Receipt[]        @relation("ReceiptCreator")
+  stockMovements  StockMovement[]
+  stockIssues     StockIssue[]
+  supplierReturns SupplierReturn[]
+
   @@index([role, active])
   @@map("users")
 }
@@ -186,8 +191,13 @@ model Warehouse {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  items          Item[]
-  purchaseOrders PurchaseOrder[]
+  items           Item[]
+  purchaseOrders  PurchaseOrder[]
+  receipts        Receipt[]
+  stockLevels     StockLevel[]
+  stockMovements  StockMovement[]
+  stockIssues     StockIssue[]
+  supplierReturns SupplierReturn[]
 
   @@map("warehouses")
 }
@@ -202,6 +212,7 @@ model Department {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   purchaseRequests PurchaseRequest[]
+  stockIssues      StockIssue[]
 
   @@map("departments")
 }
@@ -270,11 +281,14 @@ model Supplier {
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
 
-  currency       Currency          @relation(fields: [currencyCode], references: [code])
-  contacts       SupplierContact[]
-  items          ItemSupplier[]
-  mainItems      Item[]
-  purchaseOrders PurchaseOrder[]
+  currency        Currency          @relation(fields: [currencyCode], references: [code])
+  contacts        SupplierContact[]
+  items           ItemSupplier[]
+  mainItems       Item[]
+  purchaseOrders  PurchaseOrder[]
+  receipts        Receipt[]
+  nonConformities NonConformity[]
+  supplierReturns SupplierReturn[]
 
   @@index([status, type])
   @@index([name])
@@ -322,6 +336,8 @@ model Item {
   status             ItemStatus   @default(ACTIF)
   equipment          String?
   photoPath          String?      @map("photo_path")
+  /// Dernier calcul de la classe ABC (LOT-07).
+  abcComputedAt      DateTime?    @map("abc_computed_at")
   notes              String?
   createdById        String?      @map("created_by_id")
   createdAt          DateTime     @default(now()) @map("created_at")
@@ -333,6 +349,12 @@ model Item {
   priceHistory     ItemPriceHistory[]
   requestLines     PurchaseRequestLine[]
   orderLines       PurchaseOrderLine[]
+  receiptLines     ReceiptLine[]
+  nonConformities  NonConformity[]
+  stockLevels      StockLevel[]
+  stockMovements   StockMovement[]
+  issueLines       StockIssueLine[]
+  returnLines      SupplierReturnLine[]
 
   @@index([category, status])
   @@index([criticality])
@@ -693,6 +715,10 @@ model PurchaseOrder {
   events     PurchaseOrderEvent[]
   versions   PurchaseOrderVersion[]
 
+  receipts        Receipt[]
+  nonConformities NonConformity[]
+  supplierReturns SupplierReturn[]
+
   @@index([status, expectedDate])
   @@index([supplierId, status])
   @@index([createdById, status])
@@ -721,11 +747,15 @@ model PurchaseOrderLine {
   priceDeltaPct   Decimal? @map("price_delta_pct") @db.Decimal(7, 2)
   receivedQty     Decimal  @default(0) @map("received_qty") @db.Decimal(14, 3)
   invoicedQty     Decimal  @default(0) @map("invoiced_qty") @db.Decimal(14, 3)
+  /// Reliquat soldé (unité d'achat) : reçu + soldé >= commandé => ligne complète.
+  closedQty       Decimal  @default(0) @map("closed_qty") @db.Decimal(14, 3)
+  closedReason    String?  @map("closed_reason")
   note            String?
 
-  order       PurchaseOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  item        Item?                         @relation(fields: [itemId], references: [id])
-  allocations PurchaseOrderLineAllocation[]
+  order        PurchaseOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item         Item?                         @relation(fields: [itemId], references: [id])
+  allocations  PurchaseOrderLineAllocation[]
+  receiptLines ReceiptLine[]
 
   @@unique([orderId, lineNo])
   @@index([itemId])
@@ -792,4 +822,299 @@ model PurchaseOrderVersion {
 
   @@unique([orderId, version])
   @@map("purchase_order_versions")
+}
+
+// ---------------------------------------------------------------- LOT-06 / LOT-07 : réceptions et stock
+
+enum ReceiptStatus {
+  VALIDEE
+  ANNULEE
+}
+
+enum RefusalReason {
+  ABIME
+  NON_CONFORME
+  ERREUR_REFERENCE
+  HORS_DELAI
+  AUTRE
+}
+
+enum NonConformityDecision {
+  RETOUR
+  AVOIR
+  REMPLACEMENT
+}
+
+enum NonConformityStatus {
+  OUVERTE
+  CLOTUREE
+}
+
+enum SupplierReturnStatus {
+  VALIDE
+  ANNULE
+}
+
+enum StockMovementType {
+  ENTREE_RECEPTION
+  SORTIE
+  RETOUR_FOURNISSEUR
+  TRANSFERT
+  AJUSTEMENT
+  AJUSTEMENT_INVENTAIRE
+}
+
+enum StockDocumentType {
+  RECEPTION
+  SORTIE
+  RETOUR
+  TRANSFERT
+  AJUSTEMENT
+  INVENTAIRE
+}
+
+enum StockIssueStatus {
+  VALIDEE
+  ANNULEE
+}
+
+model Receipt {
+  id                       String        @id @default(cuid())
+  /// REC-AAAA-NNNNN, attribué à la validation (réception en une étape).
+  number                   String        @unique
+  status                   ReceiptStatus @default(VALIDEE)
+  orderId                  String        @map("order_id")
+  supplierId               String        @map("supplier_id")
+  warehouseId              String        @map("warehouse_id")
+  deliveryNoteRef          String        @map("delivery_note_ref")
+  receivedAt               DateTime      @map("received_at") @db.Date
+  carrier                  String?
+  comment                  String?
+  /// firstPromisedDate ?? requestedDate du BC au moment de la réception.
+  referenceDate            DateTime      @map("reference_date") @db.Date
+  daysLate                 Int           @default(0) @map("days_late")
+  /// BC soldé après cette réception.
+  inFull                   Boolean       @default(false) @map("in_full")
+  overDeliveryApprovedById String?       @map("over_delivery_approved_by_id")
+  overDeliveryReason       String?       @map("over_delivery_reason")
+  createdById              String        @map("created_by_id")
+  createdAt                DateTime      @default(now()) @map("created_at")
+  cancelledAt              DateTime?     @map("cancelled_at")
+  cancelledById            String?       @map("cancelled_by_id")
+  cancelledReason          String?       @map("cancelled_reason")
+
+  order           PurchaseOrder   @relation(fields: [orderId], references: [id])
+  supplier        Supplier        @relation(fields: [supplierId], references: [id])
+  warehouse       Warehouse       @relation(fields: [warehouseId], references: [id])
+  createdBy       User            @relation("ReceiptCreator", fields: [createdById], references: [id])
+  lines           ReceiptLine[]
+  nonConformities NonConformity[]
+
+  @@index([orderId])
+  @@index([receivedAt])
+  @@index([supplierId, receivedAt])
+  @@map("receipts")
+}
+
+model ReceiptLine {
+  id               String         @id @default(cuid())
+  receiptId        String         @map("receipt_id")
+  orderLineId      String         @map("order_line_id")
+  itemId           String?        @map("item_id")
+  /// Quantités en unité d'achat du BC.
+  deliveredQty     Decimal        @map("delivered_qty") @db.Decimal(14, 3)
+  acceptedQty      Decimal        @map("accepted_qty") @db.Decimal(14, 3)
+  refusedQty       Decimal        @default(0) @map("refused_qty") @db.Decimal(14, 3)
+  /// Quantité acceptée convertie en unité de stock.
+  acceptedStockQty Decimal        @map("accepted_stock_qty") @db.Decimal(14, 3)
+  refusalReason    RefusalReason? @map("refusal_reason")
+  lotNumber        String?        @map("lot_number")
+  /// FCFA par unité de stock.
+  unitCostXof      Decimal        @map("unit_cost_xof") @db.Decimal(14, 4)
+
+  receipt         Receipt           @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  orderLine       PurchaseOrderLine @relation(fields: [orderLineId], references: [id])
+  item            Item?             @relation(fields: [itemId], references: [id])
+  movements       StockMovement[]
+  nonConformities NonConformity[]
+
+  @@index([receiptId])
+  @@index([orderLineId])
+  @@index([itemId])
+  @@map("receipt_lines")
+}
+
+model NonConformity {
+  id            String                 @id @default(cuid())
+  /// NC-AAAA-NNNNN.
+  number        String                 @unique
+  supplierId    String                 @map("supplier_id")
+  orderId       String                 @map("order_id")
+  receiptId     String                 @map("receipt_id")
+  receiptLineId String                 @map("receipt_line_id")
+  itemId        String?                @map("item_id")
+  /// Quantité refusée, unité d'achat.
+  qty           Decimal                @db.Decimal(14, 3)
+  reason        RefusalReason
+  decision      NonConformityDecision?
+  status        NonConformityStatus    @default(OUVERTE)
+  comment       String?
+  decidedById   String?                @map("decided_by_id")
+  decidedAt     DateTime?              @map("decided_at")
+  createdAt     DateTime               @default(now()) @map("created_at")
+
+  supplier    Supplier      @relation(fields: [supplierId], references: [id])
+  order       PurchaseOrder @relation(fields: [orderId], references: [id])
+  receipt     Receipt       @relation(fields: [receiptId], references: [id])
+  receiptLine ReceiptLine   @relation(fields: [receiptLineId], references: [id])
+  item        Item?         @relation(fields: [itemId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([supplierId, createdAt])
+  @@index([orderId])
+  @@map("non_conformities")
+}
+
+/// Bon de retour fournisseur (P2) : marchandise déjà entrée en stock.
+model SupplierReturn {
+  id          String               @id @default(cuid())
+  /// RET-AAAA-NNNNN.
+  number      String               @unique
+  status      SupplierReturnStatus @default(VALIDE)
+  supplierId  String               @map("supplier_id")
+  orderId     String               @map("order_id")
+  warehouseId String               @map("warehouse_id")
+  reason      String
+  returnedAt  DateTime             @map("returned_at") @db.Date
+  createdById String               @map("created_by_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  supplier  Supplier             @relation(fields: [supplierId], references: [id])
+  order     PurchaseOrder        @relation(fields: [orderId], references: [id])
+  warehouse Warehouse            @relation(fields: [warehouseId], references: [id])
+  createdBy User                 @relation(fields: [createdById], references: [id])
+  lines     SupplierReturnLine[]
+
+  @@index([orderId])
+  @@index([supplierId, returnedAt])
+  @@map("supplier_returns")
+}
+
+model SupplierReturnLine {
+  id          String  @id @default(cuid())
+  returnId    String  @map("return_id")
+  orderLineId String  @map("order_line_id")
+  itemId      String  @map("item_id")
+  /// Unité de stock.
+  quantity    Decimal @db.Decimal(14, 3)
+  unitCost    Decimal @map("unit_cost") @db.Decimal(14, 4)
+  value       Int
+
+  return SupplierReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  item   Item           @relation(fields: [itemId], references: [id])
+
+  @@index([returnId])
+  @@map("supplier_return_lines")
+}
+
+model StockLevel {
+  id          String   @id @default(cuid())
+  itemId      String   @map("item_id")
+  warehouseId String   @map("warehouse_id")
+  /// Unité de stock. Modifié uniquement par applyMovement (src/modules/stock/movements.ts).
+  quantity    Decimal  @default(0) @db.Decimal(14, 3)
+  /// Prix moyen pondéré, FCFA par unité de stock.
+  pmp         Decimal  @default(0) @db.Decimal(14, 4)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  item      Item      @relation(fields: [itemId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([itemId, warehouseId])
+  @@index([warehouseId])
+  @@map("stock_levels")
+}
+
+model StockMovement {
+  id            String            @id @default(cuid())
+  itemId        String            @map("item_id")
+  warehouseId   String            @map("warehouse_id")
+  type          StockMovementType
+  /// Signée, unité de stock.
+  quantity      Decimal           @db.Decimal(14, 3)
+  unitCost      Decimal           @map("unit_cost") @db.Decimal(14, 4)
+  /// FCFA entiers, signée (quantité x coût unitaire, arrondie).
+  value         Int
+  pmpBefore     Decimal           @map("pmp_before") @db.Decimal(14, 4)
+  pmpAfter      Decimal           @map("pmp_after") @db.Decimal(14, 4)
+  stockAfter    Decimal           @map("stock_after") @db.Decimal(14, 3)
+  documentType  StockDocumentType @map("document_type")
+  documentId    String?           @map("document_id")
+  documentRef   String            @map("document_ref")
+  receiptLineId String?           @map("receipt_line_id")
+  issueLineId   String?           @map("issue_line_id")
+  /// Mouvement annulé par celui-ci (contre-passation) ; un mouvement ne s'annule qu'une fois.
+  reversalOfId  String?           @unique @map("reversal_of_id")
+  comment       String?
+  occurredAt    DateTime          @map("occurred_at")
+  createdById   String            @map("created_by_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  item        Item            @relation(fields: [itemId], references: [id])
+  warehouse   Warehouse       @relation(fields: [warehouseId], references: [id])
+  createdBy   User            @relation(fields: [createdById], references: [id])
+  receiptLine ReceiptLine?    @relation(fields: [receiptLineId], references: [id])
+  issueLine   StockIssueLine? @relation(fields: [issueLineId], references: [id])
+  reversalOf  StockMovement?  @relation("MovementReversal", fields: [reversalOfId], references: [id])
+  reversedBy  StockMovement?  @relation("MovementReversal")
+
+  @@index([itemId, occurredAt])
+  @@index([warehouseId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([documentType, documentId])
+  @@map("stock_movements")
+}
+
+model StockIssue {
+  id              String           @id @default(cuid())
+  /// SOR-AAAA-NNNNN.
+  number          String           @unique
+  status          StockIssueStatus @default(VALIDEE)
+  warehouseId     String           @map("warehouse_id")
+  departmentId    String           @map("department_id")
+  requesterName   String           @map("requester_name")
+  reason          String
+  equipment       String?
+  issuedAt        DateTime         @map("issued_at") @db.Date
+  createdById     String           @map("created_by_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  cancelledAt     DateTime?        @map("cancelled_at")
+  cancelledById   String?          @map("cancelled_by_id")
+  cancelledReason String?          @map("cancelled_reason")
+
+  warehouse  Warehouse        @relation(fields: [warehouseId], references: [id])
+  department Department       @relation(fields: [departmentId], references: [id])
+  createdBy  User             @relation(fields: [createdById], references: [id])
+  lines      StockIssueLine[]
+
+  @@index([issuedAt])
+  @@index([departmentId, issuedAt])
+  @@map("stock_issues")
+}
+
+model StockIssueLine {
+  id       String  @id @default(cuid())
+  issueId  String  @map("issue_id")
+  itemId   String  @map("item_id")
+  quantity Decimal @db.Decimal(14, 3)
+  unitCost Decimal @map("unit_cost") @db.Decimal(14, 4)
+  value    Int
+
+  issue     StockIssue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  item      Item            @relation(fields: [itemId], references: [id])
+  movements StockMovement[]
+
+  @@index([issueId])
+  @@index([itemId])
+  @@map("stock_issue_lines")
 }

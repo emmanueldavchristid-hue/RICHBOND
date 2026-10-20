@@ -57,7 +57,7 @@ La suite `npm run test:e2e` rejoue S0.1 et S0.2 après chaque lot ; elles doiven
 6. Magasinier : réceptionne la totalité → stock augmenté, PMP mis à jour, BC « Reçu ».
 
 ### S1 (partie automatisée, LOT-04) – Étapes 1 et 2 + notification de l'étape 3
-Fichier `tests/e2e/scenarios/S1-da.spec.ts`, joué en desktop et en tablette. Les étapes 3 (BC) à 5 sont automatisées par le LOT-05 (ci-dessous) ; l'étape 6 (réception) sera ajoutée avec le LOT-06.
+Fichier `tests/e2e/scenarios/S1-da.spec.ts`, joué en desktop et en tablette. Les étapes 3 (BC) à 5 sont automatisées par le LOT-05 (ci-dessous) ; l'étape 6 (réception) est ajoutée par le LOT-06 (voir plus bas).
 
 ### S1 étendu (partie automatisée, LOT-05) – Étapes 3 à 5 : du BC à la confirmation
 Fichier `tests/e2e/scenarios/S1-bc.spec.ts`, joué en desktop et en tablette. Il rejoue d'abord les étapes 1 et 2 (DA du Magasinier validée par le Responsable, toner réduit à 1) pour partir d'une DA neuve.
@@ -130,6 +130,15 @@ Fichier `tests/e2e/scenarios/SD-demandes.spec.ts`, joué en desktop et en tablet
 1. BC de 100 unités. Réception 1 : 60 livrées, 55 acceptées, 5 refusées (« Abîmé ») → non-conformité créée, BC partiellement reçu.
 2. Réception 2 : 40 livrées acceptées → BC reçu.
 3. Acheteur : facture de 100 unités → rapprochement en ÉCART (95 reçues acceptées) ; facture corrigée à 95 → CONFORME → Responsable : bon à payer.
+
+### S1 étape 6 et S2 (parties automatisées, LOT-06, EX-24)
+- **S1 étape 6** (suite de `tests/e2e/scenarios/S1-bc.spec.ts`) : le Magasinier ouvre la saisie du BC (par son lien : le BC est promis à J+10, hors de la semaine affichée), voit les restants dus sans prix, « Tout accepter », N° de BL, validation. Vérifié en base : rame 10 cartons = 50 U et toner 1 entrés en stock, PMP recalculé à partir du stock existant, BC « Reçu », audit `RECEIPT_CREATE`; l'acheteur voit la réception sur la fiche du BC.
+- **S2** (`tests/e2e/scenarios/S2-reception.spec.ts`, desktop et tablette, champs et boutons de saisie >= 44 px). Trois tests, chacun avec son propre BC de 100 « Toner imprimante » (48 750 FCFA, prix atypique pour détecter toute fuite vers le Magasinier) :
+  1. Étapes 1 et 2 : réception 1 de 60 livrées, 55 acceptées, 5 refusées « Abîmé » (contrôles du N° de BL et du motif, NC `NC-AAAA-NNNNN` ouverte, stock +55 au coût du BC, PMP, BC « Partiellement reçu », restant dû 45) ; sur-livraison à 46 bloquée pour le Magasinier ; réception 2 de 45 → « Bon soldé », BC « Reçu », stock +100 ; le Responsable est notifié du refus ; l'acheteur décide « Remplacement » (NC clôturée, audit `NC_DECIDE`). Le Magasinier ne voit aucun prix (texte et code de la page).
+  2. Contre-passation et reliquat : réceptions 55 puis 40 ; ni Magasinier ni acheteur ne contre-passent ; le Responsable est refusé si le stock a été sorti (simulé en base), puis contre-passe REC2 (mouvements inverses, stock, PMP, quantités du BC et statut revenus, audit `RECEIPT_CANCEL`) ; l'acheteur solde le reliquat de 45 (motif obligatoire) → BC « Reçu », audit `PO_CLOSE_REMAINDER` ; la contre-passation de REC1 est alors refusée.
+  3. Essai expiré : réceptions consultables ; « Valider la réception », « Contre-passer », « Décider » et « Solder le reliquat » désactivés ; rien ne change en base.
+- Hors périmètre automatisé (couvert par les tests d'intégration) : sur-livraison forcée par le Responsable, retour fournisseur (P2), facture et rapprochement (étape 3 de S2, LOT-13).
+- Seed : le BC `lot05:11` est reçu en totalité et `lot05:06` partiellement reçu avec une NC ouverte (réceptions `BL-DEMO-0001/0002`) ; les scénarios existants n'en dépendaient pas, le scénario « essai expiré » de S2 s'appuie sur `BL-DEMO-0002` en lecture seule.
 
 ## S3 – Rupture anticipée et réappro (LOT-07)
 1. Article critique avec consommation régulière sur 90 jours ; sorties jusqu'à passer sous le point de commande.

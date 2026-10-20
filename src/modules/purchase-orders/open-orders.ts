@@ -25,6 +25,7 @@ export async function findOpenOrderCommitments(client: Client, itemIds: string[]
       itemId: true,
       quantity: true,
       receivedQty: true,
+      closedQty: true,
       unit: true,
       order: { select: { id: true, number: true, version: true, expectedDate: true } },
     },
@@ -32,7 +33,7 @@ export async function findOpenOrderCommitments(client: Client, itemIds: string[]
   });
   const out: ItemCommitment[] = [];
   for (const r of rows) {
-    const left = r.quantity.minus(r.receivedQty);
+    const left = r.quantity.minus(r.receivedQty).minus(r.closedQty);
     if (left.lte(0)) continue;
     out.push({
       source: "BC",

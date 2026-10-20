@@ -56,6 +56,14 @@ export const SETTING_DEFS = {
   "purchaseOrder.pdfFooter": { schema: z.string({ error: "Valeur invalide." }).trim().max(300, "300 caractères maximum."), default: "" },
   /** Conditions générales d'achat imprimées au bas du bon. */
   "purchaseOrder.pdfConditions": { schema: z.string({ error: "Valeur invalide." }).trim().max(1000, "1000 caractères maximum."), default: "" },
+  // ---------------------------------------------------------------- LOT-06 : réceptions
+  /** R4 : tolérance de sur-livraison en % de la quantité commandée ; au-delà, accord du Responsable exigé. */
+  "receipt.overDeliveryPct": {
+    schema: z.number({ error: "Valeur invalide." }).min(0, "La tolérance ne peut pas être négative.").max(100, "Tolérance trop élevée (100 % au maximum)."),
+    default: 0,
+  },
+  /** R11 : le Magasinier voit prix et montants sur les écrans de réception. */
+  "receipt.showPricesToStorekeeper": { schema: z.boolean({ error: "Valeur invalide." }), default: false },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFS;
@@ -82,4 +90,7 @@ export interface AppSettings {
   company: { name: string; address: string; phone: string; email: string; legalIds: string };
   purchaseOrderPdfFooter: string;
   purchaseOrderPdfConditions: string;
+  /** LOT-06 : voir `SETTING_DEFS`. */
+  receiptOverDeliveryPct: number;
+  receiptShowPricesToStorekeeper: boolean;
 }

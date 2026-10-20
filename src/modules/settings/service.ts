@@ -28,6 +28,8 @@ export async function getSettings(): Promise<AppSettings> {
     },
     purchaseOrderPdfFooter: get<string>("purchaseOrder.pdfFooter"),
     purchaseOrderPdfConditions: get<string>("purchaseOrder.pdfConditions"),
+    receiptOverDeliveryPct: get<number>("receipt.overDeliveryPct"),
+    receiptShowPricesToStorekeeper: get<boolean>("receipt.showPricesToStorekeeper"),
   };
 }
 
