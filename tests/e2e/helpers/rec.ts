@@ -11,7 +11,8 @@ export const NC_NUMBER = /^NC-\d{4}-\d{5}$/;
 /** Format d'affichage des montants : « 1 250 000 » (espaces normalisés par `norm`). */
 export const spaced = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
-export const itemId = async (name: string) => (await dbOne<{ id: string }>(`SELECT id FROM items WHERE name = $1`, [name])).id;
+export const itemId = async (name: string) =>
+  (await dbOne<{ id: string }>(`SELECT id FROM items WHERE name = $1`, [name])).id;
 
 /** Stock et PMP d'un article dans un dépôt (0 si le couple n'existe pas encore). */
 export async function stockOf(itemName: string, warehouseId: string): Promise<{ qty: number; pmp: number }> {
@@ -25,7 +26,9 @@ export async function stockOf(itemName: string, warehouseId: string): Promise<{ 
 
 /** Dépôt prévu d'un BC (tel que proposé par l'écran de réception). */
 export async function orderWarehouseId(orderId: string): Promise<string> {
-  const r = await dbOne<{ warehouse_id: string }>(`SELECT warehouse_id FROM purchase_orders WHERE id = $1`, [orderId]);
+  const r = await dbOne<{ warehouse_id: string }>(`SELECT warehouse_id FROM purchase_orders WHERE id = $1`, [
+    orderId,
+  ]);
   return r.warehouse_id;
 }
 
@@ -78,7 +81,14 @@ export const receiptMovements = (receiptId: string) =>
   );
 
 export const ncOfReceipt = (receiptId: string) =>
-  dbQuery<{ id: string; number: string; qty: string; reason: string; status: string; decision: string | null }>(
+  dbQuery<{
+    id: string;
+    number: string;
+    qty: string;
+    reason: string;
+    status: string;
+    decision: string | null;
+  }>(
     `SELECT id, number, qty::text, reason::text, status::text, decision::text FROM non_conformities WHERE receipt_id = $1 ORDER BY number`,
     [receiptId],
   );
@@ -90,7 +100,9 @@ export const orderReceiptState = (orderId: string) =>
   );
 
 export async function receiptCount(orderId: string): Promise<number> {
-  const r = await dbOne<{ n: string }>(`SELECT count(*)::text AS n FROM receipts WHERE order_id = $1`, [orderId]);
+  const r = await dbOne<{ n: string }>(`SELECT count(*)::text AS n FROM receipts WHERE order_id = $1`, [
+    orderId,
+  ]);
   return Number(r.n);
 }
 
@@ -102,7 +114,11 @@ export async function createReceivableOrder(
   page: Page,
   o: { supplier: string; reason: string; lines: DirectLine[]; promised?: string },
 ): Promise<{ id: string; number: string }> {
-  const po = await createValidatedDirectOrder(page, { supplier: o.supplier, reason: o.reason, lines: o.lines });
+  const po = await createValidatedDirectOrder(page, {
+    supplier: o.supplier,
+    reason: o.reason,
+    lines: o.lines,
+  });
   await sendFromPage(page, "EMAIL");
   await confirmFromPage(page, o.promised ?? dayOffset(0), "CONF-" + o.reason.slice(-8));
   return po;

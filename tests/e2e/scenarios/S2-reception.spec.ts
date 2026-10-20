@@ -34,7 +34,8 @@ const PRICE = 48750; // FCFA HT l'unité, volontairement atypique pour détecter
 const QTY = 100;
 
 /** PMP après une entrée (formule du cahier des charges), arrondi à 4 décimales. */
-const pmpAfter = (s: number, p: number, q: number, c: number) => (s <= 0 ? c : Math.round(((s * p + q * c) / (s + q)) * 1e4) / 1e4);
+const pmpAfter = (s: number, p: number, q: number, c: number) =>
+  s <= 0 ? c : Math.round(((s * p + q * c) / (s + q)) * 1e4) / 1e4;
 
 test.beforeEach(async ({ context }) => {
   await resetLicense(30);
@@ -95,13 +96,24 @@ test("S2 (étapes 1 et 2) – BC de 100 : réception partielle avec refus (NC), 
     await expect(t(page, "rec-line-1-due")).toContainText("Restant dû : 100");
     await expect(t(page, "rec-delivered-1")).toHaveValue("100");
     await expect(t(page, "rec-accepted-1")).toContainText("100");
-    for (const id of ["rec-bl", "rec-date", "rec-warehouse", "rec-carrier", "rec-delivered-1", "rec-refused-1", "rec-lot-1", "rec-accept-all", "rec-submit"]) {
+    for (const id of [
+      "rec-bl",
+      "rec-date",
+      "rec-warehouse",
+      "rec-carrier",
+      "rec-delivered-1",
+      "rec-refused-1",
+      "rec-lot-1",
+      "rec-accept-all",
+      "rec-submit",
+    ]) {
       await expectTouchHeight(page, id);
     }
     const text = norm(await page.locator("main").innerText());
     expect(text).not.toMatch(/FCFA|XOF|Prix|Montant/);
     const html = await page.content();
-    for (const leak of ["48750", "48 750", "4875000", "4 875 000", "unitPrice", "netAmount", "unitCost"]) expect(html).not.toContain(leak);
+    for (const leak of ["48750", "48 750", "4875000", "4 875 000", "unitPrice", "netAmount", "unitCost"])
+      expect(html).not.toContain(leak);
   });
 
   await test.step("Étape 1 – Contrôles de saisie : N° de BL obligatoire, motif obligatoire pour un refus", async () => {
@@ -151,7 +163,9 @@ test("S2 (étapes 1 et 2) – BC de 100 : réception partielle avec refus (NC), 
     const lines = await receiptLines(rec.id);
     expect(lines).toHaveLength(1);
     expect(lines[0]).toMatchObject({ reason: "ABIME" });
-    expect([lines[0].delivered, lines[0].accepted, lines[0].refused, lines[0].accepted_stock].map(Number)).toEqual([60, 55, 5, 55]);
+    expect(
+      [lines[0].delivered, lines[0].accepted, lines[0].refused, lines[0].accepted_stock].map(Number),
+    ).toEqual([60, 55, 5, 55]);
     expect(Number(lines[0].unit_cost)).toBe(PRICE);
     const mv = await receiptMovements(rec.id);
     expect(mv).toHaveLength(1); // le refusé n'entre jamais en stock
@@ -164,11 +178,18 @@ test("S2 (étapes 1 et 2) – BC de 100 : réception partielle avec refus (NC), 
     const po = await poById(poId);
     expect(po.status).toBe("PARTIELLEMENT_RECU");
     const state = await orderReceiptState(poId);
-    expect([Number(state[0].quantity), Number(state[0].received_qty), Number(state[0].closed_qty)]).toEqual([100, 55, 0]);
+    expect([Number(state[0].quantity), Number(state[0].received_qty), Number(state[0].closed_qty)]).toEqual([
+      100, 55, 0,
+    ]);
     const ncs = await ncOfReceipt(rec.id);
     expect(ncs).toHaveLength(1);
     expect(ncs[0].number).toMatch(NC_NUMBER);
-    expect([Number(ncs[0].qty), ncs[0].reason, ncs[0].status, ncs[0].decision]).toEqual([5, "ABIME", "OUVERTE", null]);
+    expect([Number(ncs[0].qty), ncs[0].reason, ncs[0].status, ncs[0].decision]).toEqual([
+      5,
+      "ABIME",
+      "OUVERTE",
+      null,
+    ]);
     nc = ncs[0].number;
     expect(await auditCount(rec.id, "RECEIPT_CREATE")).toBe(1);
     expect(await auditCount(ncs[0].id, "NC_CREATE")).toBe(1);
@@ -296,7 +317,10 @@ test("S2 – Contre-passation par le Responsable (refusée si stock sorti), sold
 
     await loginAs(page, "MAGASINIER");
     await openReceiptForm(page, poNumber);
-    await fillReceipt(page, { bl: `BL-${tag}-1`, lines: { 1: { delivered: "60", refused: "5", reason: "NON_CONFORME" } } });
+    await fillReceipt(page, {
+      bl: `BL-${tag}-1`,
+      lines: { 1: { delivered: "60", refused: "5", reason: "NON_CONFORME" } },
+    });
     rec1 = await submitReceipt(page);
     rec1Id = (await receiptByNumber(rec1)).id;
     await openReceiptForm(page, poNumber);
@@ -326,7 +350,10 @@ test("S2 – Contre-passation par le Responsable (refusée si stock sorti), sold
     await expect(t(page, "rec-cancel")).toBeEnabled();
     // Arrangement : 30 unités « sorties » (écart simulé directement en base : l'écran de sortie arrive avec le LOT-07).
     const real = (await stockOf(ITEM, whId)).qty;
-    await dbQuery(`UPDATE stock_levels SET quantity = 10 WHERE item_id = (SELECT id FROM items WHERE name = $1) AND warehouse_id = $2`, [ITEM, whId]);
+    await dbQuery(
+      `UPDATE stock_levels SET quantity = 10 WHERE item_id = (SELECT id FROM items WHERE name = $1) AND warehouse_id = $2`,
+      [ITEM, whId],
+    );
     try {
       await t(page, "rec-cancel").click();
       await expectReasonRequired(page, "rec-cancel-dialog");
@@ -337,7 +364,10 @@ test("S2 – Contre-passation par le Responsable (refusée si stock sorti), sold
       expect(Number((await orderReceiptState(poId))[0].received_qty)).toBe(95);
       expect(await auditCount(rec2Id, "RECEIPT_CANCEL")).toBe(0);
     } finally {
-      await dbQuery(`UPDATE stock_levels SET quantity = $3 WHERE item_id = (SELECT id FROM items WHERE name = $1) AND warehouse_id = $2`, [ITEM, whId, real]);
+      await dbQuery(
+        `UPDATE stock_levels SET quantity = $3 WHERE item_id = (SELECT id FROM items WHERE name = $1) AND warehouse_id = $2`,
+        [ITEM, whId, real],
+      );
     }
   });
 
@@ -386,7 +416,10 @@ test("S2 – Contre-passation par le Responsable (refusée si stock sorti), sold
     const state = (await orderReceiptState(poId))[0];
     expect([Number(state.received_qty), Number(state.closed_qty)]).toEqual([55, 45]);
     expect((await poById(poId)).status).toBe("RECU");
-    const n = await dbOne<{ n: string }>(`SELECT count(*)::text AS n FROM audit_logs WHERE entity_id = $1 AND action = 'PO_CLOSE_REMAINDER'`, [poId]);
+    const n = await dbOne<{ n: string }>(
+      `SELECT count(*)::text AS n FROM audit_logs WHERE entity_id = $1 AND action = 'PO_CLOSE_REMAINDER'`,
+      [poId],
+    );
     expect(Number(n.n)).toBe(1);
     expect((await stockOf(ITEM, whId)).qty).toBe(stock0.qty + 55); // solder ne touche pas au stock
     await ready(page, "/stock/receptions");
@@ -422,7 +455,10 @@ test.describe("S2 – Essai expiré : consultation seulement", () => {
       `SELECT r.id, r.number, r.order_id, p.number AS order_number FROM receipts r JOIN purchase_orders p ON p.id = r.order_id
         WHERE r.delivery_note_ref = 'BL-DEMO-0002'`,
     );
-    const nc = await dbOne<{ number: string }>(`SELECT number FROM non_conformities WHERE receipt_id = $1 AND status = 'OUVERTE'`, [seed.id]);
+    const nc = await dbOne<{ number: string }>(
+      `SELECT number FROM non_conformities WHERE receipt_id = $1 AND status = 'OUVERTE'`,
+      [seed.id],
+    );
     const before = await receiptCount(seed.order_id);
 
     await test.step("Après la fin d'essai : le Magasinier se connecte, bandeau « lecture seule », écran Réceptions consultable", async () => {

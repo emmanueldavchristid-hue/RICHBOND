@@ -32,7 +32,15 @@ import {
   poLines,
   sendFromPage,
 } from "../helpers/po";
-import { fillReceipt, orderReceiptState, orderWarehouseId, receiptByNumber, receiptMovements, stockOf, submitReceipt } from "../helpers/rec";
+import {
+  fillReceipt,
+  orderReceiptState,
+  orderWarehouseId,
+  receiptByNumber,
+  receiptMovements,
+  stockOf,
+  submitReceipt,
+} from "../helpers/rec";
 
 /**
  * S1 étendu – étapes 3 à 6 (LOT-05, EX-21 ; LOT-06, EX-24) : de la DA validée au BC envoyé, confirmé puis réceptionné en totalité.
@@ -284,7 +292,8 @@ test("S1 (étapes 3 à 5) – DA validée, BC créé et soumis, validé avec num
   });
 
   // ---- Étape 6 (LOT-06, EX-24) : réception de la totalité par le Magasinier ----
-  const pmpAfter = (s: number, p: number, q: number, c: number) => (s <= 0 ? c : Math.round(((s * p + q * c) / (s + q)) * 1e4) / 1e4);
+  const pmpAfter = (s: number, p: number, q: number, c: number) =>
+    s <= 0 ? c : Math.round(((s * p + q * c) / (s + q)) * 1e4) / 1e4;
   const stockBefore: Record<string, { qty: number; pmp: number }> = {};
   let whId = "";
   let rec = "";
@@ -326,12 +335,21 @@ test("S1 (étapes 3 à 5) – DA validée, BC créé et soumis, validé avec num
     expect(st.rame.qty).toBe(b["Rame papier A4"].qty + 50);
     expect(st.rame.pmp).toBeCloseTo(pmpAfter(b["Rame papier A4"].qty, b["Rame papier A4"].pmp, 50, 3100), 2);
     expect(st.toner.qty).toBe(b["Toner imprimante"].qty + 1);
-    expect(st.toner.pmp).toBeCloseTo(pmpAfter(b["Toner imprimante"].qty, b["Toner imprimante"].pmp, 1, tonerPrice), 2);
+    expect(st.toner.pmp).toBeCloseTo(
+      pmpAfter(b["Toner imprimante"].qty, b["Toner imprimante"].pmp, 1, tonerPrice),
+      2,
+    );
     const mv = await receiptMovements(r.id);
-    expect(mv.map((m) => [m.type, Number(m.quantity)]).sort()).toEqual([["ENTREE_RECEPTION", 1], ["ENTREE_RECEPTION", 50]]);
+    expect(mv.map((m) => [m.type, Number(m.quantity)]).sort()).toEqual([
+      ["ENTREE_RECEPTION", 1],
+      ["ENTREE_RECEPTION", 50],
+    ]);
     const po = await poById(poId);
     expect(po.status).toBe("RECU");
-    expect((await orderReceiptState(poId)).map((l) => [Number(l.quantity), Number(l.received_qty)])).toEqual([[10, 10], [1, 1]]);
+    expect((await orderReceiptState(poId)).map((l) => [Number(l.quantity), Number(l.received_qty)])).toEqual([
+      [10, 10],
+      [1, 1],
+    ]);
     expect(await auditCount(r.id, "RECEIPT_CREATE")).toBe(1);
   });
 
