@@ -240,7 +240,7 @@ beforeEach(async () => {
   dept = await db.department.create({ data: { code: `${IT_PREFIX}DB-D`, name: "Service dashboard" } });
   s1 = await db.supplier.create({ data: { code: `${IT_PREFIX}DB-1`, name: "Fournisseur local test", type: "LOCAL", currencyCode: "XOF", createdById: resp.id } });
   s2 = await db.supplier.create({ data: { code: `${IT_PREFIX}DB-2`, name: "Fournisseur import test", type: "IMPORT", currencyCode: "XOF", createdById: resp.id } });
-  iCrit = await db.item.create({ data: { code: `${IT_PREFIX}DB-C`, name: "Article critique test", category: "PDR", stockUnit: "U", purchaseUnit: "U", criticality: "CRITIQUE", reorderPoint: 50, createdById: resp.id } });
+  iCrit = await db.item.create({ data: { code: `${IT_PREFIX}DB-C`, name: "Article critique test", category: "PDR", stockUnit: "U", purchaseUnit: "U", criticality: "CRITIQUE", reorderPoint: 50, leadTimeDays: 365, createdById: resp.id } });
   iA = await db.item.create({ data: { code: `${IT_PREFIX}DB-A`, name: "Article classe A test", category: "INTRANT", stockUnit: "U", purchaseUnit: "U", abcClass: "A", createdById: resp.id } });
   iStd = await db.item.create({ data: { code: `${IT_PREFIX}DB-S`, name: "Article standard test", category: "FOURNITURE", stockUnit: "U", purchaseUnit: "U", createdById: resp.id } });
   await seedScenario();
@@ -347,6 +347,14 @@ describe("tableau de bord Responsable : KPI sur jeu connu (31/10 23:59 Abidjan)"
     expect(dash.ruptureRisks.total).toBe(1);
     expect(card(dash.cards, "risques-rupture")).toBe(1);
     expect(dash.ruptureRisks.rows[0].nextDeliveryDate).toBeNull();
+  });
+
+  it("T4 : un article à couverture confortable (sévérité VERT) n'est pas affiché comme risque", async () => {
+    await db.item.update({ where: { id: iCrit.id }, data: { leadTimeDays: 1 } });
+    const dash = await responsibleDashboard(NOW);
+    expect(dash.ruptureRisks.rows.map((r) => r.code)).not.toContain(`${IT_PREFIX}DB-C`);
+    expect(dash.ruptureRisks.total).toBe(0);
+    expect(card(dash.cards, "risques-rupture") ?? 0).toBe(0);
   });
 
   it("réponse entièrement sérialisable en JSON (dates ISO, entiers pour les montants)", async () => {

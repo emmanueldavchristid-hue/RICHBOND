@@ -180,7 +180,7 @@ export function StorekeeperBoard({
       <div className="grid gap-4 lg:grid-cols-2">
         <DeliveryList
           title="Réceptions attendues aujourd'hui"
-          description="Livraisons prévues ce jour ou en retard."
+          description="Livraisons prévues ce jour."
           total={data.expectedToday.total}
           rows={data.expectedToday.rows}
           testId="dash-expected-today"

@@ -754,9 +754,9 @@ describe("retards et relances (D19-D20)", () => {
     const da = await validatedDa([{ item: itemA, qty: 30 }]);
     const a = await draftOrder(achLocal, da, { qty: 5 });
     await toValidate(achLocal, a.id);
-    const row = (await listOrders(resp, { onglet: "a-valider" }, dayAt(5))).rows[0];
-    expect(row.ageDays).toBe(5);
-    expect(row.ageSeverity).toBe("warning");
+    const row = (await listOrders(resp, { onglet: "a-valider" }, dayAt(7))).rows[0];
+    expect(row.ageDays).toBe(7); // 7 jours calendaires = au moins 5 jours ouvrés, quel que soit le jour du test
+    expect(row.ageSeverity).toBe("critical");
   });
 });
 

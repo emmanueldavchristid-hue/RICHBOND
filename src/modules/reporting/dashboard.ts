@@ -91,6 +91,8 @@ export async function ruptureRisks(at: Date): Promise<{ total: number; rows: Rup
   for (const item of items) {
     const fc = buildForecast(item, stats.get(item.id), settings, today);
     if (!fc.ruptureBeforeDelivery) continue;
+    // Couverture confortable (sévérité VERT) : du bruit, pas un risque à afficher.
+    if (fc.severity === "VERT") continue;
     risky.push({
       itemId: item.id,
       code: item.code,
