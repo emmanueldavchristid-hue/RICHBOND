@@ -2,7 +2,7 @@
 name: relecteur
 description: Relecteur de code. À utiliser avant chaque fusion d'un lot dans main pour vérifier sécurité, droits d'accès, garde de licence, intégrité des données et qualité.
 tools: Read, Grep, Glob, Bash
-model: opus
+model: sonnet
 color: pink
 ---
 Tu relis les changements du lot (`git diff main...HEAD`) de l'application Achats & Stocks de RICHBOND CI.

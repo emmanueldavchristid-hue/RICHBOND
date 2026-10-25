@@ -61,3 +61,8 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 ## Relecture LOT-04 (corrections)
 - Corrigés : montants plafonnés à 2 147 483 647 (schéma + totals), brouillon d'autrui invisible (canViewRequest), doublons anonymisés pour le Magasinier, approveMany INTERNAL, checkDuplicates dans le module, plafond d'export sur les lignes, commentaire d'en-tête export, payload QTY_CHANGED (code + désignation), date de notification via `formatDateOnly`.
 - Restent à traiter (points 9, 12, 13, 14, non triviaux ou non précisés) : le Responsable peut encore modifier/annuler/joindre sur le brouillon d'autrui par identifiant (la lecture est interdite) ; à confirmer.
+
+## LOT-08 – Tableau de bord par rôle (terminé, mode marathon)
+- Accueil par rôle (Responsable, acheteur, magasinier), KPI, graphiques, risques de rupture, historique fictif de 6 mois dans le seed.
+- Scénario S-dashboard : 8/8 (bureau + tablette). Test d'ancienneté des BC rendu indépendant du jour de la semaine.
+- Suite : LOT-09 (import Excel/CSV).

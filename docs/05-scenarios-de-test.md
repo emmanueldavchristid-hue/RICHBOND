@@ -157,6 +157,14 @@ Fichier `tests/e2e/scenarios/S3-reappro.spec.ts` (+ `tests/e2e/helpers/stock.ts`
 7. **Essai expiré** : stock, sorties, mouvements, réappro consultables ; « Nouvelle sortie », « Valider la sortie », « Transfert », « Créer les DA », « Ajuster le stock », « Recalculer » désactivés ; rien ne change en base.
 - Le PMP et la valeur sont visibles du Magasinier (droit `price.viewPmp`), jamais le prix d'achat. Le test « 2 sorties parallèles sur le dernier stock » reste couvert par les tests d'intégration. Le tableau de bord « Risques de rupture » arrive avec le LOT-08.
 
+## S-dashboard – Tableau de bord d'accueil par rôle (LOT-08, EX-60)
+Fichier `tests/e2e/scenarios/S-dashboard.spec.ts`, joué en desktop et en tablette (4 scénarios x 2 projets). Les compteurs affichés sont comparés à la base, jamais à des valeurs figées.
+1. **Responsable** : cartes à traiter (DA à valider, BC à valider, non-conformités ouvertes = base), 6 KPI du mois (FCFA, %), 3 graphiques dessinés, risques de rupture avec le Roulement 6205 visible et sans article à couverture confortable (Roulement 6308). Clic sur « DA à valider » : onglet « à valider » de la liste des DA (même compteur) ; « BC en retard » : onglet « en retard » des BC ; « Non-conformités » et « Risques de rupture » : écrans correspondants.
+2. **Acheteur local** : uniquement ses DA assignées et ses BC (jamais ceux de l'autre acheteur), ni KPI ni graphiques du Responsable ; bouton « Relancer » sur son BC en retard : ouvre la fenêtre de relance, rien n'est écrit sans confirmation ; clics sur « Mes DA » (onglet assignées) et « BC en retard » (filtre `acheteur=`).
+3. **Magasinier** : gros boutons « Recevoir une livraison » / « Enregistrer une sortie » (zone tactile), listes de réceptions attendues, articles sous le point de commande, dernières sorties (état vide si aucune sortie) ; aucun montant dans le texte ni dans le HTML livré (FCFA, XOF, PMP, prix, valeur, champs `totalXof`) ; pas de défilement horizontal sur tablette ; clic sur « sous le point de commande » : stock filtré.
+4. **Essai expiré** (`TEST_NOW` : lendemain de la fin) : bandeau « lecture seule », le tableau de chaque rôle s'affiche, les cartes restent des liens de consultation, « Relancer » désactivé, aucune relance écrite en base.
+- Risques de rupture : les articles de sévérité verte (couverture confortable) ne sont jamais listés. Le seed fictif ne contient aucune sortie de stock : « Dernières sorties » affiche l'état vide tant qu'une sortie n'est pas saisie (S3 en crée une).
+
 ## S4 – Consultation et comparatif (LOT-10)
 1. DA validée de 3 articles ; consultation de 3 fournisseurs (dont 1 local suggéré).
 2. Saisie de 3 offres (une en EUR) ; le comparatif convertit et classe ; recommandation affichée.

@@ -8,6 +8,7 @@ const MAG: PermissionUser = { role: "MAGASINIER" };
 
 /** Matrice complète, écrite à la main d'après la spec LOT-01 : toute dérive casse le test. */
 const ACHETEUR_OK: Action[] = [
+  "dashboard.view",
   "purchaseRequest.view",
   "purchaseRequest.create",
   "purchaseRequest.cancel",
@@ -38,6 +39,7 @@ const ACHETEUR_OK: Action[] = [
   "exchangeRate.manage",
 ];
 const MAGASINIER_OK: Action[] = [
+  "dashboard.view",
   "purchaseRequest.view",
   "purchaseRequest.createReplenishment",
   "purchaseRequest.cancel",

@@ -6,6 +6,7 @@ export type RoleCode = "SUPER_ADMIN" | "RESPONSABLE_ACHATS" | "ACHETEUR" | "MAGA
 export type ScopeCode = "LOCAL" | "IMPORT" | "ALL";
 
 export const ALL_ACTIONS = [
+  "dashboard.view",
   "purchaseRequest.view",
   "purchaseRequest.create",
   "purchaseRequest.createReplenishment",
@@ -91,6 +92,7 @@ const RESPONSABLE: Action[] = ALL_ACTIONS.filter(
 );
 
 const ACHETEUR: Action[] = [
+  "dashboard.view",
   "purchaseRequest.view",
   "purchaseRequest.create",
   "purchaseRequest.cancel",
@@ -122,6 +124,7 @@ const ACHETEUR: Action[] = [
 ];
 
 const MAGASINIER: Action[] = [
+  "dashboard.view",
   "purchaseRequest.view",
   "purchaseRequest.createReplenishment",
   "purchaseRequest.cancel",
