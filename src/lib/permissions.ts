@@ -55,6 +55,7 @@ export const ALL_ACTIONS = [
   "audit.view",
   "settings.manage",
   "exchangeRate.manage",
+  "import.manage",
   "license.manage",
   "maintenance.run",
   "sage.sync",
@@ -82,6 +83,7 @@ export const SUPER_ADMIN_ACTIONS: readonly Action[] = [
   "price.viewPmp",
   "users.manage",
   "audit.view",
+  "import.manage", // LOT-09 : chargement des données initiales, réservé au Responsable et au Super-admin
   "license.manage",
   "maintenance.run",
   "sage.sync",

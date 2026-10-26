@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Paramètres – RICHBOND" };
 async function ParametresContent() {
   const user = await requirePageAction(null);
   // Même règle que le menu : réservé à ceux qui gèrent les comptes ou les paramètres.
-  if (!can(user, "users.manage") && !can(user, "settings.manage") && !can(user, "exchangeRate.manage")) redirect("/acces-refuse");
+  if (!can(user, "users.manage") && !can(user, "import.manage") && !can(user, "settings.manage") && !can(user, "exchangeRate.manage")) redirect("/acces-refuse");
   const links = [
     { href: "/parametres/utilisateurs", label: "Utilisateurs", text: "Comptes, rôles, mots de passe", ok: can(user, "users.manage") },
     { href: "/parametres/depots", label: "Dépôts", text: "Lieux de stockage", ok: can(user, "settings.manage") },
@@ -21,6 +21,12 @@ async function ParametresContent() {
       label: "Devises et taux de change",
       text: "FCFA, EUR, USD, CNY : taux datés",
       ok: can(user, "settings.manage") || can(user, "exchangeRate.manage"),
+    },
+    {
+      href: "/parametres/import",
+      label: "Import de données",
+      text: "Articles, fournisseurs, stock initial (Excel / CSV)",
+      ok: can(user, "import.manage"),
     },
     { href: "/parametres/reglages", label: "Réglages", text: "Prix visibles au magasin", ok: can(user, "settings.manage") },
     { href: "/parametres/journal", label: "Journal d'activité", text: "Qui a fait quoi, et quand", ok: can(user, "audit.view") },

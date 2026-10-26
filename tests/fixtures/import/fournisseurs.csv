@@ -1,0 +1,4 @@
+Code fournisseur;Intitulé;Type;Pays;Ville;Email;NCC;Devise
+IT-FRS-001;Quincaillerie Abidjan Sud;Local;CI;Abidjan;contact@exemple.ci;1234567A;XOF
+IT-FRS-002;Bearings Europe SARL;Import;FR;Lyon;ventes@exemple.fr;;EUR
+IT-FRS-003;Fournisseur mail invalide;Local;CI;Bouaké;pas-un-mail;;XOF
