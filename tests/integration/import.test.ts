@@ -162,6 +162,21 @@ describe("fournisseurs, liens et stock initial", () => {
   });
 });
 
+describe("robustesse", () => {
+  it("deux imports de stock initial simultanés ne doublent pas le stock", async () => {
+    await login("i-resp2", "RESPONSABLE_ACHATS");
+    await run("commit", "ARTICLES", "articles-valides.csv");
+    await Promise.all([run("commit", "STOCK_INITIAL", "stock-initial.csv"), run("commit", "STOCK_INITIAL", "stock-initial.csv")]);
+    expect(await db.stockMovement.count({ where: { item: { code: { startsWith: "IT-IMP" } } } })).toBe(2);
+  });
+
+  it("un faux .xlsx ou un CSV binaire est refusé", async () => {
+    await login("i-resp3", "RESPONSABLE_ACHATS");
+    expect(await run("preview", "ARTICLES", "faux.xlsx", "ceci n'est pas un zip")).toMatchObject({ ok: false });
+    expect(await run("preview", "ARTICLES", "binaire.csv", Buffer.from([65, 0, 66, 10]))).toMatchObject({ ok: false });
+  });
+});
+
 describe("performance", () => {
   it("2 000 articles importés en moins de 30 s", async () => {
     await login("i-resp", "RESPONSABLE_ACHATS");

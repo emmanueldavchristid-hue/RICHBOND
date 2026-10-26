@@ -37,7 +37,7 @@ export function cellText(v: unknown): string {
 export function detectFormat(fileName: string): "xlsx" | "csv" {
   const ext = fileName.toLowerCase().split(".").pop();
   if (ext === "xlsx") return "xlsx";
-  if (ext === "csv" || ext === "txt") return "csv";
+  if (ext === "csv") return "csv";
   throw new BusinessError("IMPORT_FORMAT", "Format non pris en charge : utilisez un fichier Excel (.xlsx) ou CSV (.csv).");
 }
 
@@ -118,10 +118,39 @@ function toParsed(matrix: string[][]): ParsedFile {
   return { headers, lines };
 }
 
+const XLSX_MAX_UNCOMPRESSED = 50 * 1024 * 1024;
+
+/** Signature zip + taille décompressée annoncée (répertoire central) : évite une « bombe » de décompression. */
+function assertSafeXlsx(buffer: Buffer): void {
+  const bad = () => new BusinessError("IMPORT_ILLISIBLE", "Fichier Excel illisible : enregistrez-le au format .xlsx puis réessayez.");
+  if (buffer.length < 22 || buffer.readUInt32LE(0) !== 0x04034b50) throw bad();
+  let eocd = -1;
+  for (let i = buffer.length - 22; i >= Math.max(0, buffer.length - 22 - 65535); i--) {
+    if (buffer.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw bad();
+  const count = buffer.readUInt16LE(eocd + 10);
+  let pos = buffer.readUInt32LE(eocd + 16);
+  let total = 0;
+  for (let n = 0; n < count; n++) {
+    if (pos + 46 > buffer.length || buffer.readUInt32LE(pos) !== 0x02014b50) throw bad();
+    total += buffer.readUInt32LE(pos + 24);
+    if (total > XLSX_MAX_UNCOMPRESSED) throw new BusinessError("IMPORT_TROP_GROS", "Fichier Excel trop volumineux une fois décompressé.");
+    pos += 46 + buffer.readUInt16LE(pos + 28) + buffer.readUInt16LE(pos + 30) + buffer.readUInt16LE(pos + 32);
+  }
+}
+
 export async function parseImportFile(fileName: string, buffer: Buffer): Promise<ParsedFile> {
   if (buffer.length === 0) throw new BusinessError("IMPORT_VIDE", "Le fichier est vide.");
   if (buffer.length > IMPORT_MAX_BYTES) throw new BusinessError("IMPORT_TROP_GROS", "Fichier trop volumineux (5 Mo maximum).");
-  if (detectFormat(fileName) === "csv") return toParsed(parseCsvText(decodeCsv(buffer)));
+  if (detectFormat(fileName) === "csv") {
+    if (buffer.includes(0)) throw new BusinessError("IMPORT_ILLISIBLE", "Ce fichier n'est pas un CSV texte.");
+    return toParsed(parseCsvText(decodeCsv(buffer)));
+  }
+  assertSafeXlsx(buffer);
   const wb = new ExcelJS.Workbook();
   try {
     await wb.xlsx.load(buffer as unknown as ArrayBuffer);

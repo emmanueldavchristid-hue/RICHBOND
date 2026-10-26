@@ -379,6 +379,8 @@ export async function commitImport(actor: ImportActor, input: ImportInput, ip?: 
   try {
     return await db.$transaction(
       async (tx) => {
+        // Un seul import à la fois : évite un stock initial doublé par deux imports simultanés.
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('richbond-import'))`;
         const ctx = await loadContext(tx, input.type, parsed.lines, mapping, at);
         const rows = validateRows(input.type, parsed.lines, mapping, ctx);
         const valid = rows.filter((r) => r.status === "OK");
