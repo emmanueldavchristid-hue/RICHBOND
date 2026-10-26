@@ -11,7 +11,11 @@ import { parseDecimalString } from "@/modules/import/values";
 
 const fixture = (name: string) => readFileSync(path.resolve(__dirname, "../fixtures/import", name));
 
-async function preview(name: string, type: "ARTICLES" | "FOURNISSEURS" | "ARTICLE_FOURNISSEUR" | "STOCK_INITIAL", ctx = emptyContext("2026-10-25")) {
+async function preview(
+  name: string,
+  type: "ARTICLES" | "FOURNISSEURS" | "ARTICLE_FOURNISSEUR" | "STOCK_INITIAL",
+  ctx = emptyContext("2026-10-25"),
+) {
   const parsed = await parseImportFile(name, fixture(name));
   const mapping = resolveMapping(type, parsed.headers);
   return validateRows(type, parsed.lines, mapping, ctx);
@@ -22,7 +26,13 @@ describe("import : lecture des fichiers et détection des colonnes", () => {
     const parsed = await parseImportFile("articles-desordre.csv", fixture("articles-desordre.csv"));
     expect(parsed.headers).toEqual(["Unité", "Famille", "Désignation", "Catégorie", "Référence"]);
     const m = suggestMapping("ARTICLES", parsed.headers);
-    expect(m).toMatchObject({ code: "Référence", name: "Désignation", category: "Catégorie", stockUnit: "Unité", family: "Famille" });
+    expect(m).toMatchObject({
+      code: "Référence",
+      name: "Désignation",
+      category: "Catégorie",
+      stockUnit: "Unité",
+      family: "Famille",
+    });
     const rows = await preview("articles-desordre.csv", "ARTICLES");
     expect(rows.map((r) => r.status)).toEqual(["OK", "OK"]);
     expect(rows[1].data.name).toBe("Huile hydraulique, ISO 46");
@@ -43,7 +53,10 @@ describe("import : lecture des fichiers et détection des colonnes", () => {
     ws.addRow([]);
     ws.addRow(["IT-X2", "Graisse", "Intrant", "KG"]);
     const x = await parseImportFile("x.xlsx", Buffer.from(await wb.xlsx.writeBuffer()));
-    expect(x.lines.map((l) => [l.line, l.cells["Référence"]])).toEqual([[2, "IT-X1"], [4, "IT-X2"]]);
+    expect(x.lines.map((l) => [l.line, l.cells["Référence"]])).toEqual([
+      [2, "IT-X1"],
+      [4, "IT-X2"],
+    ]);
   });
 
   it("le modèle téléchargeable est relu tel quel avec toutes ses colonnes reconnues", async () => {
@@ -55,8 +68,18 @@ describe("import : lecture des fichiers et détection des colonnes", () => {
       for (const f of IMPORT_FIELDS[type]) expect(m[f.key], `${type}.${f.key}`).toBe(f.aliases[0]);
     }
     const report = await buildImportReportWorkbook(
-      { batchId: "b", type: "ARTICLES", fileName: "a.csv", totalRows: 1, okCount: 0, errorCount: 1, created: 0, updated: 0, unchanged: 0 },
-      [{ line: 2, key: "X", outcome: "ERREUR", message: "Code manquant." }],
+      {
+        batchId: "b",
+        type: "ARTICLES",
+        fileName: "a.csv",
+        totalRows: 1,
+        okCount: 0,
+        errorCount: 1,
+        created: 0,
+        updated: 0,
+        unchanged: 0,
+      },
+      [{ line: 2, ref: "X", outcome: "ERREUR", message: "Code manquant." }],
     );
     expect(report.length).toBeGreaterThan(1000);
   });
@@ -73,7 +96,10 @@ describe("import : aperçu des erreurs par ligne", () => {
   });
 
   it("fournisseurs : email invalide ; article-fournisseur : prix invalide et article inconnu", async () => {
-    const f = await preview("fournisseurs.csv", "FOURNISSEURS", { ...emptyContext("2026-10-25"), currencies: new Set(["XOF", "EUR"]) });
+    const f = await preview("fournisseurs.csv", "FOURNISSEURS", {
+      ...emptyContext("2026-10-25"),
+      currencies: new Set(["XOF", "EUR"]),
+    });
     expect(f.map((r) => r.status)).toEqual(["OK", "OK", "ERREUR"]);
     expect(f[2].errors.join()).toMatch(/Email invalide/);
 
@@ -82,8 +108,20 @@ describe("import : aperçu des erreurs par ligne", () => {
     const item = { id: "i1", code: "IT-IMP-001", stocked: true, purchaseUnit: "U" } as ItemRef;
     ctx.items.set("IT-IMP-001", item);
     ctx.items.set("IT-IMP-002", { ...item, id: "i2", code: "IT-IMP-002" });
-    ctx.suppliers.set("IT-FRS-001", { id: "s1", code: "IT-FRS-001", name: "S1", status: "ACTIF", currencyCode: "XOF" } as never);
-    ctx.suppliers.set("IT-FRS-002", { id: "s2", code: "IT-FRS-002", name: "S2", status: "ACTIF", currencyCode: "EUR" } as never);
+    ctx.suppliers.set("IT-FRS-001", {
+      id: "s1",
+      code: "IT-FRS-001",
+      name: "S1",
+      status: "ACTIF",
+      currencyCode: "XOF",
+    } as never);
+    ctx.suppliers.set("IT-FRS-002", {
+      id: "s2",
+      code: "IT-FRS-002",
+      name: "S2",
+      status: "ACTIF",
+      currencyCode: "EUR",
+    } as never);
     const l = await preview("article-fournisseur.csv", "ARTICLE_FOURNISSEUR", ctx);
     expect(l.map((r) => r.status)).toEqual(["OK", "OK", "ERREUR", "ERREUR"]);
     expect(l[0].data).toMatchObject({ price: "4500", leadTimeDays: 7 });
@@ -95,7 +133,8 @@ describe("import : aperçu des erreurs par ligne", () => {
   it("stock initial : quantité négative, PMP manquant, doublon article/dépôt, déjà importé", async () => {
     const ctx = emptyContext("2026-10-25");
     ctx.warehouses.set("IT-DEP", { id: "w", code: "IT-DEP" });
-    for (const c of ["IT-IMP-001", "IT-IMP-002", "IT-IMP-003", "IT-IMP-004"]) ctx.items.set(c, { id: c, code: c, stocked: true } as ItemRef);
+    for (const c of ["IT-IMP-001", "IT-IMP-002", "IT-IMP-003", "IT-IMP-004"])
+      ctx.items.set(c, { id: c, code: c, stocked: true } as ItemRef);
     ctx.stockState.set("IT-IMP-001|IT-DEP", { initial: true, other: false });
     const rows = await preview("stock-initial.csv", "STOCK_INITIAL", ctx);
     expect(rows.map((r) => r.status)).toEqual(["OK", "OK", "ERREUR", "ERREUR"]);

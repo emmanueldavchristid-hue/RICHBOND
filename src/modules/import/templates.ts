@@ -37,16 +37,21 @@ export async function buildTemplate(type: ImportType): Promise<Buffer> {
     { header: "Autres noms reconnus", width: 60 },
   ];
   help.getRow(1).font = { bold: true };
-  for (const f of fields) help.addRow([f.aliases[0], f.required ? "Oui" : "Non", f.help, f.aliases.slice(1).join(", ")]);
+  for (const f of fields)
+    help.addRow([f.aliases[0], f.required ? "Oui" : "Non", f.help, f.aliases.slice(1).join(", ")]);
   help.addRow([]);
-  help.addRow(["Importez la feuille « " + IMPORT_TYPE_LABELS[type] + " » : une ligne par enregistrement, à partir de la ligne 2."]);
+  help.addRow([
+    "Importez la feuille « " +
+      IMPORT_TYPE_LABELS[type] +
+      " » : une ligne par enregistrement, à partir de la ligne 2.",
+  ]);
   help.addRow(["Le ré-import d'un même fichier met à jour par code et ne crée pas de doublon."]);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
 export interface ReportLineInput {
   line: number;
-  key: string;
+  ref: string;
   outcome: string;
   message: string;
 }
@@ -85,7 +90,7 @@ export async function buildImportReportWorkbook(
   ];
   ws.getRow(1).font = { bold: true };
   ws.views = [{ state: "frozen", ySplit: 1 }];
-  for (const l of lines) ws.addRow([l.line, l.key, OUTCOME_LABELS[l.outcome] ?? l.outcome, l.message]);
+  for (const l of lines) ws.addRow([l.line, l.ref, OUTCOME_LABELS[l.outcome] ?? l.outcome, l.message]);
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 4 } };
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

@@ -88,7 +88,13 @@ async function loadSuppliers(tx: Client, codes: string[]): Promise<Map<string, S
   return map;
 }
 
-async function loadContext(tx: Client, type: ImportType, lines: RawLine[], mapping: ColumnMapping, at: Date): Promise<ValidationContext> {
+async function loadContext(
+  tx: Client,
+  type: ImportType,
+  lines: RawLine[],
+  mapping: ColumnMapping,
+  at: Date,
+): Promise<ValidationContext> {
   const ctx = emptyContext(todayAbidjan(at));
   const activeCurrencies = async () => {
     const cur = await tx.currency.findMany({ where: { active: true }, select: { code: true } });
@@ -99,14 +105,20 @@ async function loadContext(tx: Client, type: ImportType, lines: RawLine[], mappi
     const barcodes = codesOf(lines, mapping, "barcode", false);
     if (barcodes.length) {
       for (const part of chunks(barcodes, 1000)) {
-        const owners = await tx.item.findMany({ where: { barcode: { in: part } }, select: { code: true, barcode: true } });
+        const owners = await tx.item.findMany({
+          where: { barcode: { in: part } },
+          select: { code: true, barcode: true },
+        });
         for (const o of owners) if (o.barcode) ctx.barcodeOwners.set(o.barcode, o.code);
       }
     }
     const ids = [...ctx.items.values()].map((i) => i.id);
     const codeById = new Map([...ctx.items.values()].map((i) => [i.id, i.code]));
     for (const part of chunks(ids, 1000)) {
-      const priced = await tx.itemSupplier.findMany({ where: { itemId: { in: part }, active: true, lastPrice: { not: null } }, select: { itemId: true } });
+      const priced = await tx.itemSupplier.findMany({
+        where: { itemId: { in: part }, active: true, lastPrice: { not: null } },
+        select: { itemId: true },
+      });
       for (const p of priced) ctx.pricedItems.add(codeById.get(p.itemId)!);
     }
   } else if (type === "FOURNISSEURS") {
@@ -114,7 +126,10 @@ async function loadContext(tx: Client, type: ImportType, lines: RawLine[], mappi
     await activeCurrencies();
     const nccs = codesOf(lines, mapping, "ncc", false).map((n) => n.toUpperCase());
     for (const part of chunks(nccs, 1000)) {
-      const owners = await tx.supplier.findMany({ where: { ncc: { in: part } }, select: { code: true, ncc: true } });
+      const owners = await tx.supplier.findMany({
+        where: { ncc: { in: part } },
+        select: { code: true, ncc: true },
+      });
       for (const o of owners) if (o.ncc) ctx.nccOwners.set(o.ncc, o.code);
     }
   } else if (type === "ARTICLE_FOURNISSEUR") {
@@ -124,7 +139,9 @@ async function loadContext(tx: Client, type: ImportType, lines: RawLine[], mappi
     const itemById = new Map([...ctx.items.values()].map((i) => [i.id, i.code]));
     const supplierById = new Map([...ctx.suppliers.values()].map((s) => [s.id, s.code]));
     for (const part of chunks([...itemById.keys()], 1000)) {
-      const links = await tx.itemSupplier.findMany({ where: { itemId: { in: part }, supplierId: { in: [...supplierById.keys()] } } });
+      const links = await tx.itemSupplier.findMany({
+        where: { itemId: { in: part }, supplierId: { in: [...supplierById.keys()] } },
+      });
       for (const l of links) {
         const key = `${itemById.get(l.itemId)}|${supplierById.get(l.supplierId)}`;
         ctx.links.set(key, {
@@ -145,7 +162,10 @@ async function loadContext(tx: Client, type: ImportType, lines: RawLine[], mappi
     const itemById = new Map([...ctx.items.values()].map((i) => [i.id, i.code]));
     const whById = new Map(whs.map((w) => [w.id, w.code]));
     for (const part of chunks([...itemById.keys()], 1000)) {
-      const groups = await tx.stockMovement.groupBy({ by: ["itemId", "warehouseId", "documentRef"], where: { itemId: { in: part } } });
+      const groups = await tx.stockMovement.groupBy({
+        by: ["itemId", "warehouseId", "documentRef"],
+        where: { itemId: { in: part } },
+      });
       for (const g of groups) {
         const wh = whById.get(g.warehouseId);
         if (!wh) continue;
@@ -162,7 +182,13 @@ async function loadContext(tx: Client, type: ImportType, lines: RawLine[], mappi
 
 // ------------------------------------------------------------------ aperçu
 
-function summarize(parsed: ParsedFile, type: ImportType, mapping: ColumnMapping, suggested: ColumnMapping, rows: PreviewRow[]): PreviewResult {
+function summarize(
+  parsed: ParsedFile,
+  type: ImportType,
+  mapping: ColumnMapping,
+  suggested: ColumnMapping,
+  rows: PreviewRow[],
+): PreviewResult {
   const errorCount = rows.filter((r) => r.status === "ERREUR").length;
   return {
     type,
@@ -182,7 +208,13 @@ export async function previewImport(input: ImportInput, at: Date = now()): Promi
   const suggested = resolveMapping(input.type, parsed.headers, null);
   const mapping = resolveMapping(input.type, parsed.headers, input.mapping);
   const ctx = await loadContext(db, input.type, parsed.lines, mapping, at);
-  return summarize(parsed, input.type, mapping, suggested, validateRows(input.type, parsed.lines, mapping, ctx));
+  return summarize(
+    parsed,
+    input.type,
+    mapping,
+    suggested,
+    validateRows(input.type, parsed.lines, mapping, ctx),
+  );
 }
 
 // ------------------------------------------------------------------ import
@@ -190,7 +222,8 @@ export async function previewImport(input: ImportInput, at: Date = now()): Promi
 type Outcome = "CREE" | "MIS_A_JOUR" | "INCHANGE" | "ERREUR";
 interface ReportLine {
   line: number;
-  key: string;
+  /** Code de la ligne. Pas nommé `key` : l'audit retire ce champ (clé de licence). */
+  ref: string;
   outcome: Outcome;
   message: string;
 }
@@ -201,7 +234,12 @@ interface Counts {
   unchanged: number;
 }
 
-async function applyItems(tx: Client, actor: ImportActor, rows: PreviewRow[], ctx: ValidationContext): Promise<Counts> {
+async function applyItems(
+  tx: Client,
+  actor: ImportActor,
+  rows: PreviewRow[],
+  ctx: ValidationContext,
+): Promise<Counts> {
   const counts: Counts = { created: 0, updated: 0, unchanged: 0 };
   const creates = rows.filter((r) => r.action === "CREATE");
   for (const part of chunks(creates, CHUNK)) {
@@ -225,14 +263,22 @@ async function applyItems(tx: Client, actor: ImportActor, rows: PreviewRow[], ct
   counts.created = creates.length;
   for (const r of rows.filter((x) => x.action === "UPDATE")) {
     const existing = ctx.items.get(r.data.code as string)!;
-    await tx.item.update({ where: { id: existing.id }, data: itemPatch(existing, r.data) as Prisma.ItemUpdateInput });
+    await tx.item.update({
+      where: { id: existing.id },
+      data: itemPatch(existing, r.data) as Prisma.ItemUpdateInput,
+    });
     counts.updated++;
   }
   counts.unchanged = rows.filter((r) => r.action === "UNCHANGED").length;
   return counts;
 }
 
-async function applySuppliers(tx: Client, actor: ImportActor, rows: PreviewRow[], ctx: ValidationContext): Promise<Counts> {
+async function applySuppliers(
+  tx: Client,
+  actor: ImportActor,
+  rows: PreviewRow[],
+  ctx: ValidationContext,
+): Promise<Counts> {
   const creates = rows.filter((r) => r.action === "CREATE");
   for (const part of chunks(creates, CHUNK)) {
     await tx.supplier.createMany({
@@ -253,13 +299,22 @@ async function applySuppliers(tx: Client, actor: ImportActor, rows: PreviewRow[]
   let updated = 0;
   for (const r of rows.filter((x) => x.action === "UPDATE")) {
     const existing = ctx.suppliers.get(r.data.code as string)!;
-    await tx.supplier.update({ where: { id: existing.id }, data: supplierPatch(existing, r.data) as Prisma.SupplierUpdateInput });
+    await tx.supplier.update({
+      where: { id: existing.id },
+      data: supplierPatch(existing, r.data) as Prisma.SupplierUpdateInput,
+    });
     updated++;
   }
   return { created: creates.length, updated, unchanged: rows.filter((r) => r.action === "UNCHANGED").length };
 }
 
-async function applyLinks(tx: Client, actor: ImportActor, rows: PreviewRow[], ctx: ValidationContext, at: Date): Promise<Counts> {
+async function applyLinks(
+  tx: Client,
+  actor: ImportActor,
+  rows: PreviewRow[],
+  ctx: ValidationContext,
+  at: Date,
+): Promise<Counts> {
   const rates = new Map<string, Prisma.Decimal | null>();
   const rateOf = async (code: string) => {
     if (!rates.has(code)) {
@@ -273,7 +328,12 @@ async function applyLinks(tx: Client, actor: ImportActor, rows: PreviewRow[], ct
     return rates.get(code)!;
   };
   const history: Prisma.ItemPriceHistoryCreateManyInput[] = [];
-  const priceHistory = async (itemId: string, supplierId: string, d: PreviewRow["data"], purchaseUnit: string) => {
+  const priceHistory = async (
+    itemId: string,
+    supplierId: string,
+    d: PreviewRow["data"],
+    purchaseUnit: string,
+  ) => {
     history.push({
       itemId,
       supplierId,
@@ -320,7 +380,10 @@ async function applyLinks(tx: Client, actor: ImportActor, rows: PreviewRow[], ct
     const priceChanged = "lastPrice" in patch;
     await tx.itemSupplier.update({
       where: { id: existing.id },
-      data: { ...(patch as Prisma.ItemSupplierUpdateInput), ...(priceChanged ? { lastPriceDate: at, priceUnit: item.purchaseUnit } : {}) },
+      data: {
+        ...(patch as Prisma.ItemSupplierUpdateInput),
+        ...(priceChanged ? { lastPriceDate: at, priceUnit: item.purchaseUnit } : {}),
+      },
     });
     if (priceChanged && d.currencyCode) await priceHistory(item.id, supplier.id, d, item.purchaseUnit);
     updated++;
@@ -330,7 +393,15 @@ async function applyLinks(tx: Client, actor: ImportActor, rows: PreviewRow[], ct
 }
 
 /** Stock initial : uniquement par `StockMovement` AJUSTEMENT_INVENTAIRE (PMP initial = coût de l'entrée), jamais en direct. */
-async function applyStock(tx: Client, actor: ImportActor, rows: PreviewRow[], ctx: ValidationContext, batchId: string, fileName: string, at: Date): Promise<Counts> {
+async function applyStock(
+  tx: Client,
+  actor: ImportActor,
+  rows: PreviewRow[],
+  ctx: ValidationContext,
+  batchId: string,
+  fileName: string,
+  at: Date,
+): Promise<Counts> {
   const creates = rows.filter((r) => r.action === "CREATE");
   const today = todayAbidjan(at);
   for (const part of chunks(creates, MOVEMENT_CHUNK)) {
@@ -352,14 +423,25 @@ async function applyStock(tx: Client, actor: ImportActor, rows: PreviewRow[], ct
     });
     await applyMovements(tx, inputs);
   }
-  return { created: creates.length, updated: 0, unchanged: rows.filter((r) => r.action === "UNCHANGED").length };
+  return {
+    created: creates.length,
+    updated: 0,
+    unchanged: rows.filter((r) => r.action === "UNCHANGED").length,
+  };
 }
 
 function reportLines(rows: PreviewRow[]): ReportLine[] {
   return rows.map((r) => ({
     line: r.line,
-    key: r.key ?? "",
-    outcome: r.status === "ERREUR" ? "ERREUR" : r.action === "CREATE" ? "CREE" : r.action === "UPDATE" ? "MIS_A_JOUR" : "INCHANGE",
+    ref: r.key ?? "",
+    outcome:
+      r.status === "ERREUR"
+        ? "ERREUR"
+        : r.action === "CREATE"
+          ? "CREE"
+          : r.action === "UPDATE"
+            ? "MIS_A_JOUR"
+            : "INCHANGE",
     message: r.status === "ERREUR" ? r.errors.join(" ") : (r.warnings ?? []).join(" "),
   }));
 }
@@ -372,7 +454,12 @@ function isUniqueViolation(e: unknown): boolean {
  * Import des lignes valides seulement, dans une transaction : tout ou rien côté technique, ligne par ligne côté métier.
  * Idempotent : un ré-import ne crée rien (lignes « inchangées »). Une trace d'audit par import (fichier, lignes, erreurs).
  */
-export async function commitImport(actor: ImportActor, input: ImportInput, ip?: string | null, at: Date = now()): Promise<ImportSummary> {
+export async function commitImport(
+  actor: ImportActor,
+  input: ImportInput,
+  ip?: string | null,
+  at: Date = now(),
+): Promise<ImportSummary> {
   const parsed = await parseImportFile(input.fileName, input.buffer);
   const mapping = resolveMapping(input.type, parsed.headers, input.mapping);
   const batchId = randomUUID();
@@ -406,7 +493,12 @@ export async function commitImport(actor: ImportActor, input: ImportInput, ip?: 
           action: AUDIT_ACTION,
           entity: "ImportBatch",
           entityId: batchId,
-          after: { ...summary, typeLabel: IMPORT_TYPE_LABELS[input.type], at: at.toISOString(), lines: reportLines(rows) },
+          after: {
+            ...summary,
+            typeLabel: IMPORT_TYPE_LABELS[input.type],
+            at: at.toISOString(),
+            lines: reportLines(rows),
+          },
           ip,
         });
         return summary;
@@ -415,7 +507,10 @@ export async function commitImport(actor: ImportActor, input: ImportInput, ip?: 
     );
   } catch (e) {
     if (isUniqueViolation(e)) {
-      throw new BusinessError("IMPORT_CONFLIT", "Un code ou un code-barres existe déjà (import simultané ?). Relancez l'aperçu puis l'import.");
+      throw new BusinessError(
+        "IMPORT_CONFLIT",
+        "Un code ou un code-barres existe déjà (import simultané ?). Relancez l'aperçu puis l'import.",
+      );
     }
     throw e;
   }
@@ -429,7 +524,9 @@ export interface ImportReport {
 }
 
 export async function getImportReport(batchId: string): Promise<ImportReport> {
-  const entry = await db.auditLog.findFirst({ where: { action: AUDIT_ACTION, entity: "ImportBatch", entityId: batchId } });
+  const entry = await db.auditLog.findFirst({
+    where: { action: AUDIT_ACTION, entity: "ImportBatch", entityId: batchId },
+  });
   if (!entry || !entry.after) throw new BusinessError("NOT_FOUND", "Rapport d'import introuvable.");
   const after = entry.after as unknown as ImportReport["summary"] & { lines: ReportLine[] };
   const { lines, ...summary } = after;
