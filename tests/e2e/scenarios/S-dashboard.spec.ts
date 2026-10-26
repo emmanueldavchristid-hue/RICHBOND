@@ -15,11 +15,13 @@ import { expectTouchHeight } from "../helpers/rec";
 
 const RISK_ITEM = "Roulement 6205";
 
-const count = async (sql: string, params: unknown[] = []) => Number((await dbOne<{ n: string }>(sql, params)).n);
+const count = async (sql: string, params: unknown[] = []) =>
+  Number((await dbOne<{ n: string }>(sql, params)).n);
 const cardCount = async (page: Page, key: string) =>
   Number(norm(await t(page, `dash-action-${key}-count`).textContent()).replace(/\s/g, ""));
 /** Clic sur le lien étendu de la carte (le testid historique est conservé pour certaines cartes). */
-const clickCard = (page: Page, key: string) => page.locator(`[data-dash-link="dash-action-${key}-link"]`).click();
+const clickCard = (page: Page, key: string) =>
+  page.locator(`[data-dash-link="dash-action-${key}-link"]`).click();
 
 test.beforeEach(async ({ context }) => {
   await resetLicense(30);
@@ -43,22 +45,37 @@ test("S-dashboard – Responsable : cartes à traiter, KPI, graphiques, risques 
 
   await test.step("Cartes « à traiter » : les compteurs sont ceux de la base", async () => {
     await expect(t(page, "dash-actions")).toBeVisible();
-    expect(await cardCount(page, "da-a-valider")).toBe(await count(`SELECT count(*) AS n FROM purchase_requests WHERE status = 'SOUMISE'`));
-    expect(await cardCount(page, "bc-a-valider")).toBe(await count(`SELECT count(*) AS n FROM purchase_orders WHERE status = 'A_VALIDER'`));
-    expect(await cardCount(page, "nc-ouvertes")).toBe(await count(`SELECT count(*) AS n FROM non_conformities WHERE status = 'OUVERTE'`));
+    expect(await cardCount(page, "da-a-valider")).toBe(
+      await count(`SELECT count(*) AS n FROM purchase_requests WHERE status = 'SOUMISE'`),
+    );
+    expect(await cardCount(page, "bc-a-valider")).toBe(
+      await count(`SELECT count(*) AS n FROM purchase_orders WHERE status = 'A_VALIDER'`),
+    );
+    expect(await cardCount(page, "nc-ouvertes")).toBe(
+      await count(`SELECT count(*) AS n FROM non_conformities WHERE status = 'OUVERTE'`),
+    );
     await expect(t(page, "dash-action-bc-en-retard")).toBeVisible();
     await expect(t(page, "dash-action-risques-rupture")).toBeVisible();
   });
 
   await test.step("KPI du mois : montant, nombre de BC, délais, livraisons à temps, valeur du stock (6 au plus)", async () => {
     await expect(t(page, "dash-kpis")).toBeVisible();
-    for (const k of ["montant-commande", "nombre-bc", "delai-da-bc", "taux-a-temps", "valeur-stock", "ruptures"]) {
+    for (const k of [
+      "montant-commande",
+      "nombre-bc",
+      "delai-da-bc",
+      "taux-a-temps",
+      "valeur-stock",
+      "ruptures",
+    ]) {
       await expect(t(page, `dash-kpi-${k}`)).toBeVisible();
     }
     await expect(t(page, "dash-kpi-montant-commande-value")).toContainText("FCFA");
     await expect(t(page, "dash-kpi-valeur-stock-value")).toContainText("FCFA");
     await expect(t(page, "dash-kpi-taux-a-temps-value")).toContainText("%");
-    await expect(t(page, "dash-kpis").locator('[data-testid^="dash-kpi-"][data-testid$="-value"]')).toHaveCount(6);
+    await expect(
+      t(page, "dash-kpis").locator('[data-testid^="dash-kpi-"][data-testid$="-value"]'),
+    ).toHaveCount(6);
   });
 
   await test.step("Graphiques : achats par mois, top fournisseurs, valeur du stock par catégorie", async () => {
@@ -166,17 +183,24 @@ test("S-dashboard – Acheteur : uniquement ses DA et ses BC, bouton Relancer, p
   });
 
   await test.step("Relancer : le bouton ouvre la fenêtre de relance du BC (texte prêt à copier), rien n'est écrit tant qu'on ne confirme pas", async () => {
-    const before = await dbOne<{ r: string | null }>(`SELECT last_reminded_at::text AS r FROM purchase_orders WHERE id = $1`, [lateOrder!.id]);
+    const before = await dbOne<{ r: string | null }>(
+      `SELECT last_reminded_at::text AS r FROM purchase_orders WHERE id = $1`,
+      [lateOrder!.id],
+    );
     const button = t(page, `dash-remind-${lateOrder!.id}`).first();
     await expect(button).toBeVisible();
     await expect(button).toContainText("Relancer");
-    if (testInfo.project.name === "tablette") expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(36);
+    if (testInfo.project.name === "tablette")
+      expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(36);
     await button.click();
     await expect(t(page, "po-remind-dialog")).toBeVisible();
     await expect(t(page, "po-remind-dialog")).toContainText(lateOrder!.number);
     await t(page, "po-remind-cancel").click();
     await expect(t(page, "po-remind-dialog")).toBeHidden();
-    const after = await dbOne<{ r: string | null }>(`SELECT last_reminded_at::text AS r FROM purchase_orders WHERE id = $1`, [lateOrder!.id]);
+    const after = await dbOne<{ r: string | null }>(
+      `SELECT last_reminded_at::text AS r FROM purchase_orders WHERE id = $1`,
+      [lateOrder!.id],
+    );
     expect(after.r).toBe(before.r);
   });
 
@@ -196,14 +220,17 @@ test("S-dashboard – Acheteur : uniquement ses DA et ses BC, bouton Relancer, p
 });
 
 // ---------------------------------------------------------------------------------------------------
-test("S-dashboard – Magasinier : gros boutons, réceptions et sorties, aucun montant (texte et HTML)", async ({ page }, testInfo) => {
+test("S-dashboard – Magasinier : gros boutons, réceptions et sorties, aucun montant (texte et HTML)", async ({
+  page,
+}, testInfo) => {
   const tablet = testInfo.project.name === "tablette";
 
   await test.step("Connexion Magasinier : tableau Magasinier, rien du Responsable ni de l'Acheteur", async () => {
     await loginAs(page, "MAGASINIER");
     await page.waitForLoadState("networkidle");
     await expect(t(page, "dash-magasinier")).toBeVisible();
-    for (const id of ["dash-responsable", "dash-acheteur", "dash-kpis", "dash-rupture"]) await expect(t(page, id)).toHaveCount(0);
+    for (const id of ["dash-responsable", "dash-acheteur", "dash-kpis", "dash-rupture"])
+      await expect(t(page, id)).toHaveCount(0);
   });
 
   await test.step("Gros boutons « Recevoir une livraison » et « Enregistrer une sortie » (zone tactile ≥ 44 px, 56 px visés)", async () => {
@@ -226,7 +253,8 @@ test("S-dashboard – Magasinier : gros boutons, réceptions et sorties, aucun m
     );
     if (lastIssue.length > 0) await expect(t(page, `dash-issue-${lastIssue[0].number}`)).toBeVisible();
     else await expect(t(page, "dash-recent-issues")).toContainText("Aucune sortie enregistrée"); // seed sans sortie : état vide explicite
-    if (tablet) expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); // pas de défilement horizontal
+    if (tablet)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true); // pas de défilement horizontal
   });
 
   await test.step("Aucun montant : ni dans le texte affiché ni dans le HTML livré (FCFA, PMP, prix, valeur)", async () => {
@@ -257,7 +285,11 @@ test.describe("S-dashboard – Essai expiré : lecture seule, mais le tableau s'
   }) => {
     let reminded0 = "";
     const remindedCount = async () =>
-      (await dbOne<{ n: string }>(`SELECT count(*)::text AS n FROM purchase_orders WHERE last_reminded_at IS NOT NULL`)).n;
+      (
+        await dbOne<{ n: string }>(
+          `SELECT count(*)::text AS n FROM purchase_orders WHERE last_reminded_at IS NOT NULL`,
+        )
+      ).n;
 
     await test.step("Après la fin d'essai : le Responsable se connecte, bandeau « lecture seule », cartes, KPI et risques affichés", async () => {
       reminded0 = await remindedCount();

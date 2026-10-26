@@ -72,7 +72,16 @@ function kpi(
   goodDirection: GoodDirection,
   extra: { href?: string; help?: string } = {},
 ): KpiCard {
-  return { key, label, unit, value, previous, variationPct: variationPct(value, previous), goodDirection, ...extra };
+  return {
+    key,
+    label,
+    unit,
+    value,
+    previous,
+    variationPct: variationPct(value, previous),
+    goodDirection,
+    ...extra,
+  };
 }
 
 // ------------------------------------------------------------------ risques de rupture (T4)
@@ -108,7 +117,10 @@ export async function ruptureRisks(at: Date): Promise<{ total: number; rows: Rup
       href: `/stock/articles/${item.id}`,
     });
   }
-  risky.sort((a, b) => (a.stockoutDate ?? "9999").localeCompare(b.stockoutDate ?? "9999") || a.code.localeCompare(b.code));
+  risky.sort(
+    (a, b) =>
+      (a.stockoutDate ?? "9999").localeCompare(b.stockoutDate ?? "9999") || a.code.localeCompare(b.code),
+  );
   return { total: risky.length, rows: risky.slice(0, DASHBOARD_RISK_LIMIT) };
 }
 
@@ -174,10 +186,34 @@ export async function responsibleDashboard(at: Date = clockNow()): Promise<Respo
       tone: cardTone(toValidateDa, "attention"),
       hint: stopsDa > 0 ? `dont ${stopsDa} ${plural(stopsDa, "arrêt", "arrêts")} de production` : undefined,
     },
-    { key: "bc-a-valider", label: "BC à valider", count: toValidateBc, href: "/achats/commandes?onglet=a-valider", tone: cardTone(toValidateBc, "attention") },
-    { key: "bc-en-retard", label: "BC en retard", count: lateBc, href: "/achats/commandes?onglet=en-retard", tone: cardTone(lateBc, "critical") },
-    { key: "risques-rupture", label: "Articles critiques en risque de rupture", count: risks.total, href: "/stock/reappro", tone: cardTone(risks.total, "critical") },
-    { key: "nc-ouvertes", label: "Non-conformités ouvertes", count: openNc, href: "/stock/receptions/non-conformites", tone: cardTone(openNc, "attention") },
+    {
+      key: "bc-a-valider",
+      label: "BC à valider",
+      count: toValidateBc,
+      href: "/achats/commandes?onglet=a-valider",
+      tone: cardTone(toValidateBc, "attention"),
+    },
+    {
+      key: "bc-en-retard",
+      label: "BC en retard",
+      count: lateBc,
+      href: "/achats/commandes?onglet=en-retard",
+      tone: cardTone(lateBc, "critical"),
+    },
+    {
+      key: "risques-rupture",
+      label: "Articles critiques en risque de rupture",
+      count: risks.total,
+      href: "/stock/reappro",
+      tone: cardTone(risks.total, "critical"),
+    },
+    {
+      key: "nc-ouvertes",
+      label: "Non-conformités ouvertes",
+      count: openNc,
+      href: "/stock/receptions/non-conformites",
+      tone: cardTone(openNc, "attention"),
+    },
   ];
 
   const stockPrev = previousStockValue(stockNow, movedSince);
@@ -186,17 +222,44 @@ export async function responsibleDashboard(at: Date = clockNow()): Promise<Respo
       href: "/achats/commandes?onglet=en-cours",
       help: "Total HT des BC validés ce mois, comparé au mois précédent à la même date.",
     }),
-    kpi("nombre-bc", "Nombre de BC", "COUNT", ordCur.count, ordPrev.count, "NONE", { href: "/achats/commandes", help: "BC validés ce mois." }),
-    kpi("delai-da-bc", "Délai DA → BC", "DAYS", average(daCur.sum, daCur.count), average(daPrev.sum, daPrev.count), "DOWN", {
-      help: "Jours entre la validation de la DA et la validation du BC (moyenne).",
+    kpi("nombre-bc", "Nombre de BC", "COUNT", ordCur.count, ordPrev.count, "NONE", {
+      href: "/achats/commandes",
+      help: "BC validés ce mois.",
     }),
-    kpi("delai-bc-reception", "Délai BC → réception", "DAYS", average(recCur.sum, recCur.count), average(recPrev.sum, recPrev.count), "DOWN", {
-      help: "Jours entre la validation du BC et sa première réception (moyenne).",
-    }),
-    kpi("taux-a-temps", "Livraisons à temps", "PERCENT", onTimeRate(onTimeCur.onTime, onTimeCur.total), onTimeRate(onTimePrev.onTime, onTimePrev.total), "UP", {
-      href: "/stock/receptions?onglet=recentes",
-      help: "Part des réceptions du mois livrées à la date prévue ou avant.",
-    }),
+    kpi(
+      "delai-da-bc",
+      "Délai DA → BC",
+      "DAYS",
+      average(daCur.sum, daCur.count),
+      average(daPrev.sum, daPrev.count),
+      "DOWN",
+      {
+        help: "Jours entre la validation de la DA et la validation du BC (moyenne).",
+      },
+    ),
+    kpi(
+      "delai-bc-reception",
+      "Délai BC → réception",
+      "DAYS",
+      average(recCur.sum, recCur.count),
+      average(recPrev.sum, recPrev.count),
+      "DOWN",
+      {
+        help: "Jours entre la validation du BC et sa première réception (moyenne).",
+      },
+    ),
+    kpi(
+      "taux-a-temps",
+      "Livraisons à temps",
+      "PERCENT",
+      onTimeRate(onTimeCur.onTime, onTimeCur.total),
+      onTimeRate(onTimePrev.onTime, onTimePrev.total),
+      "UP",
+      {
+        href: "/stock/receptions?onglet=recentes",
+        help: "Part des réceptions du mois livrées à la date prévue ou avant.",
+      },
+    ),
     kpi("valeur-stock", "Valeur du stock", "FCFA", stockNow, stockPrev, "NONE", {
       href: "/stock",
       help: "Quantité × PMP de tous les dépôts, comparée à la fin du mois précédent.",
@@ -209,8 +272,12 @@ export async function responsibleDashboard(at: Date = clockNow()): Promise<Respo
 
   const months = lastTwelveMonths(at);
   const purchasesByMonth = months.map((month) => {
-    const local = byMonthType.filter((r) => r.month === month && r.type === "LOCAL").reduce((s, r) => s + r.amount, 0);
-    const imp = byMonthType.filter((r) => r.month === month && r.type === "IMPORT").reduce((s, r) => s + r.amount, 0);
+    const local = byMonthType
+      .filter((r) => r.month === month && r.type === "LOCAL")
+      .reduce((s, r) => s + r.amount, 0);
+    const imp = byMonthType
+      .filter((r) => r.month === month && r.type === "IMPORT")
+      .reduce((s, r) => s + r.amount, 0);
     return { month, label: monthLabel(month), localXof: local, importXof: imp, totalXof: local + imp };
   });
   const total12 = purchasesByMonth.reduce((s, m) => s + m.totalXof, 0);
@@ -234,7 +301,12 @@ export async function responsibleDashboard(at: Date = clockNow()): Promise<Respo
     })),
     stockByCategory: byCategory
       .sort((a, b) => b.value - a.value)
-      .map((c) => ({ category: c.category, label: CATEGORY_LABELS[c.category] ?? c.category, valueXof: c.value, sharePct: sharePct(c.value, stockTotal) })),
+      .map((c) => ({
+        category: c.category,
+        label: CATEGORY_LABELS[c.category] ?? c.category,
+        valueXof: c.value,
+        sharePct: sharePct(c.value, stockTotal),
+      })),
     ruptureRisks: risks,
   };
 }
@@ -269,7 +341,11 @@ function buyerOrderRow(o: OrderFields, at: Date, reminderDays: number): BuyerOrd
     expectedDate: o.expectedDate.toISOString().slice(0, 10),
     daysLate: orderDaysLate({ status, expectedDate: o.expectedDate }, at),
     totalXof: o.totalXof,
-    needsReminder: needsReminder({ status, sentAt: o.sentAt, lastRemindedAt: o.lastRemindedAt, expectedDate: o.expectedDate }, at, reminderDays),
+    needsReminder: needsReminder(
+      { status, sentAt: o.sentAt, lastRemindedAt: o.lastRemindedAt, expectedDate: o.expectedDate },
+      at,
+      reminderDays,
+    ),
     lastRemindedAt: o.lastRemindedAt ? o.lastRemindedAt.toISOString() : null,
     href: `/achats/commandes/${o.id}`,
   };
@@ -323,31 +399,46 @@ export async function buyerDashboard(user: DashboardUser, at: Date = clockNow())
   const settings = await getSettings();
   const reminderDays = settings.purchaseOrderReminderAfterDays;
   const myOrders = { createdById: user.id };
-  const lateWhere = { ...myOrders, status: { in: ["VALIDE", "ENVOYE", "CONFIRME", "PARTIELLEMENT_RECU"] as PoStatus[] }, expectedDate: { lt: new Date(`${today}T00:00:00.000Z`) } };
+  const lateWhere = {
+    ...myOrders,
+    status: { in: ["VALIDE", "ENVOYE", "CONFIRME", "PARTIELLEMENT_RECU"] as PoStatus[] },
+    expectedDate: { lt: new Date(`${today}T00:00:00.000Z`) },
+  };
 
-  const [reqTotal, reqRows, toSendTotal, toSendRows, lateTotal, lateRows, remindCandidates] = await Promise.all([
-    db.purchaseRequest.count({ where: { assignedBuyerId: user.id, status: { in: [...OPEN_FOR_BUYER] } } }),
-    db.purchaseRequest.findMany({
-      where: { assignedBuyerId: user.id, status: { in: [...OPEN_FOR_BUYER] } },
-      orderBy: [{ priority: "asc" }, { neededBy: "asc" }, { id: "asc" }],
-      take: DASHBOARD_LIST_LIMIT,
-      select: {
-        id: true,
-        number: true,
-        urgency: true,
-        requesterName: true,
-        neededBy: true,
-        approvedAt: true,
-        estimatedTotal: true,
-        department: { select: { name: true } },
-      },
-    }),
-    db.purchaseOrder.count({ where: { ...myOrders, status: "VALIDE" } }),
-    db.purchaseOrder.findMany({ where: { ...myOrders, status: "VALIDE" }, orderBy: [{ expectedDate: "asc" }, { id: "asc" }], take: DASHBOARD_LIST_LIMIT, select: ORDER_SELECT }),
-    countOrdersLate(today, user.id),
-    db.purchaseOrder.findMany({ where: lateWhere, orderBy: [{ expectedDate: "asc" }, { id: "asc" }], take: DASHBOARD_LIST_LIMIT, select: ORDER_SELECT }),
-    reminderCandidates(user.id, today, reminderDays),
-  ]);
+  const [reqTotal, reqRows, toSendTotal, toSendRows, lateTotal, lateRows, remindCandidates] =
+    await Promise.all([
+      db.purchaseRequest.count({ where: { assignedBuyerId: user.id, status: { in: [...OPEN_FOR_BUYER] } } }),
+      db.purchaseRequest.findMany({
+        where: { assignedBuyerId: user.id, status: { in: [...OPEN_FOR_BUYER] } },
+        orderBy: [{ priority: "asc" }, { neededBy: "asc" }, { id: "asc" }],
+        take: DASHBOARD_LIST_LIMIT,
+        select: {
+          id: true,
+          number: true,
+          urgency: true,
+          requesterName: true,
+          neededBy: true,
+          approvedAt: true,
+          estimatedTotal: true,
+          department: { select: { name: true } },
+        },
+      }),
+      db.purchaseOrder.count({ where: { ...myOrders, status: "VALIDE" } }),
+      db.purchaseOrder.findMany({
+        where: { ...myOrders, status: "VALIDE" },
+        orderBy: [{ expectedDate: "asc" }, { id: "asc" }],
+        take: DASHBOARD_LIST_LIMIT,
+        select: ORDER_SELECT,
+      }),
+      countOrdersLate(today, user.id),
+      db.purchaseOrder.findMany({
+        where: lateWhere,
+        orderBy: [{ expectedDate: "asc" }, { id: "asc" }],
+        take: DASHBOARD_LIST_LIMIT,
+        select: ORDER_SELECT,
+      }),
+      reminderCandidates(user.id, today, reminderDays),
+    ]);
 
   const toRemind = remindCandidates
     .map((c) =>
@@ -385,10 +476,34 @@ export async function buyerDashboard(user: DashboardUser, at: Date = clockNow())
 
   const mine = `acheteur=${user.id}`;
   const cards: ActionCard[] = [
-    { key: "mes-da", label: plural(reqTotal, "DA assignée à traiter", "DA assignées à traiter"), count: reqTotal, href: "/achats/demandes?onglet=assignees", tone: cardTone(reqTotal, "attention") },
-    { key: "mes-bc-a-envoyer", label: "BC à envoyer", count: toSendTotal, href: `/achats/commandes?onglet=en-cours&statut=VALIDE&${mine}`, tone: cardTone(toSendTotal, "attention") },
-    { key: "mes-bc-en-retard", label: "BC en retard", count: lateTotal, href: `/achats/commandes?onglet=en-retard&${mine}`, tone: cardTone(lateTotal, "critical") },
-    { key: "mes-bc-a-relancer", label: "BC à relancer", count: toRemind.length, href: `/achats/commandes?onglet=en-cours&relance=1&${mine}`, tone: cardTone(toRemind.length, "attention") },
+    {
+      key: "mes-da",
+      label: plural(reqTotal, "DA assignée à traiter", "DA assignées à traiter"),
+      count: reqTotal,
+      href: "/achats/demandes?onglet=assignees",
+      tone: cardTone(reqTotal, "attention"),
+    },
+    {
+      key: "mes-bc-a-envoyer",
+      label: "BC à envoyer",
+      count: toSendTotal,
+      href: `/achats/commandes?onglet=en-cours&statut=VALIDE&${mine}`,
+      tone: cardTone(toSendTotal, "attention"),
+    },
+    {
+      key: "mes-bc-en-retard",
+      label: "BC en retard",
+      count: lateTotal,
+      href: `/achats/commandes?onglet=en-retard&${mine}`,
+      tone: cardTone(lateTotal, "critical"),
+    },
+    {
+      key: "mes-bc-a-relancer",
+      label: "BC à relancer",
+      count: toRemind.length,
+      href: `/achats/commandes?onglet=en-cours&relance=1&${mine}`,
+      tone: cardTone(toRemind.length, "attention"),
+    },
   ];
 
   return {
@@ -396,8 +511,14 @@ export async function buyerDashboard(user: DashboardUser, at: Date = clockNow())
     generatedAt: at.toISOString(),
     cards,
     myRequests: { total: reqTotal, rows: myRequests },
-    ordersToSend: { total: toSendTotal, rows: toSendRows.map((o) => buyerOrderRow(fromRecord(o as OrderRecord), at, reminderDays)) },
-    lateOrders: { total: lateTotal, rows: lateRows.map((o) => buyerOrderRow(fromRecord(o as OrderRecord), at, reminderDays)) },
+    ordersToSend: {
+      total: toSendTotal,
+      rows: toSendRows.map((o) => buyerOrderRow(fromRecord(o as OrderRecord), at, reminderDays)),
+    },
+    lateOrders: {
+      total: lateTotal,
+      rows: lateRows.map((o) => buyerOrderRow(fromRecord(o as OrderRecord), at, reminderDays)),
+    },
     ordersToRemind: { total: toRemind.length, rows: toRemind.slice(0, DASHBOARD_LIST_LIMIT) },
   };
 }
@@ -442,12 +563,34 @@ export async function belowReorderItems(at: Date): Promise<{ total: number; rows
       sort: fc.severity ? SEVERITY_RANK[fc.severity] : 3,
     });
   }
-  rows.sort((a, b) => a.sort - b.sort || (a.coverageDays ?? 9999) - (b.coverageDays ?? 9999) || a.code.localeCompare(b.code));
-  return { total: rows.length, rows: rows.slice(0, DASHBOARD_LIST_LIMIT).map((r) => ({ itemId: r.itemId, code: r.code, name: r.name, stockUnit: r.stockUnit, onHand: r.onHand, onOrder: r.onOrder, reorderPoint: r.reorderPoint, coverageDays: r.coverageDays, severity: r.severity, href: r.href })) };
+  rows.sort(
+    (a, b) =>
+      a.sort - b.sort || (a.coverageDays ?? 9999) - (b.coverageDays ?? 9999) || a.code.localeCompare(b.code),
+  );
+  return {
+    total: rows.length,
+    rows: rows
+      .slice(0, DASHBOARD_LIST_LIMIT)
+      .map((r) => ({
+        itemId: r.itemId,
+        code: r.code,
+        name: r.name,
+        stockUnit: r.stockUnit,
+        onHand: r.onHand,
+        onOrder: r.onOrder,
+        reorderPoint: r.reorderPoint,
+        coverageDays: r.coverageDays,
+        severity: r.severity,
+        href: r.href,
+      })),
+  };
 }
 
 /** Magasinier : AUCUN champ monétaire (ni valeur, ni PMP, ni prix) dans la réponse. */
-export async function storekeeperDashboard(_user: DashboardUser, at: Date = clockNow()): Promise<StorekeeperDashboard> {
+export async function storekeeperDashboard(
+  _user: DashboardUser,
+  at: Date = clockNow(),
+): Promise<StorekeeperDashboard> {
   const today = todayAbidjan(at);
   const { sunday } = weekBounds(at);
   const weekEnd = addDaysIso(today, 7) > sunday ? addDaysIso(today, 7) : sunday;
@@ -460,22 +603,56 @@ export async function storekeeperDashboard(_user: DashboardUser, at: Date = cloc
       where: { status: "VALIDEE" },
       orderBy: [{ issuedAt: "desc" }, { createdAt: "desc" }],
       take: 10,
-      select: { id: true, number: true, issuedAt: true, requesterName: true, department: { select: { name: true } }, _count: { select: { lines: true } } },
+      select: {
+        id: true,
+        number: true,
+        issuedAt: true,
+        requesterName: true,
+        department: { select: { name: true } },
+        _count: { select: { lines: true } },
+      },
     }),
   ]);
 
   const cards: ActionCard[] = [
-    { key: "livraisons-aujourdhui", label: "Réceptions attendues aujourd'hui", count: todayDeliveries.total, href: "/stock/receptions", tone: cardTone(todayDeliveries.total, "attention") },
-    { key: "livraisons-semaine", label: "Réceptions attendues cette semaine", count: week.total, href: "/stock/receptions", tone: "neutral" },
-    { key: "livraisons-retard", label: "Livraisons en retard", count: late.total, href: "/stock/receptions", tone: cardTone(late.total, "critical") },
-    { key: "sous-seuil", label: "Articles sous le point de commande", count: below.total, href: "/stock?situation=SOUS_POINT", tone: cardTone(below.total, "attention") },
+    {
+      key: "livraisons-aujourdhui",
+      label: "Réceptions attendues aujourd'hui",
+      count: todayDeliveries.total,
+      href: "/stock/receptions",
+      tone: cardTone(todayDeliveries.total, "attention"),
+    },
+    {
+      key: "livraisons-semaine",
+      label: "Réceptions attendues cette semaine",
+      count: week.total,
+      href: "/stock/receptions",
+      tone: "neutral",
+    },
+    {
+      key: "livraisons-retard",
+      label: "Livraisons en retard",
+      count: late.total,
+      href: "/stock/receptions",
+      tone: cardTone(late.total, "critical"),
+    },
+    {
+      key: "sous-seuil",
+      label: "Articles sous le point de commande",
+      count: below.total,
+      href: "/stock?situation=SOUS_POINT",
+      tone: cardTone(below.total, "attention"),
+    },
   ];
 
   return {
     kind: "MAGASINIER",
     generatedAt: at.toISOString(),
     cards,
-    expectedToday: { total: todayDeliveries.total, rows: todayDeliveries.rows.map((r) => deliveryRow(r, at)) },
+    expectedToday: {
+      total: todayDeliveries.total,
+      rows: todayDeliveries.rows.map((r) => deliveryRow(r, at)),
+    },
     expectedThisWeek: { total: week.total, rows: week.rows.map((r) => deliveryRow(r, at)) },
     belowReorder: below,
     recentIssues: issues.map((i) => ({
@@ -494,7 +671,8 @@ export async function storekeeperDashboard(_user: DashboardUser, at: Date = cloc
 
 /** Tableau de bord du rôle de l'utilisateur (Super-admin : vue Responsable en lecture seule). */
 export async function dashboardFor(user: DashboardUser, at: Date = clockNow()): Promise<DashboardData> {
-  if (!can(user, "dashboard.view")) throw new BusinessError("FORBIDDEN", "Vous n'avez pas les droits pour cette action.");
+  if (!can(user, "dashboard.view"))
+    throw new BusinessError("FORBIDDEN", "Vous n'avez pas les droits pour cette action.");
   switch (user.role) {
     case "ACHETEUR":
       return buyerDashboard(user, at);
