@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { BusinessError } from "@/lib/errors";
 import { detectFormat } from "./parse";
-import { IMPORT_MAX_BYTES, IMPORT_TYPES, type ColumnMapping, type ImportType } from "./types";
+import { IMPORT_DEFAULT_CATEGORIES, IMPORT_MAX_BYTES, IMPORT_TYPES, type ColumnMapping, type ImportDefaultCategory, type ImportType } from "./types";
 
 export const importTypeSchema = z.enum(IMPORT_TYPES, { error: "Type d'import inconnu." });
+
+export const defaultCategorySchema = z.enum(IMPORT_DEFAULT_CATEGORIES, { error: "Catégorie par défaut inconnue." });
 
 const mappingSchema = z.record(z.string(), z.string().nullable());
 
@@ -12,6 +14,8 @@ export interface ImportForm {
   fileName: string;
   buffer: Buffer;
   mapping: ColumnMapping | null;
+  /** Catégorie par défaut (import ARTICLES seulement) ; null = aucune. */
+  defaultCategory: ImportDefaultCategory | null;
 }
 
 /** FormData : `file` (xlsx/csv), `type`, `mapping` (JSON facultatif {champ: colonne|null}). */
@@ -31,5 +35,18 @@ export async function parseImportForm(fd: FormData): Promise<ImportForm> {
       throw new BusinessError("VALIDATION", "Correspondance des colonnes invalide.");
     }
   }
-  return { type: type.data, fileName: file.name.slice(0, 200), buffer: Buffer.from(await file.arrayBuffer()), mapping };
+  let defaultCategory: ImportDefaultCategory | null = null;
+  const rawCat = fd.get("defaultCategory");
+  if (typeof rawCat === "string" && rawCat.trim() !== "") {
+    const c = defaultCategorySchema.safeParse(rawCat.trim());
+    if (!c.success) throw new BusinessError("VALIDATION", "Catégorie par défaut inconnue.");
+    if (type.data === "ARTICLES") defaultCategory = c.data;
+  }
+  return {
+    type: type.data,
+    fileName: file.name.slice(0, 200),
+    buffer: Buffer.from(await file.arrayBuffer()),
+    mapping,
+    defaultCategory,
+  };
 }

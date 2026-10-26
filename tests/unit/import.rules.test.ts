@@ -7,7 +7,7 @@ import { parseImportFile } from "@/modules/import/parse";
 import { buildImportReportWorkbook, buildTemplate } from "@/modules/import/templates";
 import { IMPORT_FIELDS, IMPORT_TYPES } from "@/modules/import/types";
 import { emptyContext, validateRows, type ItemRef } from "@/modules/import/validate";
-import { parseDecimalString } from "@/modules/import/values";
+import { isAmbiguousNumber, parseDecimalString } from "@/modules/import/values";
 
 const fixture = (name: string) => readFileSync(path.resolve(__dirname, "../fixtures/import", name));
 
@@ -141,8 +141,71 @@ describe("import : aperçu des erreurs par ligne", () => {
     expect(rows[0]).toMatchObject({ action: "UNCHANGED" });
     expect(rows[0].warnings?.[0]).toMatch(/déjà importé/);
     expect(rows[1].data).toMatchObject({ quantity: "3.5", unitCost: "18000.5", date: "2025-12-31" });
-    expect(rows[2].errors.join()).toMatch(/strictement positive/);
+    expect(rows[2].errors.join()).toMatch(/ne peut pas être négative/);
     expect(rows[3].errors.join()).toMatch(/PMP initial manquant/);
+  });
+
+  it("articles : catégorie par défaut si colonne non associée ou cellule vide, erreur sinon", async () => {
+    const csv = Buffer.from("Référence;Désignation;Unité;Catégorie\nIT-D1;Vis;U;\nIT-D2;Écrou;U;Gadget\nIT-D3;Joint;U;Service\n", "utf8");
+    const parsed = await parseImportFile("d.csv", csv);
+    const mapping = resolveMapping("ARTICLES", parsed.headers);
+    const sans = validateRows("ARTICLES", parsed.lines, mapping, emptyContext("2026-10-25"));
+    expect(sans[0].errors.join()).toMatch(/Catégorie manquante/);
+
+    const ctx = emptyContext("2026-10-25");
+    ctx.defaultCategory = "PDR";
+    const avec = validateRows("ARTICLES", parsed.lines, mapping, ctx);
+    expect(avec[0]).toMatchObject({ status: "OK", data: { category: "PDR" } });
+    expect(avec[1].errors.join()).toMatch(/Catégorie inconnue/);
+    expect(avec[2].data.category).toBe("SERVICE");
+
+    // Colonne non associée : la valeur par défaut s'applique à toutes les lignes.
+    const nonMapped = { ...mapping, category: null };
+    const all = validateRows("ARTICLES", parsed.lines, nonMapped, ctx);
+    expect(all.map((r) => [r.status, r.data.category])).toEqual([["OK", "PDR"], ["OK", "PDR"], ["OK", "PDR"]]);
+  });
+
+  it("stock initial : quantité 0 ignorée avec avertissement, négative en erreur", async () => {
+    const csv = Buffer.from("Référence;Dépôt;Quantité;PMP\nIT-Z1;IT-DEP;0;\nIT-Z2;IT-DEP;-1;100\n", "utf8");
+    const parsed = await parseImportFile("z.csv", csv);
+    const ctx = emptyContext("2026-10-25");
+    ctx.warehouses.set("IT-DEP", { id: "w", code: "IT-DEP" });
+    for (const c of ["IT-Z1", "IT-Z2"]) ctx.items.set(c, { id: c, code: c, stocked: true } as ItemRef);
+    const rows = validateRows("STOCK_INITIAL", parsed.lines, resolveMapping("STOCK_INITIAL", parsed.headers), ctx);
+    expect(rows[0]).toMatchObject({ status: "OK", action: "UNCHANGED", errors: [] });
+    expect(rows[0].warnings?.join()).toMatch(/Quantité à 0/);
+    expect(rows[1].status).toBe("ERREUR");
+  });
+
+  it("quantités ambiguës « 1.250 » / « 1,250 » : valide mais avertissement", async () => {
+    expect(isAmbiguousNumber("1.250")).toBe(true);
+    expect(isAmbiguousNumber("1,250")).toBe(true);
+    expect(isAmbiguousNumber("0,500")).toBe(false);
+    expect(isAmbiguousNumber("1 250,5")).toBe(false);
+    expect(isAmbiguousNumber("12,5")).toBe(false);
+    const csv = Buffer.from("Référence;Dépôt;Quantité;PMP\nIT-A1;IT-DEP;1.250;100\nIT-A2;IT-DEP;1,5;100\n", "utf8");
+    const parsed = await parseImportFile("a.csv", csv);
+    const ctx = emptyContext("2026-10-25");
+    ctx.warehouses.set("IT-DEP", { id: "w", code: "IT-DEP" });
+    for (const c of ["IT-A1", "IT-A2"]) ctx.items.set(c, { id: c, code: c, stocked: true } as ItemRef);
+    const rows = validateRows("STOCK_INITIAL", parsed.lines, resolveMapping("STOCK_INITIAL", parsed.headers), ctx);
+    expect(rows[0]).toMatchObject({ status: "OK", data: { quantity: "1.25" } });
+    expect(rows[0].warnings?.join()).toMatch(/1,25/);
+    expect(rows[1].warnings).toBeUndefined();
+  });
+
+  it("xlsx creux : une cellule en XFD1048576 est refusée vite", async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Articles");
+    ws.addRow(["Référence", "Désignation", "Catégorie", "Unité"]);
+    ws.addRow(["IT-X1", "Courroie", "PDR", "U"]);
+    ws.getCell("XFD1048576").value = "x";
+    const buf = Buffer.from(await wb.xlsx.writeBuffer());
+    const t0 = Date.now();
+    await expect(parseImportFile("creux.xlsx", buf)).rejects.toMatchObject({
+      code: expect.stringMatching(/^IMPORT_TROP_(LONG|LARGE)$/),
+    });
+    expect(Date.now() - t0).toBeLessThan(5000);
   });
 
   it("nombres : notation française et anglaise, rejets", () => {

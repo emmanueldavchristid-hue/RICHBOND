@@ -7,6 +7,7 @@ import {
   parseCountry,
   parseCriticality,
   parseDateString,
+  isAmbiguousNumber,
   parseDecimalString,
   parseIntString,
   parseSupplierType,
@@ -75,6 +76,8 @@ export interface ValidationContext {
   stockState: Map<string, { initial: boolean; other: boolean }>;
   /** AAAA-MM-JJ, fuseau Africa/Abidjan. */
   today: string;
+  /** Import ARTICLES : catégorie appliquée aux lignes sans catégorie (colonne non associée ou cellule vide). */
+  defaultCategory: string | null;
 }
 
 export function emptyContext(today: string): ValidationContext {
@@ -89,6 +92,7 @@ export function emptyContext(today: string): ValidationContext {
     pricedItems: new Set(),
     stockState: new Map(),
     today,
+    defaultCategory: null,
   };
 }
 
@@ -152,6 +156,10 @@ export function linkPatch(existing: LinkRef, d: RowData): Record<string, unknown
 
 // ------------------------------------------------------------------ validateurs par type
 
+function ambiguousMessage(raw: string, value: string): string {
+  return `Quantité « ${raw} » lue comme ${value.replace(".", ",")} (virgule décimale) : si vous vouliez dire ${raw.replace(/[.,]/, "")}, corrigez le fichier.`;
+}
+
 type Validator = (cells: Cells, mapping: ColumnMapping, ctx: ValidationContext, seen: Map<string, number>, line: number) => Omit<PreviewRow, "line">;
 
 function finish(key: string, errors: string[], data: RowData, action: RowAction | undefined, warnings: string[] = []): Omit<PreviewRow, "line"> {
@@ -184,8 +192,10 @@ const validateItem: Validator = (cells, m, ctx, seen, line) => {
 
   const rawCat = cell(cells, m, "category");
   let category = "";
-  if (!rawCat) errors.push("Catégorie manquante.");
-  else {
+  if (!rawCat) {
+    if (ctx.defaultCategory) category = ctx.defaultCategory;
+    else errors.push("Catégorie manquante.");
+  } else {
     const c = parseCategory(rawCat);
     if (!c) errors.push(`Catégorie inconnue : « ${rawCat} » (Matière première, Intrant, PDR, Fourniture ou Service).`);
     else category = c;
@@ -319,6 +329,7 @@ const validateSupplier: Validator = (cells, m, ctx, seen, line) => {
 
 const validateLink: Validator = (cells, m, ctx, seen, line) => {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const itemCode = readCode(cell(cells, m, "itemCode"), "Référence (code article)", errors);
   const supplierCode = readCode(cell(cells, m, "supplierCode"), "Code fournisseur", errors);
   const key = itemCode && supplierCode ? `${itemCode}|${supplierCode}` : "";
@@ -365,13 +376,13 @@ const validateLink: Validator = (cells, m, ctx, seen, line) => {
     if (minOrderQty === null || Number(minOrderQty) <= 0) {
       errors.push(`Quantité minimale invalide : « ${rawMin} » (nombre positif, 3 décimales au plus).`);
       minOrderQty = null;
-    }
+    } else if (isAmbiguousNumber(rawMin)) warnings.push(ambiguousMessage(rawMin, minOrderQty));
   }
 
   const data: RowData = { itemCode, supplierCode, supplierRef: supplierRef || null, price, currencyCode, leadTimeDays, minOrderQty };
   const existing = key ? ctx.links.get(key) : undefined;
   const action: RowAction = !existing ? "CREATE" : Object.keys(linkPatch(existing, data)).length ? "UPDATE" : "UNCHANGED";
-  return finish(key, errors, data, action);
+  return finish(key, errors, data, action, warnings);
 };
 
 const validateStock: Validator = (cells, m, ctx, seen, line) => {
@@ -395,19 +406,23 @@ const validateStock: Validator = (cells, m, ctx, seen, line) => {
 
   const rawQty = cell(cells, m, "quantity");
   let quantity: string | null = null;
+  let zeroQty = false;
   if (!rawQty) errors.push("Quantité manquante.");
   else {
     quantity = parseDecimalString(rawQty, 3);
     if (quantity === null) errors.push(`Quantité invalide : « ${rawQty} » (nombre, 3 décimales au plus).`);
-    else if (Number(quantity) <= 0) {
-      errors.push("La quantité doit être strictement positive.");
+    else if (Number(quantity) < 0) {
+      errors.push("La quantité ne peut pas être négative.");
       quantity = null;
-    }
+    } else if (Number(quantity) === 0) zeroQty = true;
+    else if (isAmbiguousNumber(rawQty)) warnings.push(ambiguousMessage(rawQty, quantity));
   }
 
   const rawCost = cell(cells, m, "unitCost");
   let unitCost: string | null = null;
-  if (!rawCost) errors.push("PMP initial manquant.");
+  if (zeroQty) {
+    // Quantité 0 : ligne ignorée, le PMP n'a pas à être contrôlé.
+  } else if (!rawCost) errors.push("PMP initial manquant.");
   else {
     unitCost = parseDecimalString(rawCost, 2);
     if (unitCost === null || Number(unitCost) < 0) {
@@ -427,7 +442,10 @@ const validateStock: Validator = (cells, m, ctx, seen, line) => {
 
   let action: RowAction = "CREATE";
   const state = key ? ctx.stockState.get(key) : undefined;
-  if (state?.initial) {
+  if (zeroQty) {
+    action = "UNCHANGED";
+    warnings.push("Quantité à 0 : ligne ignorée (aucun mouvement de stock créé).");
+  } else if (state?.initial) {
     action = "UNCHANGED";
     warnings.push("Stock initial déjà importé pour cet article et ce dépôt : ligne ignorée.");
   } else if (state?.other) {

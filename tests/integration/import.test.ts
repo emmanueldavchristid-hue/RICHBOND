@@ -29,11 +29,12 @@ async function setLicense(status: "TRIAL" | "EXPIRED") {
 }
 
 const fixture = (name: string) => readFileSync(path.resolve(__dirname, "../fixtures/import", name));
-function form(type: string, name: string, content: Buffer | string, mapping?: object) {
+function form(type: string, name: string, content: Buffer | string, mapping?: object, defaultCategory?: string) {
   const fd = new FormData();
   fd.set("type", type);
   fd.set("file", new File([new Uint8Array(Buffer.from(content))], name));
   if (mapping) fd.set("mapping", JSON.stringify(mapping));
+  if (defaultCategory) fd.set("defaultCategory", defaultCategory);
   return fd;
 }
 async function run(kind: "preview" | "commit", type: string, name: string, content: Buffer | string = fixture(name)) {
@@ -126,6 +127,42 @@ describe("articles", () => {
     const report = await getImportReport(s.batchId);
     expect(report.lines.filter((l) => l.outcome === "ERREUR")).toHaveLength(4);
     expect(report.lines.find((l) => l.line === 2)?.message).toMatch(/manquant/);
+  });
+});
+
+describe("catégorie par défaut, quantité 0 et quantités ambiguës", () => {
+  const sage = "AR_Ref;AR_Design;Unité\nIT-IMP-901;Vis M8;U\nIT-IMP-902;Écrou;U\n";
+
+  it("sans valeur par défaut les lignes sans catégorie sont refusées ; avec, aperçu et import donnent le même résultat", async () => {
+    await login("i-resp", "RESPONSABLE_ACHATS");
+    expect(await run("preview", "ARTICLES", "sage.csv", sage)).toMatchObject({ data: { preview: { okCount: 0, errorCount: 2 } } });
+
+    const p = await actions.previewImportAction(form("ARTICLES", "sage.csv", sage, undefined, "FOURNITURE"));
+    expect(p).toMatchObject({ ok: true, data: { preview: { okCount: 2, errorCount: 0 } } });
+    expect(await itCount()).toBe(0);
+    const c = await actions.commitImportAction(form("ARTICLES", "sage.csv", sage, undefined, "FOURNITURE"));
+    expect(c).toMatchObject({ ok: true, data: { summary: { created: 2, errorCount: 0 } } });
+    expect((await db.item.findUniqueOrThrow({ where: { code: "IT-IMP-901" } })).category).toBe("FOURNITURE");
+  });
+
+  it("une catégorie par défaut inconnue est refusée", async () => {
+    await login("i-resp", "RESPONSABLE_ACHATS");
+    expect(await actions.previewImportAction(form("ARTICLES", "sage.csv", sage, undefined, "GADGET"))).toMatchObject({ ok: false });
+  });
+
+  it("stock initial : quantité 0 ignorée (sans mouvement), « 1.250 » valide avec avertissement", async () => {
+    await login("i-resp", "RESPONSABLE_ACHATS");
+    await run("commit", "ARTICLES", "articles-valides.csv");
+    const csv = "Référence;Dépôt;Quantité;PMP\nIT-IMP-001;IT-DEP;0;\nIT-IMP-002;IT-DEP;1.250;100\n";
+    const p = await run("preview", "STOCK_INITIAL", "s.csv", csv);
+    if (!p.ok) throw new Error(p.message);
+    const rows = (p.data as { preview: { rows: { warnings?: string[] }[]; okCount: number; errorCount: number } }).preview;
+    expect(rows).toMatchObject({ okCount: 2, errorCount: 0 });
+    expect(rows.rows[0].warnings?.join()).toMatch(/Quantité à 0/);
+    expect(rows.rows[1].warnings?.join()).toMatch(/1,25/);
+    const c = await run("commit", "STOCK_INITIAL", "s.csv", csv);
+    expect(c).toMatchObject({ ok: true, data: { summary: { created: 1, unchanged: 1, errorCount: 0 } } });
+    expect(await db.stockMovement.count({ where: { item: { code: { startsWith: "IT-IMP" } } } })).toBe(1);
   });
 });
 

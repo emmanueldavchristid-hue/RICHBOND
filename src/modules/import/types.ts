@@ -14,6 +14,17 @@ export const IMPORT_TYPE_LABELS: Record<ImportType, string> = {
 export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
 export const IMPORT_MAX_ROWS = 5000;
 
+/** Catégories d'article acceptées comme valeur par défaut de l'import ARTICLES. */
+export const IMPORT_DEFAULT_CATEGORIES = ["MATIERE_PREMIERE", "INTRANT", "PDR", "FOURNITURE", "SERVICE"] as const;
+export type ImportDefaultCategory = (typeof IMPORT_DEFAULT_CATEGORIES)[number];
+export const IMPORT_DEFAULT_CATEGORY_LABELS: Record<ImportDefaultCategory, string> = {
+  MATIERE_PREMIERE: "Matière première",
+  INTRANT: "Intrant",
+  PDR: "PDR",
+  FOURNITURE: "Fourniture",
+  SERVICE: "Service",
+};
+
 /** Correspondance champ de l'application -> nom de colonne du fichier (null = non utilisé). */
 export type ColumnMapping = Record<string, string | null>;
 

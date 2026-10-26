@@ -10,7 +10,7 @@ import { NativeSelect } from "@/components/native-select";
 import { StatusBadge } from "@/components/status-badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { ColumnMapping, ImportSummary, ImportType, PreviewResult } from "@/modules/import/types";
+import { IMPORT_DEFAULT_CATEGORIES, IMPORT_DEFAULT_CATEGORY_LABELS, type ColumnMapping, type ImportSummary, type ImportType, type PreviewResult } from "@/modules/import/types";
 import { commitImportAction, previewImportAction } from "./actions";
 
 type Mapping = ColumnMapping;
@@ -42,6 +42,7 @@ export function ImportWizard() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [mapping, setMapping] = useState<Mapping>({});
+  const [defaultCategory, setDefaultCategory] = useState("");
   const [errorsOnly, setErrorsOnly] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export function ImportWizard() {
     if (file) fd.set("file", file);
     fd.set("type", type);
     fd.set("mapping", JSON.stringify(m));
+    if (type === "ARTICLES" && defaultCategory) fd.set("defaultCategory", defaultCategory);
     return fd;
   }
 
@@ -117,6 +119,7 @@ export function ImportWizard() {
     setPreview(null);
     setSummary(null);
     setMapping({});
+    setDefaultCategory("");
     setError(null);
     setErrorsOnly(false);
     if (fileRef.current) fileRef.current.value = "";
@@ -258,6 +261,26 @@ export function ImportWizard() {
                 </NativeSelect>
               </label>
             ))}
+            {type === "ARTICLES" ? (
+              <label className="space-y-1 text-sm md:col-span-2">
+                <span className="font-medium">Catégorie par défaut pour les lignes sans catégorie</span>
+                <NativeSelect
+                  value={defaultCategory}
+                  onChange={(e) => setDefaultCategory(e.target.value)}
+                  data-testid="import-default-category"
+                >
+                  <option value="">— Aucune : une ligne sans catégorie est refusée —</option>
+                  {IMPORT_DEFAULT_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {IMPORT_DEFAULT_CATEGORY_LABELS[c]}
+                    </option>
+                  ))}
+                </NativeSelect>
+                <span className="block text-muted-foreground">
+                  S&apos;applique si la colonne Catégorie n&apos;est pas associée ou si la cellule est vide (un export Sage n&apos;a pas de catégorie).
+                </span>
+              </label>
+            ) : null}
           </div>
           <div className="flex flex-wrap justify-between gap-2">
             <Button type="button" variant="outline" className="h-11 px-4" onClick={restart}>

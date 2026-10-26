@@ -39,6 +39,14 @@ export function parseDecimalString(raw: string, maxDecimals: number): string | n
   return frac ? `${intPart}.${frac}` : intPart;
 }
 
+/**
+ * « 1.250 » ou « 1,250 » : un seul séparateur suivi d'exactement 3 chiffres. Lu comme 1,25 (décimales) alors que
+ * l'auteur du fichier peut avoir voulu 1 250 (milliers). La valeur reste acceptée, mais l'aperçu avertit.
+ */
+export function isAmbiguousNumber(raw: string): boolean {
+  return /^-?[1-9]\d{0,2}[.,]\d{3}$/.test(raw.replace(NBSP, ""));
+}
+
 export function parseIntString(raw: string): number | null {
   const d = parseDecimalString(raw, 0);
   if (d === null || d.includes(".")) return null;

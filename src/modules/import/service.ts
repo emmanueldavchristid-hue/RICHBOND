@@ -26,6 +26,7 @@ import {
   fieldInfos,
   IMPORT_TYPE_LABELS,
   type ColumnMapping,
+  type ImportDefaultCategory,
   type ImportSummary,
   type ImportType,
   type PreviewResult,
@@ -43,6 +44,8 @@ export interface ImportInput {
   fileName: string;
   buffer: Buffer;
   mapping?: ColumnMapping | null;
+  /** ARTICLES : catégorie des lignes sans catégorie. Même effet à l'aperçu et à l'import. */
+  defaultCategory?: ImportDefaultCategory | null;
 }
 
 const CHUNK = 500;
@@ -94,8 +97,10 @@ async function loadContext(
   lines: RawLine[],
   mapping: ColumnMapping,
   at: Date,
+  defaultCategory: string | null = null,
 ): Promise<ValidationContext> {
   const ctx = emptyContext(todayAbidjan(at));
+  if (type === "ARTICLES") ctx.defaultCategory = defaultCategory;
   const activeCurrencies = async () => {
     const cur = await tx.currency.findMany({ where: { active: true }, select: { code: true } });
     ctx.currencies = new Set(cur.map((c) => c.code));
@@ -207,7 +212,7 @@ export async function previewImport(input: ImportInput, at: Date = now()): Promi
   const parsed = await parseImportFile(input.fileName, input.buffer);
   const suggested = resolveMapping(input.type, parsed.headers, null);
   const mapping = resolveMapping(input.type, parsed.headers, input.mapping);
-  const ctx = await loadContext(db, input.type, parsed.lines, mapping, at);
+  const ctx = await loadContext(db, input.type, parsed.lines, mapping, at, input.defaultCategory ?? null);
   return summarize(
     parsed,
     input.type,
@@ -468,7 +473,7 @@ export async function commitImport(
       async (tx) => {
         // Un seul import à la fois : évite un stock initial doublé par deux imports simultanés.
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('richbond-import'))`;
-        const ctx = await loadContext(tx, input.type, parsed.lines, mapping, at);
+        const ctx = await loadContext(tx, input.type, parsed.lines, mapping, at, input.defaultCategory ?? null);
         const rows = validateRows(input.type, parsed.lines, mapping, ctx);
         const valid = rows.filter((r) => r.status === "OK");
         const counts =
