@@ -91,11 +91,11 @@ describe("matrice des permissions", () => {
     }
   });
 
-  it("le super-admin n'a aucune action métier d'écriture", () => {
+  it("le super-admin n'a aucune action métier d'écriture (sauf l'import des données initiales, LOT-09)", () => {
     const writes = SUPER_ADMIN_ACTIONS.filter(
       (a) => !a.endsWith(".view") && !a.startsWith("report.") && !a.startsWith("price."),
     );
-    expect(writes.sort()).toEqual(["license.manage", "maintenance.run", "sage.sync", "users.manage"]);
+    expect(writes.sort()).toEqual(["import.manage", "license.manage", "maintenance.run", "sage.sync", "users.manage"]);
   });
 
   it("requireAction lève FORBIDDEN en français", () => {

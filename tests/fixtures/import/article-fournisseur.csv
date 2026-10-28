@@ -1,0 +1,5 @@
+Référence;Code fournisseur;Référence fournisseur;Prix;Devise;Délai;Quantité minimale
+IT-IMP-001;IT-FRS-001;RLT-6205;4 500;XOF;7;10
+IT-IMP-001;IT-FRS-002;6205-2RS-EU;3,80;EUR;45;100
+IT-IMP-002;IT-FRS-001;;abc;XOF;;
+IT-IMP-999;IT-FRS-001;;1000;XOF;;

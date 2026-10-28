@@ -66,3 +66,10 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Accueil par rôle (Responsable, acheteur, magasinier), KPI, graphiques, risques de rupture, historique fictif de 6 mois dans le seed.
 - Scénario S-dashboard : 8/8 (bureau + tablette). Test d'ancienneté des BC rendu indépendant du jour de la semaine.
 - Suite : LOT-09 (import Excel/CSV).
+
+## LOT-09 – Import Excel/CSV (terminé)
+- Fait : import articles, fournisseurs, article-fournisseur, stock initial (par mouvements), aperçu par ligne, rapport Excel, verrou anti-imports simultanés. Recette « accepté avec réserves » (docs/recette/LOT-09.md), relecture sans bloquant.
+- Tests : unitaires/intégration verts (le test des 20 DA simultanées expire parfois sous charge, vert seul) ; e2e S-import 6/6, S-dashboard 8/8, S0-1 24/24, autres scénarios rejoués un fichier à la fois (mémoire limitée).
+- Correctif de sécurité : les exports Excel et le rapport d'import préfixent d'une apostrophe tout texte commençant par = + - @ (`sanitizeCell`, test `excel.sanitize.test.ts`).
+- Réserves ouvertes (relecture) : zip bomb jugée sur les tailles déclarées ; mises à jour ligne par ligne dans une seule transaction (jusqu'à 5000 lignes) ; rapport d'import stocké dans AuditLog.after (table ImportBatch à envisager) ; séparateur CSV détecté sans ignorer les guillemets.
+- Suite : LOT-16 (ordre marathon de PROMPT-FINIR.md).

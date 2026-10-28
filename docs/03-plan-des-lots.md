@@ -16,7 +16,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 | LOT-07 | Stock : mouvements, sorties, PMP, seuils, prévision de rupture, réappro | EX-30, 31, 33 | Terminé |
 | LOT-08 | Tableau de bord d'accueil par rôle | EX-60, 61 | Terminé |
 | **Jalon** | **DÉMO 1 au client** (parcours complet DA → stock + tableau de bord) | | |
-| LOT-09 | Import Excel/CSV des données initiales | EX-12 | À faire |
+| LOT-09 | Import Excel/CSV des données initiales | EX-12 | Terminé |
 | LOT-10 | Consultations et comparatif des offres | EX-26 | À faire |
 | LOT-11 | Inventaires hebdomadaires (mode tablette) | EX-32 | À faire |
 | LOT-12 | Achats import, frais d'approche, coût d'arrivée dédouané | EX-40, 41, 42 | À faire |

@@ -25,7 +25,13 @@ import {
   getSupplier,
 } from "@/modules/suppliers";
 import { createWarehouse, setWarehouseActive } from "@/modules/warehouses";
-import { addExchangeRate, getRateAt, setCurrencyActive, updateExchangeRate, upsertCurrency } from "@/modules/currencies";
+import {
+  addExchangeRate,
+  getRateAt,
+  setCurrencyActive,
+  updateExchangeRate,
+  upsertCurrency,
+} from "@/modules/currencies";
 import { updateSetting, getSettings } from "@/modules/settings";
 import { BusinessError } from "@/lib/errors";
 
@@ -109,7 +115,10 @@ describe("unicité et génération des codes (R1)", () => {
   it("changement de code : doublon refusé, audité", async () => {
     const a = await mkItem("IT-A");
     await mkItem("IT-B");
-    await rejectsWith(changeItemCode(actor, { id: a.id, code: "it-b", expectedUpdatedAt: a.updatedAt }), "CODE_EXISTS");
+    await rejectsWith(
+      changeItemCode(actor, { id: a.id, code: "it-b", expectedUpdatedAt: a.updatedAt }),
+      "CODE_EXISTS",
+    );
     const changed = await changeItemCode(actor, { id: a.id, code: "it-c", expectedUpdatedAt: a.updatedAt });
     expect(changed.code).toBe("IT-C");
     expect(await db.auditLog.count({ where: { entityId: a.id, action: "ITEM_CODE_CHANGE" } })).toBe(1);
@@ -126,19 +135,34 @@ describe("unicité et génération des codes (R1)", () => {
 describe("concurrence (R16)", () => {
   it("une mise à jour avec une ancienne version est refusée (CONFLICT)", async () => {
     const it = await mkItem("IT-CONF");
-    const edit = (name: string, v: Date) => updateItem(actor, { ...itemBase, id: it.id, name, expectedUpdatedAt: v } as never);
+    const edit = (name: string, v: Date) =>
+      updateItem(actor, { ...itemBase, id: it.id, name, expectedUpdatedAt: v } as never);
     const first = await edit("Première modification", it.updatedAt);
     expect(first.name).toBe("Première modification");
-    await rejectsWith(edit("Deuxième (ancienne version)", it.updatedAt), "CONFLICT", /modifiée par un autre utilisateur/);
+    await rejectsWith(
+      edit("Deuxième (ancienne version)", it.updatedAt),
+      "CONFLICT",
+      /modifiée par un autre utilisateur/,
+    );
     const stored = await db.item.findUniqueOrThrow({ where: { id: it.id } });
     expect(stored.name).toBe("Première modification");
   });
 
   it("fournisseur : même règle", async () => {
     const s = await mkSupplier("IT-SC");
-    await updateSupplier(actor, { ...supplierBase, id: s.id, name: "AA", expectedUpdatedAt: s.updatedAt } as never);
+    await updateSupplier(actor, {
+      ...supplierBase,
+      id: s.id,
+      name: "AA",
+      expectedUpdatedAt: s.updatedAt,
+    } as never);
     await rejectsWith(
-      updateSupplier(actor, { ...supplierBase, id: s.id, name: "BB", expectedUpdatedAt: s.updatedAt } as never),
+      updateSupplier(actor, {
+        ...supplierBase,
+        id: s.id,
+        name: "BB",
+        expectedUpdatedAt: s.updatedAt,
+      } as never),
       "CONFLICT",
     );
   });
@@ -148,8 +172,14 @@ describe("fournisseur bloqué (R7, R8)", () => {
   it("motif obligatoire ; blocage renvoie les articles dont il est le principal", async () => {
     const s = await mkSupplier("IT-BLK");
     const it = await mkItem("IT-ITEM-BLK", { mainSupplierId: s.id });
-    await expect(blockSupplier(actor, { id: s.id, reason: "", expectedUpdatedAt: s.updatedAt })).rejects.toThrow();
-    const r = await blockSupplier(actor, { id: s.id, reason: "Lots non conformes", expectedUpdatedAt: s.updatedAt });
+    await expect(
+      blockSupplier(actor, { id: s.id, reason: "", expectedUpdatedAt: s.updatedAt }),
+    ).rejects.toThrow();
+    const r = await blockSupplier(actor, {
+      id: s.id,
+      reason: "Lots non conformes",
+      expectedUpdatedAt: s.updatedAt,
+    });
     expect(r.supplier.status).toBe("BLOQUE");
     expect(r.supplier.blockedReason).toBe("Lots non conformes");
     expect(r.supplier.blockedById).toBe(actor.id);
@@ -158,7 +188,9 @@ describe("fournisseur bloqué (R7, R8)", () => {
 
   it("refusé comme fournisseur principal et comme lien ; assertSupplierCanOrder refuse", async () => {
     const s = await mkSupplier("IT-BLK2");
-    const blocked = (await blockSupplier(actor, { id: s.id, reason: "Défaut de qualité", expectedUpdatedAt: s.updatedAt })).supplier;
+    const blocked = (
+      await blockSupplier(actor, { id: s.id, reason: "Défaut de qualité", expectedUpdatedAt: s.updatedAt })
+    ).supplier;
     await rejectsWith(mkItem("IT-I1", { mainSupplierId: s.id }), "SUPPLIER_BLOCKED", /bloqué/);
     const it = await mkItem("IT-I2");
     await rejectsWith(linkSupplier(actor, { itemId: it.id, supplierId: s.id }), "SUPPLIER_BLOCKED");
@@ -175,20 +207,40 @@ describe("fournisseur bloqué (R7, R8)", () => {
 
   it("déblocage : remet le statut et efface le motif ; l'update ne débloque pas", async () => {
     const s = await mkSupplier("IT-UNB");
-    const b = (await blockSupplier(actor, { id: s.id, reason: "Motif de test", expectedUpdatedAt: s.updatedAt })).supplier;
-    const upd = await updateSupplier(actor, { ...supplierBase, id: s.id, name: "Renommé", status: "ACTIF", expectedUpdatedAt: b.updatedAt } as never);
+    const b = (
+      await blockSupplier(actor, { id: s.id, reason: "Motif de test", expectedUpdatedAt: s.updatedAt })
+    ).supplier;
+    const upd = await updateSupplier(actor, {
+      ...supplierBase,
+      id: s.id,
+      name: "Renommé",
+      status: "ACTIF",
+      expectedUpdatedAt: b.updatedAt,
+    } as never);
     expect(upd.supplier.status).toBe("BLOQUE");
     await rejectsWith(
       setSupplierStatus(actor, { id: s.id, status: "ACTIF", expectedUpdatedAt: upd.supplier.updatedAt }),
       "SUPPLIER_BLOCKED",
     );
-    const u = await unblockSupplier(actor, { id: s.id, status: "EN_EVALUATION", expectedUpdatedAt: upd.supplier.updatedAt });
-    expect(u).toMatchObject({ status: "EN_EVALUATION", blockedReason: null, blockedAt: null, blockedById: null });
+    const u = await unblockSupplier(actor, {
+      id: s.id,
+      status: "EN_EVALUATION",
+      expectedUpdatedAt: upd.supplier.updatedAt,
+    });
+    expect(u).toMatchObject({
+      status: "EN_EVALUATION",
+      blockedReason: null,
+      blockedAt: null,
+      blockedById: null,
+    });
   });
 
   it("fournisseur déjà bloqué / non bloqué", async () => {
     const s = await mkSupplier("IT-UNB2");
-    await rejectsWith(unblockSupplier(actor, { id: s.id, status: "ACTIF", expectedUpdatedAt: s.updatedAt }), "NOT_BLOCKED");
+    await rejectsWith(
+      unblockSupplier(actor, { id: s.id, status: "ACTIF", expectedUpdatedAt: s.updatedAt }),
+      "NOT_BLOCKED",
+    );
   });
 });
 
@@ -204,7 +256,11 @@ describe("dépôts, devises (R12, R13)", () => {
     );
     await db.item.updateMany({ where: { defaultWarehouseId: w.id }, data: { status: "OBSOLETE" } });
     const fresh = await db.warehouse.findUniqueOrThrow({ where: { id: w.id } });
-    const off = await setWarehouseActive(actor, { id: w.id, active: false, expectedUpdatedAt: fresh.updatedAt });
+    const off = await setWarehouseActive(actor, {
+      id: w.id,
+      active: false,
+      expectedUpdatedAt: fresh.updatedAt,
+    });
     expect(off.active).toBe(false);
   });
 
@@ -226,7 +282,11 @@ describe("dépôts, devises (R12, R13)", () => {
   it("devise utilisée par un fournisseur non bloqué : non désactivable", async () => {
     await upsertCurrency(actor, { code: "ZZA", name: "Devise test", symbol: "Z", decimals: 2 });
     await mkSupplier("IT-CUR", { currencyCode: "ZZA", type: "IMPORT" });
-    await rejectsWith(setCurrencyActive(actor, { code: "ZZA", active: false }), "CURRENCY_IN_USE", /1 fournisseur/);
+    await rejectsWith(
+      setCurrencyActive(actor, { code: "ZZA", active: false }),
+      "CURRENCY_IN_USE",
+      /1 fournisseur/,
+    );
   });
 
   it("devise désactivée refusée pour un nouveau fournisseur", async () => {
@@ -262,12 +322,25 @@ describe("taux de change (R11)", () => {
 
   it("doublon (devise, date) refusé ; date future refusée ; XOF sans taux", async () => {
     await addExchangeRate(actor, { currencyCode: "ZZR", date: dateStr(-1), rate: "600", note: "IT-c" });
-    await rejectsWith(addExchangeRate(actor, { currencyCode: "ZZR", date: dateStr(-1), rate: "601", note: "IT-d" }), "RATE_EXISTS");
-    await rejectsWith(addExchangeRate(actor, { currencyCode: "ZZR", date: dateStr(5), rate: "601" }), "RATE_FUTURE");
-    await rejectsWith(addExchangeRate(actor, { currencyCode: "XOF", date: dateStr(-1), rate: "1" }), "BASE_CURRENCY");
+    await rejectsWith(
+      addExchangeRate(actor, { currencyCode: "ZZR", date: dateStr(-1), rate: "601", note: "IT-d" }),
+      "RATE_EXISTS",
+    );
+    await rejectsWith(
+      addExchangeRate(actor, { currencyCode: "ZZR", date: dateStr(5), rate: "601" }),
+      "RATE_FUTURE",
+    );
+    await rejectsWith(
+      addExchangeRate(actor, { currencyCode: "XOF", date: dateStr(-1), rate: "1" }),
+      "BASE_CURRENCY",
+    );
   });
 
   it("EUR différent de 655,957 : confirmation exigée", async () => {
+    // Le seed de démo date ses taux relativement au jour du seed : libère la date utilisée ici pour rester indépendant du jour.
+    await db.exchangeRate.deleteMany({
+      where: { currencyCode: "EUR", date: new Date(`${dateStr(-2)}T00:00:00.000Z`) },
+    });
     await rejectsWith(
       addExchangeRate(actor, { currencyCode: "EUR", date: dateStr(-2), rate: "660", note: "IT-eur" }),
       "EUR_PARITY_CONFIRM",
@@ -283,8 +356,18 @@ describe("taux de change (R11)", () => {
   });
 
   it("modification d'un taux : version vérifiée et auditée", async () => {
-    const r = await addExchangeRate(actor, { currencyCode: "ZZR", date: dateStr(-1), rate: "600", note: "IT-e" });
-    const u = await updateExchangeRate(actor, { id: r.id, rate: "602", note: "IT-e", expectedUpdatedAt: r.updatedAt });
+    const r = await addExchangeRate(actor, {
+      currencyCode: "ZZR",
+      date: dateStr(-1),
+      rate: "600",
+      note: "IT-e",
+    });
+    const u = await updateExchangeRate(actor, {
+      id: r.id,
+      rate: "602",
+      note: "IT-e",
+      expectedUpdatedAt: r.updatedAt,
+    });
     expect(u.rate).toBe("602");
     await rejectsWith(
       updateExchangeRate(actor, { id: r.id, rate: "603", note: "IT-e", expectedUpdatedAt: r.updatedAt }),
@@ -298,7 +381,12 @@ describe("prix et historique (R10, R15)", () => {
   it("chaque changement de prix crée une ligne d'historique, taux figé si connu", async () => {
     const s = await mkSupplier("IT-PRICE", { currencyCode: "EUR", type: "IMPORT" });
     const it = await mkItem("IT-PITEM");
-    const link = await linkSupplier(actor, { itemId: it.id, supplierId: s.id, lastPrice: 12.5, currencyCode: "EUR" });
+    const link = await linkSupplier(actor, {
+      itemId: it.id,
+      supplierId: s.id,
+      lastPrice: 12.5,
+      currencyCode: "EUR",
+    });
     let h = await listPriceHistory(it.id, { showPrices: true });
     expect(h).toHaveLength(1);
     expect(h[0]).toMatchObject({ price: "12.5", currencyCode: "EUR", source: "MANUEL" });
@@ -311,14 +399,22 @@ describe("prix et historique (R10, R15)", () => {
     h = await listPriceHistory(it.id, { showPrices: true });
     expect(h).toHaveLength(2);
     // Mise à jour sans changement de prix : pas de nouvelle ligne.
-    await updateItemSupplier(actor, { id: link.id, expectedUpdatedAt: up.updatedAt, lastPrice: 13, currencyCode: "EUR", supplierRef: "R1" });
+    await updateItemSupplier(actor, {
+      id: link.id,
+      expectedUpdatedAt: up.updatedAt,
+      lastPrice: 13,
+      currencyCode: "EUR",
+      supplierRef: "R1",
+    });
     expect(await listPriceHistory(it.id, { showPrices: true })).toHaveLength(2);
   });
 
   it("prix XOF décimal refusé ; lien en doublon refusé", async () => {
     const s = await mkSupplier("IT-PRICE2");
     const it = await mkItem("IT-PITEM2");
-    await expect(linkSupplier(actor, { itemId: it.id, supplierId: s.id, lastPrice: 10.5, currencyCode: "XOF" })).rejects.toThrow();
+    await expect(
+      linkSupplier(actor, { itemId: it.id, supplierId: s.id, lastPrice: 10.5, currencyCode: "XOF" }),
+    ).rejects.toThrow();
     await linkSupplier(actor, { itemId: it.id, supplierId: s.id, lastPrice: 10, currencyCode: "XOF" });
     await rejectsWith(linkSupplier(actor, { itemId: it.id, supplierId: s.id }), "LINK_EXISTS");
   });
@@ -327,7 +423,10 @@ describe("prix et historique (R10, R15)", () => {
     const s = await mkSupplier("IT-PRICE3");
     const it = await mkItem("IT-PITEM3", { mainSupplierId: s.id });
     const link = await db.itemSupplier.findFirstOrThrow({ where: { itemId: it.id } });
-    await rejectsWith(deactivateItemSupplier(actor, { id: link.id, expectedUpdatedAt: link.updatedAt }), "MAIN_SUPPLIER_LINK");
+    await rejectsWith(
+      deactivateItemSupplier(actor, { id: link.id, expectedUpdatedAt: link.updatedAt }),
+      "MAIN_SUPPLIER_LINK",
+    );
   });
 
   it("prix masqués (showPrices=false) : ni fiche, ni historique, ni fournisseur ne les exposent", async () => {
@@ -348,7 +447,11 @@ describe("prix et historique (R10, R15)", () => {
 describe("listes (R17)", () => {
   it("recherche insensible à la casse, filtres, tri, pagination, statut par défaut", async () => {
     for (let i = 1; i <= 7; i++) {
-      await mkItem(`IT-L${i}`, { name: `Courroie ITX type ${i}`, criticality: i <= 3 ? "CRITIQUE" : "STANDARD", equipment: "Matelasseuse" });
+      await mkItem(`IT-L${i}`, {
+        name: `Courroie ITX type ${i}`,
+        criticality: i <= 3 ? "CRITIQUE" : "STANDARD",
+        equipment: "Matelasseuse",
+      });
     }
     await mkItem("IT-LX", { name: "Fil", category: "MATIERE_PREMIERE", equipment: "Matelasseuse" });
     const q = await listItems({ q: "COURROIE ITX", taille: 25 });
@@ -390,13 +493,28 @@ describe("listes (R17)", () => {
 
 describe("règles article", () => {
   it("SERVICE : non stocké, sans seuils ni dépôt", async () => {
-    const it = await mkItem("IT-SRV", { category: "SERVICE", stocked: true, safetyStock: 5, reorderPoint: 8 });
-    expect(it).toMatchObject({ stocked: false, safetyStock: null, reorderPoint: null, defaultWarehouseId: null });
+    const it = await mkItem("IT-SRV", {
+      category: "SERVICE",
+      stocked: true,
+      safetyStock: 5,
+      reorderPoint: 8,
+    });
+    expect(it).toMatchObject({
+      stocked: false,
+      safetyStock: null,
+      reorderPoint: null,
+      defaultWarehouseId: null,
+    });
   });
 
   it("alerte doublon de raison sociale et NCC non conforme (avertissements, pas d'erreur)", async () => {
     await mkSupplier("IT-W-1", { name: "Établissements Kouadio SARL" });
-    const r = await createSupplier(actor, { ...supplierBase, code: "IT-W-2", name: "ETABLISSEMENTS KOUADIO", ncc: "XYZ" } as never);
+    const r = await createSupplier(actor, {
+      ...supplierBase,
+      code: "IT-W-2",
+      name: "ETABLISSEMENTS KOUADIO",
+      ncc: "XYZ",
+    } as never);
     expect(r.warnings).toHaveLength(2);
     expect(r.warnings.join(" ")).toMatch(/très proche/);
     expect(r.warnings.join(" ")).toMatch(/NCC/);
@@ -420,9 +538,18 @@ describe("audit : une écriture = au moins un AuditLog dans la même transaction
   it("création, modification, statut, blocage", async () => {
     const s = await mkSupplier("IT-AUD");
     const it = await mkItem("IT-AUD-I");
-    expect(await db.auditLog.count({ where: { entityId: s.id, action: "SUPPLIER_CREATE", userId: actor.id } })).toBe(1);
-    expect(await db.auditLog.count({ where: { entityId: it.id, action: "ITEM_CREATE", userId: actor.id } })).toBe(1);
-    const up = await updateItem(actor, { ...itemBase, id: it.id, name: "Nouveau nom", expectedUpdatedAt: it.updatedAt } as never);
+    expect(
+      await db.auditLog.count({ where: { entityId: s.id, action: "SUPPLIER_CREATE", userId: actor.id } }),
+    ).toBe(1);
+    expect(
+      await db.auditLog.count({ where: { entityId: it.id, action: "ITEM_CREATE", userId: actor.id } }),
+    ).toBe(1);
+    const up = await updateItem(actor, {
+      ...itemBase,
+      id: it.id,
+      name: "Nouveau nom",
+      expectedUpdatedAt: it.updatedAt,
+    } as never);
     const log = await db.auditLog.findFirstOrThrow({ where: { entityId: it.id, action: "ITEM_UPDATE" } });
     expect((log.before as { name: string }).name).toBe("Roulement 6308");
     expect((log.after as { name: string }).name).toBe("Nouveau nom");
@@ -440,11 +567,17 @@ describe("audit : une écriture = au moins un AuditLog dans la même transaction
 
   it("réglage : valeur validée, auditée", async () => {
     expect((await getSettings()).showPurchasePriceToWarehouse).toBe(false);
-    await expect(updateSetting(actor, { key: "warehouse.showPurchasePrice", value: "oui" })).rejects.toThrow();
+    await expect(
+      updateSetting(actor, { key: "warehouse.showPurchasePrice", value: "oui" }),
+    ).rejects.toThrow();
     await expect(updateSetting(actor, { key: "inconnu", value: true })).rejects.toThrow();
     await updateSetting(actor, { key: "warehouse.showPurchasePrice", value: true });
     expect((await getSettings()).showPurchasePriceToWarehouse).toBe(true);
-    expect(await db.auditLog.count({ where: { entityId: "warehouse.showPurchasePrice", action: "SETTING_UPDATE" } })).toBe(1);
+    expect(
+      await db.auditLog.count({
+        where: { entityId: "warehouse.showPurchasePrice", action: "SETTING_UPDATE" },
+      }),
+    ).toBe(1);
   });
 });
 
