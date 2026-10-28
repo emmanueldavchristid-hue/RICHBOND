@@ -11,6 +11,16 @@ export interface ExcelColumn<T> {
 
 export const DATE_FORMAT = "dd/mm/yyyy";
 
+/**
+ * Neutralise l'injection de formules : un texte commençant par = + - @ (ou tabulation / retour chariot)
+ * serait interprété comme une formule à l'ouverture dans Excel. On le préfixe d'une apostrophe.
+ * Les nombres et les dates ne sont pas concernés (ils ne sont pas du texte).
+ */
+export function sanitizeCell<V>(v: V): V | string {
+  if (typeof v === "string" && /^[=+\-@\t\r]/.test(v)) return `'${v}`;
+  return v;
+}
+
 /** Classeur d'une feuille : en-tête en gras figé, filtres automatiques, dates JJ/MM/AAAA. */
 export async function buildWorkbook<T>(sheetName: string, columns: ExcelColumn<T>[], rows: T[]): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
@@ -27,7 +37,7 @@ export async function buildWorkbook<T>(sheetName: string, columns: ExcelColumn<T
   for (const r of rows) {
     const values = columns.map((c) => {
       const v = c.value(r);
-      return v === undefined ? null : v;
+      return v === undefined ? null : sanitizeCell(v);
     });
     const added = ws.addRow(values);
     values.forEach((v, i) => {

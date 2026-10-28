@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { sanitizeCell } from "@/lib/excel";
 import { IMPORT_FIELDS, IMPORT_TYPE_LABELS, type ImportType, type ImportSummary } from "./types";
 
 const OUTCOME_LABELS: Record<string, string> = {
@@ -90,7 +91,7 @@ export async function buildImportReportWorkbook(
   ];
   ws.getRow(1).font = { bold: true };
   ws.views = [{ state: "frozen", ySplit: 1 }];
-  for (const l of lines) ws.addRow([l.line, l.ref, OUTCOME_LABELS[l.outcome] ?? l.outcome, l.message]);
+  for (const l of lines) ws.addRow([l.line, sanitizeCell(l.ref), OUTCOME_LABELS[l.outcome] ?? l.outcome, sanitizeCell(l.message)]);
   ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 4 } };
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
