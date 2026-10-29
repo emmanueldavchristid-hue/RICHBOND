@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight,
   BarChart3,
+  ClipboardCheck,
   Home,
   KeyRound,
   Settings,
@@ -36,13 +37,13 @@ export interface NavBadge {
   label: string;
 }
 
-const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Package, PackageCheck, PackageMinus, ArrowLeftRight, RefreshCw, ShieldAlert, Truck, BarChart3, Settings, KeyRound };
+const ICONS: Record<string, LucideIcon> = { Home, ShoppingCart, Ship, Warehouse, Package, PackageCheck, PackageMinus, ClipboardCheck, ArrowLeftRight, RefreshCw, ShieldAlert, Truck, BarChart3, Settings, KeyRound };
 
 /** Sections du menu (DESIGN.md §5). Un élément absent de la liste rejoint la dernière section. */
 const SECTIONS: { title: string | null; hrefs: string[] }[] = [
   { title: null, hrefs: ["/accueil"] },
   { title: "Achats", hrefs: ["/achats", "/import"] },
-  { title: "Stock", hrefs: ["/stock", "/stock/receptions", "/stock/receptions/non-conformites", "/stock/articles", "/stock/mouvements", "/stock/sorties", "/stock/reappro"] },
+  { title: "Stock", hrefs: ["/stock", "/stock/receptions", "/stock/receptions/non-conformites", "/stock/articles", "/stock/mouvements", "/stock/sorties", "/stock/inventaires", "/stock/reappro"] },
   { title: "Fournisseurs", hrefs: ["/fournisseurs"] },
   { title: "Pilotage", hrefs: ["/rapports"] },
   { title: "Paramètres", hrefs: ["/parametres", "/parametres/licence"] },

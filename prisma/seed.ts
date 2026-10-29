@@ -8,6 +8,7 @@ import { seedPurchaseOrders } from "./seed/purchase-orders";
 import { seedReceipts } from "./seed/receipts";
 import { seedStock } from "./seed/stock";
 import { seedHistory } from "./seed/history";
+import { seedInventories } from "./seed/inventories";
 import type { PurchaseScope, Role } from "../src/generated/prisma/client";
 
 const prisma = createPrismaClient();
@@ -81,6 +82,7 @@ async function seedAll() {
   await seedReceipts(prisma);
   await seedStock(prisma);
   await seedHistory(prisma);
+  await seedInventories(prisma);
 }
 
 seedAll()

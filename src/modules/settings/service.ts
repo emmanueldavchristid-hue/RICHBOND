@@ -33,6 +33,8 @@ export async function getSettings(): Promise<AppSettings> {
     stockConsumptionWindowDays: get<number>("stock.consumptionWindowDays"),
     stockDefaultLeadTimeDays: get<number>("stock.defaultLeadTimeDays"),
     stockDormantDays: get<number>("stock.dormantDays"),
+    inventoryThresholdPct: get<number>("inventory.thresholdPct"),
+    inventoryThresholdValue: get<number>("inventory.thresholdValue"),
   };
 }
 

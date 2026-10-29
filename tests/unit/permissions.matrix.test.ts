@@ -33,6 +33,7 @@ const ACHETEUR_OK: Action[] = [
   "item.manage",
   "stock.view",
   "stock.reorder",
+  "inventory.view",
   "price.viewPurchase",
   "price.viewPmp",
   "report.purchasing",

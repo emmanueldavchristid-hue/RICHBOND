@@ -86,6 +86,14 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   STOCK_ADJUST: "Ajustement de stock",
   ITEM_THRESHOLDS_APPLY: "Seuils de stock suggérés appliqués",
   ITEM_ABC_RECOMPUTE: "Recalcul de la classe ABC",
+  INVENTORY_CREATE: "Inventaire préparé",
+  INVENTORY_LINES_UPDATE: "Liste d'inventaire modifiée",
+  INVENTORY_OPEN: "Comptage d'inventaire ouvert",
+  INVENTORY_COUNT_SAVE: "Saisie de comptage d'inventaire",
+  INVENTORY_SUBMIT: "Inventaire soumis à validation",
+  INVENTORY_RECOUNT_REQUEST: "Recomptage demandé",
+  INVENTORY_VALIDATE: "Inventaire validé",
+  INVENTORY_CANCEL: "Inventaire annulé",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
@@ -96,6 +104,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   Supplier: "Fournisseur",
   SupplierContact: "Contact fournisseur",
   Warehouse: "Dépôt",
+  InventoryCount: "Inventaire",
   Department: "Service",
   Currency: "Devise",
   ExchangeRate: "Taux de change",
