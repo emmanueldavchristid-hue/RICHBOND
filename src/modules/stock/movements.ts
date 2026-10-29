@@ -1,5 +1,6 @@
 import type { Prisma, StockDocumentType, StockMovement, StockMovementType } from "@/generated/prisma/client";
 import { BusinessError } from "@/lib/errors";
+import { notify } from "@/modules/notifications/service";
 import { Decimal, computeMovement, formatDecimal, toDecimal, type DecimalInput } from "./pmp";
 
 /**
@@ -208,7 +209,46 @@ export async function applyMovements(tx: Tx, inputs: MovementInput[]): Promise<S
     });
     created.push(movement);
   }
+  await alertCriticalStockouts(tx, created);
   return created;
+}
+
+/**
+ * Rupture d'un article critique (EX-64) : alerte immédiate, dans la transaction du mouvement, quand le stock total
+ * (tous dépôts) passe de positif à nul. Alerte sur la transition seulement : pas de répétition tant que le stock reste à zéro.
+ * Les transferts sont ignorés : ils ne changent pas le stock total (la sortie et l'entrée sont posées en deux appels,
+ * le total serait faussement à zéro entre les deux).
+ */
+async function alertCriticalStockouts(tx: Tx, movements: StockMovement[]): Promise<void> {
+  const delta = new Map<string, Decimal>();
+  for (const m of movements.filter((x) => x.type !== "TRANSFERT")) delta.set(m.itemId, (delta.get(m.itemId) ?? new Decimal(0)).add(m.quantity));
+  const falling = [...delta].filter(([, d]) => d.lt(0)).map(([id]) => id);
+  if (falling.length === 0) return;
+
+  const critical = await tx.item.findMany({
+    where: { id: { in: falling }, criticality: "CRITIQUE", stocked: true },
+    select: { id: true, code: true, name: true, stockUnit: true },
+  });
+  if (critical.length === 0) return;
+  const recipients = await tx.user.findMany({
+    where: { active: true, role: { in: ["RESPONSABLE_ACHATS", "ACHETEUR", "MAGASINIER"] } },
+    select: { id: true },
+  });
+  for (const item of critical) {
+    const agg = await tx.stockLevel.aggregate({ where: { itemId: item.id }, _sum: { quantity: true } });
+    const after = new Decimal(agg._sum.quantity ?? 0);
+    const before = after.sub(delta.get(item.id)!);
+    if (before.lte(0) || after.gt(0)) continue;
+    await notify(tx, recipients.map((u) => u.id), {
+      type: "STOCKOUT_CRITICAL",
+      severity: "CRITIQUE",
+      title: `Rupture : ${item.code} – ${item.name}`,
+      body: `Article critique à zéro (avant : ${formatDecimal(before)} ${item.stockUnit}). Réapprovisionner sans attendre.`,
+      link: `/stock/articles/${item.id}`,
+      entity: "Item",
+      entityId: item.id,
+    });
+  }
 }
 
 function insufficientStock(available: Decimal, unit: string, warehouseName: string, isReversal: boolean): BusinessError {

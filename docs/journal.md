@@ -77,7 +77,8 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 ## LOT-16 – Alertes 8h/15h et centre de notifications (terminé, mode marathon)
 - Fait : `/api/cron/alertes` (CRON_SECRET, 503 si absent, 401 sinon), digest par rôle et par créneau (Africa/Abidjan), idempotent (verrou advisory + clé jour-créneau), page /notifications (filtre gravité, non lues, tout lire), bandeau d'alertes critiques, doc `docs/deploiement.md`. Scénario S7 : 4/4 (bureau + tablette).
 - Décisions : pas de digest vide ; factures, jalons import, inventaires, consultations omis tant que ces lots n'existent pas ; copie email non implémentée (aucun SMTP), notée « prévu ».
-- Reste : notification immédiate à la rupture d'un article critique (touche src/modules/stock, à brancher) ; planifier le cron sur le serveur du client (docs/deploiement.md).
+- Alerte immédiate de rupture (ajoutée après coup) : `alertCriticalStockouts` dans `applyMovements` (src/modules/stock/movements.ts) notifie en CRITIQUE Responsable, Acheteurs et Magasinier actifs quand le stock total d'un article CRITIQUE passe de positif à zéro. Sur la transition seulement (pas de répétition) ; transferts ignorés ; même transaction que le mouvement. Tests dans tests/integration/stock.test.ts.
+- Reste : planifier le cron sur le serveur du client (docs/deploiement.md).
 - Suite : LOT-11 (inventaires).
 
 ## LOT-11 – Inventaires hebdomadaires (terminé, mode marathon)

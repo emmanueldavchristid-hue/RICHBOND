@@ -103,6 +103,7 @@ async function wipe() {
   await cleanReferentials();
   await cleanTestUsers();
   await db.setting.deleteMany({ where: { key: { startsWith: "stock." } } });
+  await db.notification.deleteMany({ where: { type: "STOCKOUT_CRITICAL" } }); // destinataires du seed inclus
   await db.auditLog.deleteMany({ where: { entity: { in: ["StockIssue", "StockMovement"] } } });
 }
 
@@ -191,6 +192,42 @@ describe("bon de sortie", () => {
     expect(await code(cancelIssue(resp, { id: r.id, reason: "Erreur de saisie" }))).toBe("ISSUE_ALREADY_CANCELLED");
     expect(await level()).toBe("100");
     expect(await db.stockMovement.count({ where: { reversalOfId: { not: null } } })).toBe(1);
+  });
+});
+
+describe("alerte immédiate de rupture d'un article critique", () => {
+  const alerts = () => db.notification.findMany({ where: { type: "STOCKOUT_CRITICAL", entityId: item.id }, orderBy: { createdAt: "asc" } });
+  const recipientCount = async () => db.user.count({ where: { active: true, role: { in: ["RESPONSABLE_ACHATS", "ACHETEUR", "MAGASINIER"] } } });
+
+  it("sortie qui vide un article critique : CRITIQUE pour Responsable, Acheteur et Magasinier, une seule fois", async () => {
+    await db.item.update({ where: { id: item.id }, data: { criticality: "CRITIQUE" } });
+    await move({});
+    await createIssue(mag, issueInput(60));
+    expect(await alerts()).toHaveLength(0); // stock restant : pas de rupture
+    await createIssue(mag, issueInput(40));
+    const rows = await alerts();
+    const n = await recipientCount();
+    expect(rows).toHaveLength(n);
+    expect(rows.map((r) => r.recipientId)).toEqual(expect.arrayContaining([resp.id, mag.id, ach.id]));
+    const admins = await db.user.findMany({ where: { role: "SUPER_ADMIN" }, select: { id: true } });
+    expect(rows.some((r) => admins.some((a) => a.id === r.recipientId))).toBe(false);
+    expect(rows.every((n) => n.severity === "CRITIQUE" && n.entityId === item.id && n.link === `/stock/articles/${item.id}`)).toBe(true);
+    expect(rows[0].title).toContain(`${IT_PREFIX}SK-1`);
+    // Une nouvelle entrée puis une nouvelle sortie à zéro réarme l'alerte.
+    await move({ quantity: 5 });
+    await createIssue(mag, issueInput(5));
+    expect(await alerts()).toHaveLength(2 * n);
+  });
+
+  it("aucune alerte : article non critique, transfert entre dépôts, stock restant dans un autre dépôt", async () => {
+    await move({}); // item FOURNITURE standard
+    await createIssue(mag, issueInput(100));
+    await db.item.update({ where: { id: item.id }, data: { criticality: "CRITIQUE" } });
+    await move({ quantity: 50 });
+    await transfer(mag, { fromWarehouseId: whA.id, toWarehouseId: whB.id, itemId: item.id, quantity: 50, comment: "Transfert total" });
+    await move({ warehouseId: whB.id, quantity: 10, unitCost: 1000 });
+    await createIssue(mag, issueInput(50, { warehouseId: whB.id }));
+    expect(await alerts()).toHaveLength(0);
   });
 });
 
