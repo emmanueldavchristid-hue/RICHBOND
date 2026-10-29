@@ -73,3 +73,9 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Correctif de sécurité : les exports Excel et le rapport d'import préfixent d'une apostrophe tout texte commençant par = + - @ (`sanitizeCell`, test `excel.sanitize.test.ts`).
 - Réserves ouvertes (relecture) : zip bomb jugée sur les tailles déclarées ; mises à jour ligne par ligne dans une seule transaction (jusqu'à 5000 lignes) ; rapport d'import stocké dans AuditLog.after (table ImportBatch à envisager) ; séparateur CSV détecté sans ignorer les guillemets.
 - Suite : LOT-16 (ordre marathon de PROMPT-FINIR.md).
+
+## LOT-16 – Alertes 8h/15h et centre de notifications (terminé, mode marathon)
+- Fait : `/api/cron/alertes` (CRON_SECRET, 503 si absent, 401 sinon), digest par rôle et par créneau (Africa/Abidjan), idempotent (verrou advisory + clé jour-créneau), page /notifications (filtre gravité, non lues, tout lire), bandeau d'alertes critiques, doc `docs/deploiement.md`. Scénario S7 : 4/4 (bureau + tablette).
+- Décisions : pas de digest vide ; factures, jalons import, inventaires, consultations omis tant que ces lots n'existent pas ; copie email non implémentée (aucun SMTP), notée « prévu ».
+- Reste : notification immédiate à la rupture d'un article critique (touche src/modules/stock, à brancher) ; planifier le cron sur le serveur du client (docs/deploiement.md).
+- Suite : LOT-11 (inventaires).

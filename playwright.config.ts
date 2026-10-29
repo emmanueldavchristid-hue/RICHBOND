@@ -31,6 +31,8 @@ export default defineConfig({
       ALLOW_TEST_NOW: "1",
       // TEST UNIQUEMENT : secret fictif, jamais utilisé hors tests.
       LICENSE_SECRET: "e2e-only-license-secret-0123456789abcdef",
+      // TEST UNIQUEMENT : secret fictif de l'appel planifié /api/cron/alertes.
+      CRON_SECRET: "e2e-only-cron-secret-0123456789abcdef",
     },
     reuseExistingServer: false,
     timeout: 120_000,

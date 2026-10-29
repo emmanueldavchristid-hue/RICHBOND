@@ -67,6 +67,33 @@ export async function listMine(userId: string, opts: { limit?: number } = {}): P
   return { unread, items };
 }
 
+/** Centre de notifications : filtre par gravité et/ou non lues, plus récentes d'abord (200 max). */
+export async function listFiltered(
+  userId: string,
+  opts: { severity?: NotificationSeverity; unreadOnly?: boolean; limit?: number } = {},
+): Promise<{ unread: number; items: NotificationRow[] }> {
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 200);
+  const [unread, items] = await Promise.all([
+    unreadCount(userId),
+    db.notification.findMany({
+      where: {
+        recipientId: userId,
+        ...(opts.severity ? { severity: opts.severity } : {}),
+        ...(opts.unreadOnly ? { readAt: null } : {}),
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit,
+      select: { id: true, type: true, severity: true, title: true, body: true, link: true, readAt: true, createdAt: true },
+    }),
+  ]);
+  return { unread, items };
+}
+
+/** Nombre de notifications critiques non lues (bandeau d'accueil). */
+export async function unreadCriticalCount(userId: string): Promise<number> {
+  return db.notification.count({ where: { recipientId: userId, readAt: null, severity: "CRITIQUE" } });
+}
+
 /** Marque lue une notification du destinataire (les autres ne sont jamais touchées). */
 export async function markRead(userId: string, id: string, at: Date = now()): Promise<number> {
   const r = await db.notification.updateMany({ where: { id, recipientId: userId, readAt: null }, data: { readAt: at } });

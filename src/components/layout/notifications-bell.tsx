@@ -138,6 +138,19 @@ export function NotificationsBell() {
             ))}
           </ul>
         )}
+        <div className="border-t p-1">
+          <Button
+            variant="ghost"
+            className="h-11 w-full justify-center text-sm font-medium"
+            onClick={() => {
+              setOpen(false);
+              router.push("/notifications");
+            }}
+            data-testid="notifications-see-all"
+          >
+            Voir toutes les notifications
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );
