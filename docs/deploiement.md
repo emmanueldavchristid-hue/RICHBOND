@@ -44,7 +44,7 @@ Immédiates, sans passer par la tâche planifiée : la soumission d'une DA « Ar
 | `CRON_SECRET` | Jeton de la route `/api/cron/alertes` (voir plus haut). |
 | `LICENSE_SECRET` | Secret de vérification des clés de licence (voir « Clé de licence »). |
 | `ALLOWED_ORIGINS` | Facultatif : origines autorisées pour les actions serveur si le proxy réécrit l'hôte (séparées par des virgules). |
-| `BACKUP_DIR`, `BACKUP_RETENTION_DAYS`, `PG_BIN` | Facultatives, utilisées par les scripts de sauvegarde. |
+| `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Facultatives, utilisées par `scripts/backup.sh` (Linux). Sous Windows, dossier et durée se règlent dans la tâche planifiée. |
 
 Ne jamais versionner ces valeurs. Le fichier `.env` reste sur le serveur.
 
@@ -67,17 +67,33 @@ Sur un réseau interne sans nom public : certificat de l'autorité interne du cl
 
 ## Sauvegardes
 
-Scripts : `scripts/backup.ps1` (Windows) et `scripts/backup.sh` (Linux). Ils utilisent `pg_dump` au format custom, vérifient que l'archive est lisible (`pg_restore --list`) et suppriment les sauvegardes de plus de 30 jours (`BACKUP_RETENTION_DAYS`). Aucun mot de passe n'est écrit dans les scripts : ils lisent `DATABASE_URL` ou les variables `PG*` (ou `pgpass`) de l'environnement.
+Linux : `scripts/backup.sh` (`pg_dump` au format custom, contrôle de l'archive par `pg_restore --list`, suppression des sauvegardes de plus de 30 jours via `BACKUP_RETENTION_DAYS`). Aucun mot de passe n'est écrit dans le script : il lit `DATABASE_URL` ou les variables `PG*` (ou `pgpass`) de l'environnement.
 
 Linux (cron, tous les jours à 2 h) :
 ```
 0 2 * * * . /etc/richbond.env && BACKUP_DIR=/var/backups/richbond /opt/richbond/scripts/backup.sh >> /var/log/richbond-backup.log 2>&1
 ```
-Windows : Planificateur de tâches, déclencheur quotidien 02:00, action :
-```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\richbond\scripts\backup.ps1
-```
-(définir `DATABASE_URL` et `BACKUP_DIR` en variables d'environnement système, et `PG_BIN` si `pg_dump` n'est pas dans le `PATH`.)
+
+### Windows : tâche planifiée appelant `pg_dump.exe` directement
+
+Aucun script n'est installé sur le serveur (un antivirus peut bloquer un `.ps1` de sauvegarde comme faux positif). La tâche appelle `pg_dump.exe` ; la purge des anciennes sauvegardes est faite par la tâche elle-même, et seulement si la sauvegarde et son contrôle ont réussi.
+
+1. **Mot de passe** : le créer une fois, pour le compte qui exécutera la tâche, dans `%APPDATA%\postgresql\pgpass.conf` (une ligne : `localhost:5432:richbond:richbond:MOT_DE_PASSE`). Il n'apparaît donc ni dans la tâche ni dans un script. Restreindre ce fichier à ce compte.
+2. **Dossier** : créer `D:\Sauvegardes\richbond` (idéalement sur un autre disque que la base).
+3. **Planificateur de tâches**, Créer une tâche :
+   - Général : nom `RICHBOND - Sauvegarde`, compte dédié (ou SYSTEM avec `pgpass.conf` dans son profil), cocher « Exécuter même si l'utilisateur n'est pas connecté ».
+   - Déclencheurs : quotidien, 02:00.
+   - Actions : une seule action « Démarrer un programme » :
+     - Programme : `cmd.exe`
+     - Arguments (une seule ligne ; adapter la version de PostgreSQL, l'utilisateur et les chemins) :
+       ```
+       /c ""C:\Program Files\PostgreSQL\16\bin\pg_dump.exe" -h localhost -p 5432 -U richbond -d richbond -F c --no-owner -f "D:\Sauvegardes\richbond\richbond_%DATE:~6,4%%DATE:~3,2%%DATE:~0,2%.dump" && "C:\Program Files\PostgreSQL\16\bin\pg_restore.exe" --list "D:\Sauvegardes\richbond\richbond_%DATE:~6,4%%DATE:~3,2%%DATE:~0,2%.dump" > NUL && forfiles /p "D:\Sauvegardes\richbond" /m richbond_*.dump /d -30 /c "cmd /c del @path""
+       ```
+   - Paramètres : « Exécuter la tâche dès que possible après un démarrage planifié manqué ».
+4. **Enchaînement** : `&&` garantit que le contrôle (`pg_restore --list`) ne s'exécute que si `pg_dump` a réussi, et que la purge (`forfiles ... /d -30` : fichiers de plus de 30 jours) ne s'exécute que si la sauvegarde du jour est valide. En cas d'échec, rien n'est supprimé et la colonne « Dernier résultat » de la tâche affiche un code différent de 0.
+5. **Format de date** : `%DATE:~6,4%%DATE:~3,2%%DATE:~0,2%` suppose une date `JJ/MM/AAAA` (Windows en français). Contrôler avec `echo %DATE%` dans une invite de commandes ouverte sous le même compte ; si le résultat commence par le nom du jour, décaler les positions de 4 caractères. Lancer la tâche une fois à la main (clic droit, Exécuter) et vérifier qu'un fichier `richbond_AAAAMMJJ.dump` apparaît.
+
+Durée de conservation : modifier la valeur `-30` de `forfiles` (en jours). Une seule sauvegarde par jour est conservée (un second lancement le même jour remplace le fichier).
 
 À faire en plus : copier le dossier de sauvegarde hors du serveur (disque externe, autre site) ; les pièces jointes (photos d'articles, factures, DA) sont dans le dossier `storage/` : à sauvegarder avec la base.
 
