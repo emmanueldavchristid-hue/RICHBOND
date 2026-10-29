@@ -309,6 +309,28 @@ describe("consultations", () => {
     expect((await listStock(mag, { q: "Courroie test" })).rows[0].value).toBe(110000); // le Magasinier voit le PMP
   });
 
+  it("filtres de la liste du stock : famille, équipement, statut ; les services n'y figurent jamais", async () => {
+    await db.item.update({ where: { id: pdr.id }, data: { family: "Roulements", equipment: "Ensacheuse test" } });
+    const service = await db.item.create({ data: { code: `${IT_PREFIX}SK-SV`, name: "Maintenance test stock", category: "SERVICE", stocked: false, stockUnit: "U", purchaseUnit: "U", createdById: respUser.id } });
+    const blocked = await db.item.create({ data: { code: `${IT_PREFIX}SK-BL`, name: "Article bloqué test stock", category: "FOURNITURE", status: "BLOQUE", stockUnit: "U", purchaseUnit: "U", createdById: respUser.id } });
+    const codes = async (over: Record<string, unknown>) => (await listStock(resp, { q: "test stock", ...over })).rows.map((r) => r.code).sort();
+
+    // Défaut : articles actifs et stockés seulement.
+    expect(await codes({})).toEqual([`${IT_PREFIX}SK-1`, `${IT_PREFIX}SK-2`]);
+    // Un service n'apparaît pas, même en le demandant par catégorie ou avec « tous les statuts ».
+    expect(await codes({ categorie: "SERVICE" })).toEqual([]);
+    expect(await codes({ statut: "TOUS" })).not.toContain(service.code);
+    // Statut (comme la liste des articles).
+    expect(await codes({ statut: "BLOQUE" })).toEqual([blocked.code]);
+    expect(await codes({ statut: "TOUS" })).toEqual([`${IT_PREFIX}SK-1`, blocked.code, `${IT_PREFIX}SK-2`].sort());
+    // Famille et équipement (la recherche couvre aussi l'équipement).
+    expect(await codes({ famille: "roulements" })).toEqual([`${IT_PREFIX}SK-2`]);
+    expect(await codes({ categorie: "PDR", equipement: "ensacheuse" })).toEqual([`${IT_PREFIX}SK-2`]);
+    expect(await codes({ q: "Ensacheuse test" })).toEqual([`${IT_PREFIX}SK-2`]);
+    // Les totaux ne comptent que les articles stockés.
+    expect((await listStock(resp, { q: "test stock" })).totals.count).toBe(2);
+  });
+
   it("seuils suggérés : appliqués sur demande du Responsable seulement, tracés ; ABC recalculée", async () => {
     await db.item.update({ where: { id: item.id }, data: { criticality: "CRITIQUE", leadTimeDays: 30 } });
     await move({ quantity: 200, occurredAt: daysAgo(100) });

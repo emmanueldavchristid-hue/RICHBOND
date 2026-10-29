@@ -5,6 +5,7 @@ import { now } from "@/lib/clock";
 import { todayAbidjan } from "@/lib/dates";
 import { BusinessError } from "@/lib/errors";
 import { can, canSeePurchasePrice, requireAction, type PermissionUser } from "@/lib/permissions";
+import { buildItemWhere } from "@/modules/items/service";
 import { parseInput } from "@/modules/purchase-requests/parse";
 import { EXPORT_MAX_ROWS, toPage } from "@/modules/referentials/list-query";
 import { getSettings } from "@/modules/settings/service";
@@ -72,15 +73,15 @@ const SITUATION_FILTER = {
 async function buildStockRows(client: Client, user: PermissionUser, f: ReturnType<typeof listStockSchema.parse>, at: Date) {
   const settings = await getSettings();
   const vis = await visibility(user, settings);
+  // Mêmes critères que la liste des articles (recherche code/désignation/code-barres/équipement/réf. fournisseur,
+  // catégorie, criticité, famille, équipement, statut), mais seuls les articles gérés en stock : pas de services.
   const where: Prisma.ItemWhereInput = {
-    stocked: true,
-    ...(f.categorie ? { category: f.categorie } : {}),
-    ...(f.criticite ? { criticality: f.criticite } : {}),
-    ...(f.classe ? { abcClass: f.classe } : {}),
-    ...(f.depot ? { stockLevels: { some: { warehouseId: f.depot } } } : {}),
-    ...(f.q
-      ? { OR: [{ code: { contains: f.q, mode: "insensitive" } }, { name: { contains: f.q, mode: "insensitive" } }, { barcode: f.q }] }
-      : {}),
+    AND: [
+      { stocked: true },
+      buildItemWhere({ ...f, tri: undefined }),
+      ...(f.classe ? [{ abcClass: f.classe }] : []),
+      ...(f.depot ? [{ stockLevels: { some: { warehouseId: f.depot } } }] : []),
+    ],
   };
   const items = await client.item.findMany({ where, select: FORECAST_ITEM_SELECT, orderBy: { code: "asc" } });
   const stats = await loadStats(client, { itemIds: items.length < 2000 ? items.map((i) => i.id) : undefined, warehouseId: f.depot, at, settings });
@@ -97,6 +98,8 @@ async function buildStockRows(client: Client, user: PermissionUser, f: ReturnTyp
       category: item.category,
       criticality: item.criticality,
       status: item.status,
+      family: item.family,
+      equipment: item.equipment,
       stockUnit: item.stockUnit,
       onHand: q(onHand),
       onOrder: q(s?.onOrder ?? 0),

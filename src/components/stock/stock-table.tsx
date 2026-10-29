@@ -2,15 +2,16 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { CriticalityBadge } from "@/components/criticality-badge";
 import { DataTable, type DataColumn, type DataTablePageInfo, type FilterDef } from "@/components/data-table";
 import { DateCell } from "@/components/date-cell";
 import { WriteButton } from "@/components/license/write-button";
+import { StatusBadge } from "@/components/status-badge";
 import { MoneyCell } from "@/components/money-cell";
 import { QtyCell } from "@/components/qty-cell";
-import { CRITICALITY_LABELS, ITEM_CATEGORY_LABELS } from "@/modules/referentials/labels";
+import { CRITICALITY_LABELS, ITEM_CATEGORY_LABELS, ITEM_STATUS_LABELS } from "@/modules/referentials/labels";
 import { CoverageBadge, CoverageLegend } from "./coverage";
 import { STOCK_SITUATION_OPTIONS } from "./labels";
 import type { StockListRow } from "./types";
@@ -25,16 +26,19 @@ export function StockTable({
   rows,
   pageInfo,
   warehouses,
+  families,
   showCosts,
   canCreate,
 }: {
   rows: StockListRow[];
   pageInfo: DataTablePageInfo;
   warehouses: { id: string; name: string }[];
+  families: string[];
   showCosts: boolean;
   canCreate: boolean;
 }) {
   const router = useRouter();
+  const categorie = useSearchParams().get("categorie");
 
   const columns = useMemo<DataColumn<StockListRow>[]>(() => {
     const cols: DataColumn<StockListRow>[] = [
@@ -50,7 +54,24 @@ export function StockTable({
           </Link>
         ),
       },
-      { id: "name", header: "Désignation", sortable: true, sticky: "second", mobile: "title", cell: (r) => <span className="block max-w-56 truncate" title={r.name}>{r.name}</span> },
+      {
+        id: "name",
+        header: "Désignation",
+        sortable: true,
+        sticky: "second",
+        mobile: "title",
+        cell: (r) => (
+          <div className="max-w-64 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="truncate" title={r.name}>{r.name}</span>
+              {r.status !== "ACTIF" ? <StatusBadge status={r.status} label={ITEM_STATUS_LABELS[r.status as keyof typeof ITEM_STATUS_LABELS]} /> : null}
+            </div>
+            <div className="truncate text-xs text-muted-foreground" data-testid={`article-meta-${r.code}`}>
+              {[ITEM_CATEGORY_LABELS[r.category as keyof typeof ITEM_CATEGORY_LABELS] ?? r.category, r.family, r.equipment].filter(Boolean).join(" · ")}
+            </div>
+          </div>
+        ),
+      },
       { id: "criticality", header: "Criticité", cell: (r) => <CriticalityBadge value={r.criticality} /> },
       {
         id: "stock",
@@ -88,16 +109,30 @@ export function StockTable({
     return cols;
   }, [showCosts]);
 
-  const filters = useMemo<FilterDef[]>(
-    () => [
+  const filters = useMemo<FilterDef[]>(() => {
+    const list: FilterDef[] = [
       { param: "categorie", label: "Catégorie", options: [{ value: "", label: "Toutes les catégories" }, ...optionsOf(ITEM_CATEGORY_LABELS)] },
       { param: "criticite", label: "Criticité", options: [{ value: "", label: "Toutes les criticités" }, ...optionsOf(CRITICALITY_LABELS)] },
       { param: "depot", label: "Dépôt", options: [{ value: "", label: "Tous les dépôts" }, ...warehouses.map((w) => ({ value: w.id, label: w.name }))] },
       { param: "classe", label: "Classe ABC", options: [{ value: "", label: "Toutes les classes" }, { value: "A", label: "Classe A" }, { value: "B", label: "Classe B" }, { value: "C", label: "Classe C" }] },
       { param: "situation", label: "Situation de stock", options: STOCK_SITUATION_OPTIONS.map((o) => ({ ...o })) },
-    ],
-    [warehouses],
-  );
+      {
+        param: "statut",
+        label: "Statut",
+        options: [
+          { value: "", label: "Articles actifs" },
+          { value: "BLOQUE", label: "Bloqués" },
+          { value: "OBSOLETE", label: "Obsolètes" },
+          { value: "TOUS", label: "Tous les statuts" },
+        ],
+      },
+      { param: "famille", label: "Famille", options: [{ value: "", label: "Toutes les familles" }, ...families.map((f) => ({ value: f, label: f }))] },
+    ];
+    if (categorie === "PDR") {
+      list.push({ param: "equipement", label: "Équipement", type: "text", placeholder: "Équipement / machine", maxLength: 120 });
+    }
+    return list;
+  }, [warehouses, families, categorie]);
 
   return (
     <div className="space-y-3">

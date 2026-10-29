@@ -424,10 +424,13 @@ test.describe("S0.2 – Activation et prolongation par le Super-admin", () => {
       await setTestNow(context, simulatedAt(endDay, -1, "08:00"));
       await loginAs(page, "SUPER_ADMIN");
       await page.goto("/parametres/licence");
-      await page.waitForLoadState("networkidle"); // hydratation avant saisie
-      await page.getByTestId("extend-date").fill(newDay);
-      await page.getByTestId("extend-submit").click();
-      await expect(page.getByTestId("licence-restant")).not.toContainText("Terminé");
+      // Page diffusée en flux (Suspense) : si le clic part avant l'hydratation du formulaire, la saisie est perdue.
+      // On rejoue donc saisie + envoi jusqu'à la prise en compte (l'opération est idempotente : même date).
+      await expect(async () => {
+        await page.getByTestId("extend-date").fill(newDay);
+        await page.getByTestId("extend-submit").click();
+        await expect(page.getByTestId("licence-restant")).not.toContainText("Terminé", { timeout: 4_000 });
+      }).toPass({ timeout: 40_000 });
       await expect(page.getByTestId("licence-restant")).toContainText(/14 j/);
     });
     await test.step("Plus de bandeau de lecture seule", async () => {

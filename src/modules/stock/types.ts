@@ -42,6 +42,8 @@ export interface StockListRow {
   category: string;
   criticality: string;
   status: string;
+  family: string | null;
+  equipment: string | null;
   stockUnit: string;
   /** Σ des dépôts. */
   onHand: string;

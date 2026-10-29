@@ -247,7 +247,7 @@ test.describe("SR2 – Magasinier sur tablette : lecture seule, sans prix", () =
     await test.step("Le magasinier ouvre la liste des articles et filtre PDR + Critique + équipement", async () => {
       await loginAs(page, "MAGASINIER");
       await ready(page, "/stock/articles");
-      await expect(title(page)).toHaveText("Articles");
+      await expect(title(page)).toHaveText("Articles et stock");
       await expect(page.getByTestId("item-create")).toHaveCount(0);
       await page.getByTestId("articles-filter-categorie").selectOption("PDR");
       await expect(page).toHaveURL(/categorie=PDR/);
@@ -285,10 +285,12 @@ test.describe("SR2 – Magasinier sur tablette : lecture seule, sans prix", () =
       await expect(page.getByTestId("item-suppliers-table")).toBeVisible();
       await expect(page.getByTestId("item-link-add")).toHaveCount(0);
       await expect(page.getByTestId("item-suppliers-table")).not.toContainText("Dernier prix");
-      await expect(page.getByTestId("money")).toHaveCount(0);
+      // Le Magasinier voit le PMP et la valeur du stock (H13, LOT-07) mais aucun prix d'achat fournisseur.
+      await expect(page.getByTestId("item-suppliers-table").getByTestId("money")).toHaveCount(0);
       const html = await (await page.request.get(page.url())).text();
-      expect(html).not.toMatch(/11[\s  ]?500/); // prix du fournisseur local de ce roulement
-      expect(html).not.toContain('lastPrice":"');
+      // « 11 500 FCFA » apparaît bien dans la page, mais c'est le PMP du stock (visible au Magasinier, H13), pas un prix
+      // d'achat : on vérifie donc l'absence des données de prix fournisseur plutôt que d'un montant.
+      expect(html).not.toMatch(/lastPrice[\\]*"\s*:\s*[\\]*"?\d/); // la clé peut exister, jamais avec une valeur
     });
 
     await test.step("Fournisseurs et export des fournisseurs refusés au magasinier", async () => {
@@ -483,10 +485,11 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
   test("articles : pagination, tri, recherche, filtres, URL, export Excel", async ({ page }) => {
     await loginAs(page, "RESPONSABLE_ACHATS");
     let total = 0;
+    let pdrTotal = 0;
 
     await test.step("Liste des articles : « 1–25 sur N » puis page 2", async () => {
       await ready(page, "/stock/articles");
-      await expect(title(page)).toHaveText("Articles");
+      await expect(title(page)).toHaveText("Articles et stock");
       total = await rangeTotal(page, "articles");
       expect(total).toBeGreaterThan(25);
       await expect(page.getByTestId("articles-range")).toHaveText(`1–25 sur ${total}`);
@@ -543,15 +546,17 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
       await expect(page.getByTestId("articles-range")).toHaveText(`1–25 sur ${total}`);
     });
 
-    await test.step("Filtres catégorie « Service » et famille ; l'état est dans l'URL", async () => {
-      await page.getByTestId("articles-filter-categorie").selectOption("SERVICE");
-      await expect(page).toHaveURL(/categorie=SERVICE/);
-      await expect(page.getByTestId("articles-range")).toHaveText("1–3 sur 3");
-      for (const r of await itemRows(page).all()) expect(norm(await r.textContent())).toContain("Service");
+    await test.step("Filtres catégorie « PDR » et famille ; l'état est dans l'URL", async () => {
+      await page.getByTestId("articles-filter-categorie").selectOption("PDR");
+      await expect(page).toHaveURL(/categorie=PDR/);
+      // Les services (non stockés) ne figurent jamais dans la liste du stock.
+      await expect(page.getByTestId("articles-range")).not.toHaveText(/ 0$/);
+      pdrTotal = await rangeTotal(page, "articles");
+      expect(pdrTotal).toBeLessThan(total);
       // URL partageable : rechargée telle quelle, même résultat.
       await ready(page, page.url());
-      await expect(page.getByTestId("articles-filter-categorie")).toHaveValue("SERVICE");
-      await expect(page.getByTestId("articles-range")).toHaveText("1–3 sur 3");
+      await expect(page.getByTestId("articles-filter-categorie")).toHaveValue("PDR");
+      await expect.poll(() => rangeTotal(page, "articles")).toBe(pdrTotal);
       await page.getByTestId("articles-reset").click();
       await expect(page).not.toHaveURL(/categorie=/);
       await page.getByTestId("articles-filter-famille").selectOption("Roulements");
@@ -561,25 +566,33 @@ test.describe("SR4 – Listes : recherche, tri, filtres, pagination, export", ()
       await expect(page).not.toHaveURL(/famille=/);
     });
 
-    await test.step("Export Excel avec le filtre « Service » : lignes = liste filtrée", async () => {
-      await page.getByTestId("articles-filter-categorie").selectOption("SERVICE");
-      await expect(page.getByTestId("articles-range")).toHaveText("1–3 sur 3");
+    await test.step("Export Excel avec le filtre « PDR » : lignes = liste filtrée", async () => {
+      await page.getByTestId("articles-filter-categorie").selectOption("PDR");
+      await expect.poll(() => rangeTotal(page, "articles")).toBe(pdrTotal);
       const file = await downloadFrom(page, "articles-export");
-      expect(file.name).toMatch(/^articles_\d{8}\.xlsx$/);
-      const xl = await readExport(file.path, "Articles");
+      expect(file.name).toMatch(/^stock_\d{8}\.xlsx$/);
+      const xl = await readExport(file.path, "Stock");
       expect(xl.header).toEqual(
-        expect.arrayContaining(["Code", "Désignation", "Catégorie", "Criticité", "Statut"]),
+        expect.arrayContaining([
+          "Code",
+          "Désignation",
+          "Catégorie",
+          "Criticité",
+          "Stock",
+          "Situation",
+          "Statut",
+        ]),
       );
       expect(xl.header.some((h) => /prix/i.test(h))).toBe(false);
-      expect(xl.rows).toHaveLength(3);
-      for (const r of xl.rows) expect(r["Catégorie"]).toBe("Service");
+      expect(xl.rows).toHaveLength(pdrTotal);
+      for (const r of xl.rows) expect(r["Catégorie"]).toBe("Pièce de rechange (PDR)");
     });
 
     await test.step("Export sans filtre : autant de lignes que la liste complète", async () => {
       await page.getByTestId("articles-reset").click();
       await expect(page.getByTestId("articles-range")).toHaveText(`1–25 sur ${total}`);
       const file = await downloadFrom(page, "articles-export");
-      const xl = await readExport(file.path, "Articles");
+      const xl = await readExport(file.path, "Stock");
       expect(xl.rows).toHaveLength(total);
     });
   });
@@ -696,8 +709,8 @@ test.describe("SR5 – Essai expiré : consultation et export seulement", () => 
     await test.step("Export Excel des articles autorisé en lecture seule", async () => {
       const total = await rangeTotal(page, "articles");
       const file = await downloadFrom(page, "articles-export");
-      expect(file.name).toMatch(/^articles_\d{8}\.xlsx$/);
-      expect((await readExport(file.path, "Articles")).rows).toHaveLength(total);
+      expect(file.name).toMatch(/^stock_\d{8}\.xlsx$/);
+      expect((await readExport(file.path, "Stock")).rows).toHaveLength(total);
     });
 
     await test.step("Fournisseurs : consultation, export, « Nouveau fournisseur » grisé", async () => {

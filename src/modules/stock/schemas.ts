@@ -130,6 +130,10 @@ export const listStockSchema = listQuerySchema.extend({
   classe: opt(z.enum(ABC_CLASSES, { error: "Classe ABC invalide." })),
   situation: opt(z.enum(STOCK_SITUATIONS, { error: "Situation invalide." })),
   q: optionalText(100),
+  /** Comme la liste des articles (LOT-03) : absent = articles actifs ; « TOUS » = tous les statuts. */
+  statut: opt(z.union([z.enum(["ACTIF", "BLOQUE", "OBSOLETE"], { error: "Statut invalide." }), z.literal("TOUS")])),
+  famille: optionalText(60),
+  equipement: optionalText(120),
 });
 export type ListStockInput = z.input<typeof listStockSchema>;
 

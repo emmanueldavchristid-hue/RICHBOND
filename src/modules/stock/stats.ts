@@ -27,6 +27,8 @@ export const FORECAST_ITEM_SELECT = {
   category: true,
   criticality: true,
   status: true,
+  family: true,
+  equipment: true,
   stocked: true,
   stockUnit: true,
   purchaseUnit: true,

@@ -8,18 +8,19 @@ import { formatFcfa } from "@/lib/money";
 import { can } from "@/lib/permissions";
 import { pickParams, type SearchParams } from "@/lib/search-params";
 import { requirePageAction } from "@/modules/auth/session";
+import { listFamilies } from "@/modules/items";
 import { listStock, listStockSchema } from "@/modules/stock";
 import { listWarehouses } from "@/modules/warehouses";
 
 export const metadata: Metadata = { title: "Articles et stock – RICHBOND" };
 
-const KEYS = ["q", "categorie", "criticite", "depot", "classe", "situation", "tri", "ordre", "page", "taille"] as const;
+const KEYS = ["q", "categorie", "criticite", "depot", "classe", "situation", "statut", "famille", "equipement", "tri", "ordre", "page", "taille"] as const;
 
 async function ArticlesContent({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const user = await requirePageAction("item.view");
   const raw = pickParams(await searchParams, KEYS);
   const parsed = listStockSchema.safeParse(raw);
-  const [result, warehouses] = await Promise.all([listStock(user, parsed.success ? raw : {}), listWarehouses({ activeOnly: true })]);
+  const [result, warehouses, families] = await Promise.all([listStock(user, parsed.success ? raw : {}), listWarehouses({ activeOnly: true }), listFamilies()]);
   const showCosts = can(user, "price.viewPmp");
   const t = result.totals;
   return (
@@ -48,6 +49,7 @@ async function ArticlesContent({ searchParams }: { searchParams: Promise<SearchP
         rows={result.rows}
         pageInfo={{ total: result.total, page: result.page, taille: result.taille, pageCount: result.pageCount }}
         warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
+        families={families}
         showCosts={showCosts}
         canCreate={can(user, "item.manage")}
       />
