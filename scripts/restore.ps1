@@ -4,7 +4,7 @@
 .EXAMPLE
   .\scripts\restore.ps1 -File .\backups\richbond_20261029_020000.dump
 .NOTES
-  Connexion : DATABASE_URL ou PGHOST/PGPORT/PGUSER/PGDATABASE/PGPASSWORD (voir backup.ps1). PG_BIN facultatif.
+  Connexion : DATABASE_URL ou PGHOST/PGPORT/PGUSER/PGDATABASE/PGPASSWORD. PG_BIN facultatif.
   Tester d'abord sur une base vide en changeant DATABASE_URL.
 #>
 param(
