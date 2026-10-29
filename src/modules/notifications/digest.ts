@@ -73,7 +73,7 @@ export async function buildDigestFor(
       { label: "Factures en écart", count: inv.ecart, href: "/achats/factures?onglet=ecarts", tone: "attention" },
     ];
   } else if (user.role === "ACHETEUR") {
-    const [dash, unconfirmed, inv] = await Promise.all([buyerDashboard(user, at), countUnconfirmedOrders(at, user.id), invoiceCounters(at)]);
+    const [dash, unconfirmed, inv] = await Promise.all([buyerDashboard(user, at), countUnconfirmedOrders(at, user.id), invoiceCounters(at, user)]);
     lines = [
       ...dash.cards.map((c) => ({
         label: c.label,

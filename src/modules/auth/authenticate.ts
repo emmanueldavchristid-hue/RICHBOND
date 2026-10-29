@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { APP_TZ } from "@/lib/dates";
 import { log } from "@/modules/audit";
 import { DUMMY_HASH, verifyPassword } from "./password";
+import { loginThrottle } from "./rate-limit";
 import type { PurchaseScope, Role } from "@/generated/prisma/client";
 
 export const MAX_FAILED_ATTEMPTS = 5;
@@ -35,11 +36,40 @@ export function authMessage(r: Extract<AuthResult, { ok: false }>): string {
   return AUTH_MESSAGES[r.reason];
 }
 
+/** Point d'entrée : limitation par e-mail + IP (message générique de verrouillage), puis authentification. */
 export async function authenticate(
   rawEmail: string,
   password: string,
   now: Date = new Date(),
   ip: string | null = null,
+): Promise<AuthResult> {
+  const blocked = loginThrottle.blockedUntil(rawEmail, ip, now);
+  if (blocked) return { ok: false, reason: "LOCKED", lockedUntil: blocked };
+  const r = await authenticateInner(rawEmail, password, now, ip);
+  if (r.ok) {
+    loginThrottle.reset(rawEmail, ip);
+  } else if (r.reason === "INVALID") {
+    if (loginThrottle.recordFailure(rawEmail, ip, now)) {
+      await db.$transaction((tx) =>
+        log(tx, {
+          userId: null,
+          action: "LOGIN_THROTTLED",
+          entity: "User",
+          entityId: "throttle",
+          after: { ip },
+          ip,
+        }),
+      );
+    }
+  }
+  return r;
+}
+
+async function authenticateInner(
+  rawEmail: string,
+  password: string,
+  now: Date,
+  ip: string | null,
 ): Promise<AuthResult> {
   const email = rawEmail.trim().toLowerCase();
   const user = await db.user.findUnique({ where: { email } });

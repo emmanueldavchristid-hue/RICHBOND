@@ -62,6 +62,7 @@ export const ALL_ACTIONS = [
   "license.manage",
   "maintenance.run",
   "sage.sync",
+  "data.export",
 ] as const;
 
 export type Action = (typeof ALL_ACTIONS)[number];

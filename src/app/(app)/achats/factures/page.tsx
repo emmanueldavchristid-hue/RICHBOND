@@ -25,7 +25,7 @@ async function InvoicesContent({ searchParams }: { searchParams: Promise<SearchP
   const [page, schedule, counters, suppliers] = await Promise.all([
     listInvoices(user, parsed.success ? raw : {}, now),
     dueSchedule(user, now),
-    invoiceCounters(now),
+    invoiceCounters(now, user),
     listSupplierOptions(),
   ]);
   const tab: InvoiceTab = parsed.success ? parsed.data.onglet : "tous";

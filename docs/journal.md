@@ -93,3 +93,10 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Tests : 28 unitaires + intégration verts ; scénario S2-facture vert (desktop). Lint et typecheck verts.
 - Réserve : pas d'écran de modification d'une facture (action serveur prête). Recette globale et relecture sécurité prévues après ce lot (PROMPT-FINIR).
 - Suite (ordre demandé) : LOT-18, LOT-12, LOT-10, LOT-15, LOT-14.
+
+## LOT-18 – Durcissement, sauvegardes, guide, déploiement (terminé, mode marathon)
+- Fait : en-têtes de sécurité (CSP, HSTS en prod…), blocage des tentatives de connexion par e-mail+IP (en mémoire, un seul processus), scripts de sauvegarde / restauration PostgreSQL (Windows et Linux, rétention 30 jours), export complet Excel du Responsable (`data.export`, 14 feuilles, audité), seed de charge `npm run seed:charge`, `docs/deploiement.md` complété, `docs/guide-utilisateur.md`.
+- Relecture sécurité (LOT-13 + audit transversal) : aucun bloquant ; périmètre LOCAL/IMPORT de l'Acheteur appliqué aux factures (`invoices/scope.ts`) + tests.
+- `npm audit` : vulnérabilités hautes corrigées ; restent 5 alertes faibles/moyennes (exceljs via uuid, shadcn) dont le correctif imposerait une régression d'exceljs : acceptées.
+- À vérifier plus tard : scripts de sauvegarde/restauration et seed de charge non rejoués ; CSP non vérifiée en navigateur ; libellés du guide déduits des scénarios ; périmètre Acheteur des BC et exports à confirmer ; recette finale `docs/recette/RECETTE-FINALE.md` en fin de marathon.
+- Suite : LOT-12 (achats import).

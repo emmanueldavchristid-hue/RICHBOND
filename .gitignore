@@ -42,3 +42,5 @@ Thumbs.db
 tests/e2e/_dbg/
 tests/e2e/_recette/
 .test-db.lock
+
+backups/

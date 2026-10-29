@@ -29,13 +29,19 @@ async function ParametresContent() {
       ok: can(user, "import.manage"),
     },
     { href: "/parametres/reglages", label: "Réglages", text: "Prix visibles au magasin", ok: can(user, "settings.manage") },
+    { href: "/api/export-complet", label: "Export complet des données", text: "Toutes vos données dans un classeur Excel (une feuille par domaine)", ok: can(user, "data.export"), download: true },
     { href: "/parametres/journal", label: "Journal d'activité", text: "Qui a fait quoi, et quand", ok: can(user, "audit.view") },
     { href: "/parametres/licence", label: "Licence", text: "Période d'essai et activation", ok: can(user, "license.manage") },
   ].filter((l) => l.ok);
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2" data-testid="parametres-liens">
-        {links.map((l) => (
+        {links.map((l) => l.download ? (
+          <a key={l.href} href={l.href} download data-testid="parametres-lien-export-complet" className="rounded-lg border bg-card p-5 shadow-sm hover:bg-muted">
+            <p className="font-medium">{l.label}</p>
+            <p className="text-sm text-muted-foreground">{l.text}</p>
+          </a>
+        ) : (
           <Link key={l.href} href={l.href} data-testid={`parametres-lien-${l.href.split("/").pop()}`} className="rounded-lg border bg-card p-5 shadow-sm hover:bg-muted">
             <p className="font-medium">{l.label}</p>
             <p className="text-sm text-muted-foreground">{l.text}</p>

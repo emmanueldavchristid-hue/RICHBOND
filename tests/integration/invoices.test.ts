@@ -10,12 +10,15 @@ import {
   cancelInvoice,
   createInvoice,
   dueSchedule,
+  exportInvoices,
+  getInvoice,
   invoiceDiscrepancyRows,
   listInvoiceableReceipts,
   listInvoices,
   markLitige,
   markTransmitted,
   rematchInvoice,
+  removeInvoiceAttachment,
   resolveLitige,
   updateInvoice,
 } from "@/modules/invoices";
@@ -52,7 +55,7 @@ async function code(p: Promise<unknown>): Promise<string> {
 
 let seq = 0;
 /** BC local confirmé, une ligne de `qty` cartons à 10 000 FCFA, TVA 18 %, paiement 30 jours ; réception de `received` cartons. */
-async function makeOrder(o: { qty?: number; received?: number } = {}) {
+async function makeOrder(o: { qty?: number; received?: number; type?: "LOCAL" | "IMPORT" } = {}) {
   const qty = o.qty ?? 10;
   seq += 1;
   const po = await db.purchaseOrder.create({
@@ -61,7 +64,7 @@ async function makeOrder(o: { qty?: number; received?: number } = {}) {
       status: "CONFIRME",
       sentAt: new Date(),
       confirmedAt: new Date(),
-      type: "LOCAL",
+      type: o.type ?? "LOCAL",
       origin: "DIRECT",
       supplierId: supplier.id,
       createdById: ach.id,
@@ -314,5 +317,51 @@ describe("accès, licence, échéancier, export", () => {
     const list = await listInvoices(resp, { onglet: "ecarts" });
     expect(list.total).toBe(1);
     expect(list.counts["a-traiter"]).toBe(1);
+  });
+});
+
+describe("périmètre de l'Acheteur (local / import)", () => {
+  async function scoped(scope: "LOCAL" | "IMPORT") {
+    return toActor(await createTestUser(`in-sc-${scope.toLowerCase()}`, { role: "ACHETEUR", purchaseScope: scope }));
+  }
+
+  it("l'acheteur LOCAL ne voit ni ne crée de facture sur un BC IMPORT, et inversement", async () => {
+    const loc = await makeOrder({ type: "LOCAL" });
+    const imp = await makeOrder({ type: "IMPORT" });
+    const fLoc = await createInvoice(resp, invoiceInput(loc.lineId, 10));
+    const fImp = await createInvoice(resp, invoiceInput(imp.lineId, 10));
+    const aLocal = await scoped("LOCAL");
+    const aImport = await scoped("IMPORT");
+
+    expect(await code(createInvoice(aLocal, invoiceInput(imp.lineId, 1)))).toBe("FORBIDDEN");
+    expect(await code(createInvoice(aImport, invoiceInput(loc.lineId, 1)))).toBe("FORBIDDEN");
+
+    expect((await listInvoices(aLocal, {})).rows.map((r) => r.id)).toEqual([fLoc.id]);
+    expect((await listInvoices(aImport, {})).rows.map((r) => r.id)).toEqual([fImp.id]);
+    expect((await listInvoices(aLocal, {})).counts.tous).toBe(1);
+    expect((await listInvoices(resp, {})).total).toBe(2);
+    expect((await listInvoices(ach, {})).total).toBe(2);
+
+    expect(await code(getInvoice(aLocal, { id: fImp.id }))).toBe("FORBIDDEN");
+    expect(await code(getInvoice(aLocal, { id: fLoc.id }))).toBe("OK");
+    expect((await exportInvoices(aLocal, {})).map((r) => r.number)).toEqual([fLoc.number]);
+    expect((await listInvoiceableReceipts(aLocal, { supplierId: supplier.id })).map((l) => l.orderId)).not.toContain(imp.id);
+    expect((await dueSchedule(aImport)).month.items.map((i) => i.id)).not.toContain(fLoc.id);
+    expect(await invoiceDiscrepancyRows(aLocal, {})).toEqual([]);
+  });
+
+  it("l'acheteur hors périmètre ne modifie ni ne fait avancer une facture", async () => {
+    const imp = await makeOrder({ type: "IMPORT" });
+    const f = await createInvoice(resp, invoiceInput(imp.lineId, 10));
+    const aLocal = await scoped("LOCAL");
+    expect(await code(updateInvoice(aLocal, { ...invoiceInput(imp.lineId, 5), id: f.id }))).toBe("FORBIDDEN");
+    expect(await code(markLitige(aLocal, { id: f.id, reason: "Hors périmètre" }))).toBe("FORBIDDEN");
+    expect(await code(rematchInvoice(aLocal, { id: f.id }))).toBe("FORBIDDEN");
+    expect(await code(cancelInvoice(aLocal, { id: f.id, reason: "Hors périmètre" }))).toBe("FORBIDDEN");
+    expect((await db.supplierInvoice.findUniqueOrThrow({ where: { id: f.id } })).status).toBe("CONFORME");
+  });
+
+  it("identifiants de pièce jointe invalides : erreur de validation propre", async () => {
+    expect(await code(removeInvoiceAttachment(ach, { invoiceId: "", attachmentId: "x" }))).toBe("VALIDATION");
   });
 });

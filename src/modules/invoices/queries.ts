@@ -8,6 +8,7 @@ import { requireAction } from "@/lib/permissions";
 import { parseInput } from "@/modules/purchase-requests/parse";
 import { EXPORT_MAX_ROWS, toPage, type Page } from "@/modules/referentials/list-query";
 import { dateOnly, isoDay, type OrderActor } from "@/modules/purchase-orders/internal";
+import { assertCoversTypes, invoiceScopeWhere, orderScopeWhere } from "./scope";
 import { INVOICEABLE_ORDER_STATUSES, OPEN_INVOICE_STATUSES } from "./rules";
 import { INVOICE_TAB_STATUSES, type InvoiceMatchCode, type InvoiceStatusCode } from "./labels";
 import { invoiceableReceiptsSchema, invoiceIdSchema, listInvoicesSchema, type ListInvoicesFilters, type ListInvoicesInput } from "./schemas";
@@ -105,11 +106,12 @@ function toRow(i: Prisma.SupplierInvoiceGetPayload<{ include: typeof LIST_INCLUD
 export async function listInvoices(user: OrderActor, raw: ListInvoicesInput = {}, at: Date = now()): Promise<Page<InvoiceRow> & { counts: Record<string, number> }> {
   requireAction(user, "invoice.view");
   const f = parseInput(listInvoicesSchema, raw);
-  const where = buildWhere(f, at);
+  const scope = invoiceScopeWhere(user);
+  const where: Prisma.SupplierInvoiceWhereInput = { AND: [buildWhere(f, at), scope] };
   const [total, rows, grouped] = await Promise.all([
     db.supplierInvoice.count({ where }),
     db.supplierInvoice.findMany({ where, orderBy: buildOrderBy(f), include: LIST_INCLUDE, skip: (f.page - 1) * f.taille, take: f.taille }),
-    db.supplierInvoice.groupBy({ by: ["status"], _count: { _all: true } }),
+    db.supplierInvoice.groupBy({ by: ["status"], where: scope, _count: { _all: true } }),
   ]);
   const byStatus = new Map(grouped.map((g) => [g.status, g._count._all]));
   const count = (statuses: readonly InvoiceStatusCode[] | null) => (statuses ? statuses.reduce((n, s) => n + (byStatus.get(s) ?? 0), 0) : [...byStatus.values()].reduce((a, b) => a + b, 0));
@@ -131,12 +133,13 @@ export async function getInvoice(user: OrderActor, raw: unknown, at: Date = now(
       createdBy: { select: { id: true, name: true } },
       lines: {
         orderBy: { lineNo: "asc" },
-        include: { orderLine: { include: { item: { select: { name: true } }, order: { select: { id: true, number: true, status: true } } } } },
+        include: { orderLine: { include: { item: { select: { name: true } }, order: { select: { id: true, number: true, status: true, type: true } } } } },
       },
       attachments: { where: { removedAt: null }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!inv) throw new BusinessError("NOT_FOUND", "Facture introuvable.");
+  assertCoversTypes(user, inv.lines.map((l) => l.orderLine.order.type));
   const orders = new Map(inv.lines.map((l) => [l.orderLine.order.id, l.orderLine.order]));
   const receipts = await db.receipt.findMany({
     where: { orderId: { in: [...orders.keys()] }, status: "VALIDEE" },
@@ -200,7 +203,7 @@ export async function listInvoiceableReceipts(user: OrderActor, raw: unknown): P
   requireAction(user, "invoice.view");
   const { supplierId } = parseInput(invoiceableReceiptsSchema, raw);
   const lines = await db.purchaseOrderLine.findMany({
-    where: { order: { supplierId, status: { in: [...INVOICEABLE_ORDER_STATUSES] } }, receivedQty: { gt: 0 } },
+    where: { order: { supplierId, status: { in: [...INVOICEABLE_ORDER_STATUSES] }, ...orderScopeWhere(user) }, receivedQty: { gt: 0 } },
     include: { item: { select: { name: true } }, order: { select: { id: true, number: true, currencyCode: true } } },
     orderBy: [{ order: { number: "asc" } }, { lineNo: "asc" }],
   });
@@ -246,7 +249,7 @@ export async function dueSchedule(user: OrderActor | null, at: Date = now()): Pr
   if (user) requireAction(user, "invoice.view");
   const today = todayAbidjan(at);
   const rows = await db.supplierInvoice.findMany({
-    where: { status: { in: OPEN }, dueDate: { lte: dateOnly(endOfMonth(today)) } },
+    where: { AND: [{ status: { in: OPEN }, dueDate: { lte: dateOnly(endOfMonth(today)) } }, invoiceScopeWhere(user)] },
     orderBy: [{ dueDate: "asc" }, { number: "asc" }],
     include: { supplier: { select: { name: true } } },
   });
@@ -273,12 +276,13 @@ export async function dueSchedule(user: OrderActor | null, at: Date = now()): Pr
 }
 
 /** Compteurs pour le digest et le tableau de bord. */
-export async function invoiceCounters(at: Date = now()) {
+export async function invoiceCounters(at: Date = now(), user?: OrderActor | null) {
   const today = todayAbidjan(at);
+  const sc = invoiceScopeWhere(user);
   const [conforme, ecart, dueWeek] = await Promise.all([
-    db.supplierInvoice.count({ where: { status: "CONFORME" } }),
-    db.supplierInvoice.count({ where: { status: "ECART" } }),
-    db.supplierInvoice.count({ where: { status: { in: OPEN }, dueDate: { lte: dateOnly(addDays(today, 6)) } } }),
+    db.supplierInvoice.count({ where: { AND: [{ status: "CONFORME" }, sc] } }),
+    db.supplierInvoice.count({ where: { AND: [{ status: "ECART" }, sc] } }),
+    db.supplierInvoice.count({ where: { AND: [{ status: { in: OPEN }, dueDate: { lte: dateOnly(addDays(today, 6)) } }, sc] } }),
   ]);
   return { conforme, ecart, dueWeek };
 }
@@ -292,7 +296,7 @@ export async function invoiceDiscrepancyRows(user: OrderActor, raw: unknown = {}
   const where: Prisma.SupplierInvoiceLineWhereInput = {
     match: { not: null },
     AND: [{ NOT: { match: "CONFORME" } }],
-    invoice: { AND: [base, { status: { not: "ANNULEE" } }] },
+    invoice: { AND: [base, { status: { not: "ANNULEE" } }, invoiceScopeWhere(user)] },
   };
   const total = await db.supplierInvoiceLine.count({ where });
   if (total > EXPORT_MAX_ROWS) throw new BusinessError("EXPORT_TOO_LARGE", `Trop de lignes (${total}) : affinez les filtres (maximum ${EXPORT_MAX_ROWS}).`);
@@ -329,7 +333,7 @@ export async function invoiceDiscrepancyRows(user: OrderActor, raw: unknown = {}
 export async function exportInvoices(user: OrderActor, raw: unknown = {}, at: Date = now()): Promise<InvoiceExportRow[]> {
   requireAction(user, "invoice.view");
   const f = parseInput(listInvoicesSchema, raw);
-  const where = buildWhere(f, at);
+  const where: Prisma.SupplierInvoiceWhereInput = { AND: [buildWhere(f, at), invoiceScopeWhere(user)] };
   const total = await db.supplierInvoice.count({ where });
   if (total > EXPORT_MAX_ROWS) throw new BusinessError("EXPORT_TOO_LARGE", `Trop de factures (${total}) : affinez les filtres (maximum ${EXPORT_MAX_ROWS}).`);
   const rows = await db.supplierInvoice.findMany({

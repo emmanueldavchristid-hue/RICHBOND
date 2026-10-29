@@ -12,6 +12,7 @@ import { parseInput } from "@/modules/purchase-requests/parse";
 import { activeResponsableIds, dateOnly, recordEvent, type OrderActor, type Tx } from "@/modules/purchase-orders/internal";
 import { computeTotals, effectiveUnitPrice } from "@/modules/purchase-orders/totals";
 import { getSettings } from "@/modules/settings";
+import { assertCoversTypes, assertInvoiceInScope } from "./scope";
 import { invoiceLink, type InvoiceMatchCode, type InvoiceStatusCode } from "./labels";
 import {
   INVOICEABLE_ORDER_STATUSES,
@@ -172,7 +173,7 @@ async function notifyMatch(tx: Tx, actor: { id: string }, inv: { id: string; num
 // ------------------------------------------------------------------ préparation des lignes
 
 type PreparedOrderLine = Prisma.PurchaseOrderLineGetPayload<{
-  include: { order: { select: { id: true; number: true; supplierId: true; status: true; currencyCode: true; exchangeRate: true; paymentTerm: true; paymentTermNote: true; currency: { select: { decimals: true } } } } };
+  include: { order: { select: { id: true; number: true; supplierId: true; status: true; type: true; currencyCode: true; exchangeRate: true; paymentTerm: true; paymentTermNote: true; currency: { select: { decimals: true } } } } };
 }>;
 
 const ORDER_SELECT = {
@@ -180,6 +181,7 @@ const ORDER_SELECT = {
   number: true,
   supplierId: true,
   status: true,
+  type: true,
   currencyCode: true,
   exchangeRate: true,
   paymentTerm: true,
@@ -188,12 +190,13 @@ const ORDER_SELECT = {
 } as const;
 
 /** Verrouille les BC visés puis charge leurs lignes ; contrôle fournisseur, statut et devise. */
-async function loadOrderLines(tx: Tx, supplierId: string, input: Pick<CreateInvoiceInput, "lines" | "currencyCode">, extraOrderIds: string[] = []) {
+async function loadOrderLines(tx: Tx, actor: OrderActor, supplierId: string, input: Pick<CreateInvoiceInput, "lines" | "currencyCode">, extraOrderIds: string[] = []) {
   const ids = input.lines.map((l) => l.orderLineId);
   const probe = await tx.purchaseOrderLine.findMany({ where: { id: { in: ids } }, select: { id: true, orderId: true } });
   if (probe.length !== new Set(ids).size) throw new BusinessError("LIGNE_INTROUVABLE", "Une ligne de la facture ne correspond à aucune ligne de bon de commande.");
   await lockOrders(tx, [...probe.map((p) => p.orderId), ...extraOrderIds]);
   const lines: PreparedOrderLine[] = await tx.purchaseOrderLine.findMany({ where: { id: { in: ids } }, include: { order: { select: ORDER_SELECT } } });
+  assertCoversTypes(actor, lines.map((l) => l.order.type));
   const byId = new Map(lines.map((l) => [l.id, l]));
   const ordered = ids.map((id) => byId.get(id)!);
   for (const l of ordered) {
@@ -237,7 +240,7 @@ export async function createInvoice(actor: OrderActor, raw: unknown, ip?: string
     return await db.$transaction(async (tx) => {
       const supplier = await tx.supplier.findUnique({ where: { id: input.supplierId }, select: { id: true, name: true } });
       if (!supplier) throw new BusinessError("NOT_FOUND", "Fournisseur introuvable.");
-      const { ordered, currencyCode, firstOrder } = await loadOrderLines(tx, supplier.id, input);
+      const { ordered, currencyCode, firstOrder } = await loadOrderLines(tx, actor, supplier.id, input);
       const dup = await tx.supplierInvoice.findUnique({ where: { supplierId_supplierInvoiceNo: { supplierId: supplier.id, supplierInvoiceNo } }, select: { number: true } });
       if (dup) throw doubleError(dup.number);
 
@@ -320,12 +323,13 @@ export async function updateInvoice(actor: OrderActor, raw: unknown, ip?: string
       await lockInvoice(tx, input.id);
       const inv = await tx.supplierInvoice.findUnique({ where: { id: input.id }, include: { lines: true } });
       if (!inv) throw new BusinessError("NOT_FOUND", "Facture introuvable.");
+      await assertInvoiceInScope(tx, actor, inv.id);
       if (!EDITABLE.includes(inv.status)) {
         throw new BusinessError("INVALID_STATUS", "Seule une facture saisie, en écart ou en litige peut être modifiée.");
       }
       const oldLineIds = inv.lines.map((l) => l.orderLineId);
       const oldOrders = (await tx.purchaseOrderLine.findMany({ where: { id: { in: oldLineIds } }, select: { orderId: true } })).map((o) => o.orderId);
-      const { ordered, currencyCode, firstOrder } = await loadOrderLines(tx, inv.supplierId, input, oldOrders);
+      const { ordered, currencyCode, firstOrder } = await loadOrderLines(tx, actor, inv.supplierId, input, oldOrders);
       const dup = await tx.supplierInvoice.findFirst({ where: { supplierId: inv.supplierId, supplierInvoiceNo, id: { not: inv.id } }, select: { number: true } });
       if (dup) throw doubleError(dup.number);
 
@@ -386,10 +390,11 @@ export async function updateInvoice(actor: OrderActor, raw: unknown, ip?: string
 // ------------------------------------------------------------------ transitions
 
 /** Charge la facture verrouillée et ses BC (verrous dans l'ordre : facture, puis BC). */
-async function lockedInvoice(tx: Tx, id: string) {
+async function lockedInvoice(tx: Tx, actor: OrderActor, id: string) {
   await lockInvoice(tx, id);
   const inv = await tx.supplierInvoice.findUnique({ where: { id }, include: { lines: { include: { orderLine: { select: { id: true, orderId: true } } } }, supplier: { select: { name: true } } } });
   if (!inv) throw new BusinessError("NOT_FOUND", "Facture introuvable.");
+  await assertInvoiceInScope(tx, actor, id);
   await lockOrders(tx, inv.lines.map((l) => l.orderLine.orderId));
   return inv;
 }
@@ -400,7 +405,7 @@ export async function rematchInvoice(actor: OrderActor, raw: unknown, ip?: strin
   const input = parseInput(invoiceIdSchema, raw);
   const settings = await getSettings();
   return db.$transaction(async (tx) => {
-    const inv = await lockedInvoice(tx, input.id);
+    const inv = await lockedInvoice(tx, actor, input.id);
     if (!["SAISIE", "CONFORME", "ECART"].includes(inv.status)) {
       throw new BusinessError("INVALID_STATUS", "Le rapprochement ne se refait que sur une facture saisie, conforme ou en écart.");
     }
@@ -418,7 +423,7 @@ export async function approvePayment(actor: OrderActor, raw: unknown, ip?: strin
   const input = parseInput(approvePaymentSchema, raw);
   const settings = await getSettings();
   return db.$transaction(async (tx) => {
-    const inv = await lockedInvoice(tx, input.id);
+    const inv = await lockedInvoice(tx, actor, input.id);
     if (inv.status !== "CONFORME" && inv.status !== "ECART") {
       throw new BusinessError("INVALID_STATUS", "Seule une facture conforme (ou en écart avec dérogation) peut être mise en bon à payer.");
     }
@@ -460,6 +465,7 @@ async function simpleTransition(
     await lockInvoice(tx, id);
     const inv = await tx.supplierInvoice.findUnique({ where: { id } });
     if (!inv) throw new BusinessError("NOT_FOUND", "Facture introuvable.");
+    await assertInvoiceInScope(tx, actor, id);
     if (!opts.from.includes(inv.status)) throw new BusinessError("INVALID_STATUS", opts.message);
     await tx.supplierInvoice.update({ where: { id }, data: { status: opts.to, ...opts.data } });
     await log(tx, { userId: actor.id, action: opts.action, entity: "SupplierInvoice", entityId: id, before: { status: inv.status }, after: { status: opts.to, number: inv.number, ...opts.extra }, ip });
@@ -502,7 +508,7 @@ export async function resolveLitige(actor: OrderActor, raw: unknown, ip?: string
   const input = parseInput(invoiceIdSchema, raw);
   const settings = await getSettings();
   return db.$transaction(async (tx) => {
-    const inv = await lockedInvoice(tx, input.id);
+    const inv = await lockedInvoice(tx, actor, input.id);
     if (inv.status !== "LITIGE") throw new BusinessError("INVALID_STATUS", "Cette facture n'est pas en litige.");
     const { status, matches } = await applyMatch(tx, inv.id, tolerancesOf(settings), at);
     await tx.supplierInvoice.update({ where: { id: inv.id }, data: { status, litigeReason: null, payApprovedAt: null, payApprovedById: null } });
@@ -517,7 +523,7 @@ export async function cancelInvoice(actor: OrderActor, raw: unknown, ip?: string
   requireAction(actor, "invoice.manage");
   const input = parseInput(cancelInvoiceSchema, raw);
   return db.$transaction(async (tx) => {
-    const inv = await lockedInvoice(tx, input.id);
+    const inv = await lockedInvoice(tx, actor, input.id);
     if (inv.status === "ANNULEE") throw new BusinessError("INVALID_STATUS", "Cette facture est déjà annulée.");
     if (inv.status === "TRANSMISE") throw new BusinessError("INVALID_STATUS", "Cette facture a été transmise à la comptabilité : elle ne peut plus être annulée.");
     if (!can(actor, "invoice.approvePayment") && inv.createdById !== actor.id) {
