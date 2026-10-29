@@ -79,3 +79,10 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Décisions : pas de digest vide ; factures, jalons import, inventaires, consultations omis tant que ces lots n'existent pas ; copie email non implémentée (aucun SMTP), notée « prévu ».
 - Reste : notification immédiate à la rupture d'un article critique (touche src/modules/stock, à brancher) ; planifier le cron sur le serveur du client (docs/deploiement.md).
 - Suite : LOT-11 (inventaires).
+
+## LOT-11 – Inventaires hebdomadaires (terminé, mode marathon)
+- Fait : InventoryCount/Line (INV-AAAA-0001, PREPARE→EN_COMPTAGE→A_VALIDER→VALIDE), sélection tournante A/B/C, théorique et PMP figés à l'ouverture, comptage AVEUGLE (le DTO du Magasinier ne contient ni théorique ni PMP), seuil 5 % ou 100 000 FCFA → recomptage, motif obligatoire, mouvement pendant comptage → COMPTAGE_PERIME, ajustements AJUSTEMENT_INVENTAIRE créés à la validation seulement, fiabilité du stock. Écran tablette (pavé numérique, recherche, sauvegarde auto, scan facultatif). Scénario S5 vert (tablette + bureau), 41 tests inventaire.
+- Correctif : recompter la même quantité rafraîchit la date du comptage (sinon le Magasinier restait bloqué après un mouvement).
+- À confirmer : un recomptage demandé à la main est écrasé si le premier comptage est modifié ensuite ; périmètre du Magasinier non restreint par dépôt ; pas d'emplacement par article dans le schéma (liste triée par code).
+- Note technique : les composants client n'importent que des types de `@/modules/inventory/rules` (sinon le build Turbopack tire Prisma).
+- Suite : LOT-13 (factures et rapprochement).

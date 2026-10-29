@@ -80,6 +80,21 @@ export const SETTING_DEFS = {
     schema: z.number({ error: "Nombre de jours invalide." }).int("Nombre de jours invalide.").min(30, "Au moins 30 jours.").max(1095, "1095 jours au maximum."),
     default: 180,
   },
+  // ---------------------------------------------------------------- LOT-11 : inventaires
+  /** Écart (en % de la quantité théorique) au-delà duquel un recomptage est exigé avant validation. */
+  "inventory.thresholdPct": {
+    schema: z.number({ error: "Valeur invalide." }).min(0, "Le seuil ne peut pas être négatif.").max(100, "100 % au maximum."),
+    default: 5,
+  },
+  /** Écart de valeur (FCFA, au PMP) au-delà duquel un recomptage est exigé avant validation. */
+  "inventory.thresholdValue": {
+    schema: z
+      .number({ error: "Le seuil doit être un nombre entier de FCFA." })
+      .int("Le seuil doit être un nombre entier de FCFA.")
+      .min(0, "Le seuil ne peut pas être négatif.")
+      .max(2_147_483_647, "Seuil trop élevé."),
+    default: 100_000,
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFS;
@@ -113,4 +128,7 @@ export interface AppSettings {
   stockConsumptionWindowDays: number;
   stockDefaultLeadTimeDays: number;
   stockDormantDays: number;
+  /** LOT-11 : voir `SETTING_DEFS`. */
+  inventoryThresholdPct: number;
+  inventoryThresholdValue: number;
 }
