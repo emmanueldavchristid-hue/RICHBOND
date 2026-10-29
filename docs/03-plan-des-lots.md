@@ -23,7 +23,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 | LOT-13 | Factures fournisseurs et rapprochement BC / réception / facture | EX-25 | À faire |
 | LOT-14 | Évaluation et panel fournisseurs | EX-50, 51 | À faire |
 | LOT-15 | KPI avancés et rapports quotidiens / hebdo / mensuels | EX-61, 62, 63 | À faire |
-| LOT-16 | Alertes 8h / 15h et centre de notifications | EX-64 | À faire |
+| LOT-16 | Alertes 8h / 15h et centre de notifications | EX-64 | Terminé |
 | LOT-17 | Intégration Sage 100 | EX-70 | À faire |
 | LOT-18 | Durcissement, sauvegardes, guide utilisateur, déploiement | EX-03 | À faire |
 

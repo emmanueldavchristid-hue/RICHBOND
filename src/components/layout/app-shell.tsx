@@ -7,7 +7,9 @@ import { homeOrderSummary } from "@/modules/purchase-orders";
 import { homeRequestSummary, listCriticalPending } from "@/modules/purchase-requests";
 import { ReadOnlyBanner } from "@/components/license/read-only-banner";
 import { TrialDialog } from "@/components/license/trial-dialog";
+import { unreadCriticalCount } from "@/modules/notifications";
 import { CriticalBanner } from "./critical-banner";
+import { UnreadCriticalBanner } from "./unread-critical-banner";
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
 import type { NavBadge } from "./nav-items";
@@ -35,12 +37,14 @@ export async function AppShell({ children }: { children: ReactNode }) {
   const items = minimal ? [] : visibleNav(user).map(({ label, href, icon }) => ({ label, href, icon }));
   const critical = !minimal && can(user, "purchaseRequest.approve") ? await listCriticalPending() : [];
   const badges = minimal ? {} : await navBadges(user);
+  const unreadCritical = minimal ? 0 : await unreadCriticalCount(user.id);
   return (
     <div className="flex min-h-screen bg-background">
       {minimal ? null : <AppSidebar items={items} badges={badges} name={user.name} roleLabel={roleLabel(user)} />}
       <div className="flex min-w-0 flex-1 flex-col">
         <ReadOnlyBanner />
         <CriticalBanner items={critical} />
+        <UnreadCriticalBanner count={unreadCritical} />
         <AppHeader items={items} badges={badges} name={user.name} roleLabel={roleLabel(user)} minimal={minimal} />
         <main className="flex-1 p-4 md:p-6 min-[1440px]:p-8" data-testid="page-content">
           {children}
