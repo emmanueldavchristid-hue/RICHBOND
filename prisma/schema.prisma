@@ -61,12 +61,13 @@ model User {
   purchaseOrdersApproved PurchaseOrder[]      @relation("PurchaseOrderApprover")
   purchaseOrderEvents    PurchaseOrderEvent[]
 
-  receiptsCreated Receipt[]        @relation("ReceiptCreator")
-  stockMovements  StockMovement[]
-  stockIssues     StockIssue[]
-  supplierReturns SupplierReturn[]
-  inventoryCountsCreated   InventoryCount[] @relation("InventoryCreator")
-  inventoryCountsValidated InventoryCount[] @relation("InventoryValidator")
+  receiptsCreated          Receipt[]         @relation("ReceiptCreator")
+  invoicesCreated          SupplierInvoice[] @relation("InvoiceCreator")
+  stockMovements           StockMovement[]
+  stockIssues              StockIssue[]
+  supplierReturns          SupplierReturn[]
+  inventoryCountsCreated   InventoryCount[]  @relation("InventoryCreator")
+  inventoryCountsValidated InventoryCount[]  @relation("InventoryValidator")
 
   @@index([role, active])
   @@map("users")
@@ -292,6 +293,7 @@ model Supplier {
   receipts        Receipt[]
   nonConformities NonConformity[]
   supplierReturns SupplierReturn[]
+  invoices        SupplierInvoice[]
 
   @@index([status, type])
   @@index([name])
@@ -760,6 +762,7 @@ model PurchaseOrderLine {
   item         Item?                         @relation(fields: [itemId], references: [id])
   allocations  PurchaseOrderLineAllocation[]
   receiptLines ReceiptLine[]
+  invoiceLines SupplierInvoiceLine[]
 
   @@unique([orderId, lineNo])
   @@index([itemId])
@@ -1139,32 +1142,32 @@ enum InventoryCountKind {
 }
 
 model InventoryCount {
-  id             String               @id @default(cuid())
+  id              String               @id @default(cuid())
   /// INV-AAAA-0001.
-  number         String               @unique
-  status         InventoryCountStatus @default(PREPARE)
-  kind           InventoryCountKind   @default(TOURNANT)
-  warehouseId    String               @map("warehouse_id")
+  number          String               @unique
+  status          InventoryCountStatus @default(PREPARE)
+  kind            InventoryCountKind   @default(TOURNANT)
+  warehouseId     String               @map("warehouse_id")
   /// Date prévue du comptage (jour, Abidjan).
-  plannedFor     DateTime?            @map("planned_for") @db.Date
+  plannedFor      DateTime?            @map("planned_for") @db.Date
   /// Seuils figés à la création : écart > pourcentage OU > valeur (FCFA) => recomptage puis motif.
-  thresholdPct   Decimal              @map("threshold_pct") @db.Decimal(5, 2)
-  thresholdValue Int                  @map("threshold_value")
-  comment        String?
-  createdById    String               @map("created_by_id")
-  createdAt      DateTime             @default(now()) @map("created_at")
+  thresholdPct    Decimal              @map("threshold_pct") @db.Decimal(5, 2)
+  thresholdValue  Int                  @map("threshold_value")
+  comment         String?
+  createdById     String               @map("created_by_id")
+  createdAt       DateTime             @default(now()) @map("created_at")
   /// Ouverture du comptage : le théorique est figé à cet instant.
-  openedAt       DateTime?            @map("opened_at")
-  openedById     String?              @map("opened_by_id")
-  submittedAt    DateTime?            @map("submitted_at")
-  submittedById  String?              @map("submitted_by_id")
-  validatedAt    DateTime?            @map("validated_at")
-  validatedById  String?              @map("validated_by_id")
+  openedAt        DateTime?            @map("opened_at")
+  openedById      String?              @map("opened_by_id")
+  submittedAt     DateTime?            @map("submitted_at")
+  submittedById   String?              @map("submitted_by_id")
+  validatedAt     DateTime?            @map("validated_at")
+  validatedById   String?              @map("validated_by_id")
   /// % d'articles sans écart, figé à la validation.
-  reliabilityPct Decimal?             @map("reliability_pct") @db.Decimal(5, 2)
-  cancelledAt     DateTime?           @map("cancelled_at")
-  cancelledById   String?             @map("cancelled_by_id")
-  cancelledReason String?             @map("cancelled_reason")
+  reliabilityPct  Decimal?             @map("reliability_pct") @db.Decimal(5, 2)
+  cancelledAt     DateTime?            @map("cancelled_at")
+  cancelledById   String?              @map("cancelled_by_id")
+  cancelledReason String?              @map("cancelled_reason")
 
   warehouse   Warehouse            @relation(fields: [warehouseId], references: [id])
   createdBy   User                 @relation("InventoryCreator", fields: [createdById], references: [id])
@@ -1177,28 +1180,28 @@ model InventoryCount {
 }
 
 model InventoryCountLine {
-  id              String    @id @default(cuid())
-  countId         String    @map("count_id")
-  itemId          String    @map("item_id")
+  id                   String    @id @default(cuid())
+  countId              String    @map("count_id")
+  itemId               String    @map("item_id")
   /// Pourquoi l'article est sur la liste : CLASSE_A, CLASSE_B, CLASSE_C, ECART_RECENT, AJOUT_MANUEL, COMPLET.
-  selectionReason String    @map("selection_reason")
+  selectionReason      String    @map("selection_reason")
   /// Figés à l'ouverture du comptage ; JAMAIS envoyés au magasinier (comptage aveugle).
-  theoreticalQty  Decimal?  @map("theoretical_qty") @db.Decimal(14, 3)
-  pmp             Decimal?  @db.Decimal(14, 4)
-  countedQty      Decimal?  @map("counted_qty") @db.Decimal(14, 3)
-  countedById     String?   @map("counted_by_id")
-  countedAt       DateTime? @map("counted_at")
-  recountQty      Decimal?  @map("recount_qty") @db.Decimal(14, 3)
-  recountById     String?   @map("recount_by_id")
-  recountAt       DateTime? @map("recount_at")
+  theoreticalQty       Decimal?  @map("theoretical_qty") @db.Decimal(14, 3)
+  pmp                  Decimal?  @db.Decimal(14, 4)
+  countedQty           Decimal?  @map("counted_qty") @db.Decimal(14, 3)
+  countedById          String?   @map("counted_by_id")
+  countedAt            DateTime? @map("counted_at")
+  recountQty           Decimal?  @map("recount_qty") @db.Decimal(14, 3)
+  recountById          String?   @map("recount_by_id")
+  recountAt            DateTime? @map("recount_at")
   /// Écart au-dessus du seuil au premier comptage et pas encore recompté.
-  recountRequired Boolean   @default(false) @map("recount_required")
+  recountRequired      Boolean   @default(false) @map("recount_required")
   /// Motif de l'écart important (obligatoire à la validation).
-  varianceReason  String?   @map("variance_reason")
+  varianceReason       String?   @map("variance_reason")
   /// Au moins un mouvement de stock sur l'article/dépôt depuis l'ouverture du comptage.
-  movedDuringCount Boolean  @default(false) @map("moved_during_count")
+  movedDuringCount     Boolean   @default(false) @map("moved_during_count")
   /// Mouvement AJUSTEMENT_INVENTAIRE créé à la validation.
-  adjustmentMovementId String? @unique @map("adjustment_movement_id")
+  adjustmentMovementId String?   @unique @map("adjustment_movement_id")
 
   count InventoryCount @relation(fields: [countId], references: [id], onDelete: Cascade)
   item  Item           @relation(fields: [itemId], references: [id])
@@ -1206,4 +1209,114 @@ model InventoryCountLine {
   @@unique([countId, itemId])
   @@index([itemId])
   @@map("inventory_count_lines")
+}
+
+// ---------------------------------------------------------------- LOT-13 : factures fournisseurs et rapprochement
+
+enum InvoiceStatus {
+  SAISIE
+  CONFORME
+  ECART
+  BON_A_PAYER
+  TRANSMISE
+  LITIGE
+  ANNULEE
+}
+
+enum InvoiceLineMatch {
+  CONFORME
+  ECART_PRIX
+  ECART_QTE
+  ECART_PRIX_QTE
+}
+
+/// Facture fournisseur. L'application ne gère pas les paiements : elle prépare le « bon à payer » et l'échéancier.
+model SupplierInvoice {
+  id                String        @id @default(cuid())
+  /// FAC-AAAA-NNNNN, attribué à la saisie (table Counter).
+  number            String        @unique
+  /// N° porté par la facture du fournisseur, normalisé (majuscules, espaces retirés) : unique par fournisseur.
+  supplierInvoiceNo String        @map("supplier_invoice_no")
+  supplierId        String        @map("supplier_id")
+  status            InvoiceStatus @default(SAISIE)
+  invoiceDate       DateTime      @map("invoice_date") @db.Date
+  /// Calculée depuis les conditions de paiement du fournisseur, modifiable.
+  dueDate           DateTime      @map("due_date") @db.Date
+  currencyCode      String        @map("currency_code")
+  /// Montants dans la devise de la facture.
+  totalHt           Decimal       @default(0) @map("total_ht") @db.Decimal(16, 2)
+  totalVat          Decimal       @default(0) @map("total_vat") @db.Decimal(16, 2)
+  totalTtc          Decimal       @default(0) @map("total_ttc") @db.Decimal(16, 2)
+  /// Équivalent FCFA entier du TTC (null si aucun taux connu).
+  totalTtcXof       Int?          @map("total_ttc_xof")
+  notes             String?
+  litigeReason      String?       @map("litige_reason")
+  cancelledReason   String?       @map("cancelled_reason")
+  matchedAt         DateTime?     @map("matched_at")
+  payApprovedAt     DateTime?     @map("pay_approved_at")
+  payApprovedById   String?       @map("pay_approved_by_id")
+  transmittedAt     DateTime?     @map("transmitted_at")
+  transmittedById   String?       @map("transmitted_by_id")
+  createdById       String        @map("created_by_id")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  supplier    Supplier                    @relation(fields: [supplierId], references: [id])
+  createdBy   User                        @relation("InvoiceCreator", fields: [createdById], references: [id])
+  lines       SupplierInvoiceLine[]
+  attachments SupplierInvoiceAttachment[]
+
+  @@unique([supplierId, supplierInvoiceNo])
+  @@index([status, dueDate])
+  @@index([supplierId, invoiceDate])
+  @@map("supplier_invoices")
+}
+
+model SupplierInvoiceLine {
+  id                 String            @id @default(cuid())
+  invoiceId          String            @map("invoice_id")
+  lineNo             Int               @map("line_no")
+  /// Ligne de BC rapprochée (obligatoire : on ne facture que ce qui a été commandé).
+  orderLineId        String            @map("order_line_id")
+  /// Quantité facturée, en unité d'achat du BC.
+  quantity           Decimal           @db.Decimal(14, 3)
+  /// Prix unitaire facturé, devise de la facture.
+  unitPrice          Decimal           @map("unit_price") @db.Decimal(14, 2)
+  discountPct        Decimal           @default(0) @map("discount_pct") @db.Decimal(5, 2)
+  vatRate            Decimal           @map("vat_rate") @db.Decimal(5, 2)
+  netAmount          Decimal           @map("net_amount") @db.Decimal(16, 2)
+  // Résultat du rapprochement (figé à chaque calcul).
+  match              InvoiceLineMatch?
+  /// Quantité reçue acceptée non encore facturée par d'autres factures, au moment du rapprochement.
+  matchReceivedQty   Decimal?          @map("match_received_qty") @db.Decimal(14, 3)
+  matchPoPrice       Decimal?          @map("match_po_price") @db.Decimal(14, 2)
+  /// (prix facturé - prix BC) / prix BC, en %.
+  matchPriceDeltaPct Decimal?          @map("match_price_delta_pct") @db.Decimal(7, 2)
+  /// Quantité facturée - quantité facturable (reçue acceptée - déjà facturée ailleurs).
+  matchQtyDelta      Decimal?          @map("match_qty_delta") @db.Decimal(14, 3)
+
+  invoice   SupplierInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderLine PurchaseOrderLine @relation(fields: [orderLineId], references: [id])
+
+  @@unique([invoiceId, lineNo])
+  @@index([orderLineId])
+  @@map("supplier_invoice_lines")
+}
+
+model SupplierInvoiceAttachment {
+  id           String    @id @default(cuid())
+  invoiceId    String    @map("invoice_id")
+  fileName     String    @map("file_name")
+  mimeType     String    @map("mime_type")
+  size         Int
+  /// Nom de fichier généré côté serveur (jamais saisi par l'utilisateur).
+  path         String
+  uploadedById String    @map("uploaded_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  removedAt    DateTime? @map("removed_at")
+
+  invoice SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("supplier_invoice_attachments")
 }

@@ -95,6 +95,17 @@ export const SETTING_DEFS = {
       .max(2_147_483_647, "Seuil trop élevé."),
     default: 100_000,
   },
+  // ---------------------------------------------------------------- LOT-13 : factures fournisseurs
+  /** Tolérance (en %) entre le prix facturé et le prix du BC net de remise. */
+  "invoice.priceTolerancePct": {
+    schema: z.number({ error: "Valeur invalide." }).min(0, "La tolérance ne peut pas être négative.").max(100, "100 % au maximum."),
+    default: 1,
+  },
+  /** Tolérance (en unités d'achat) entre la quantité facturée et la quantité facturable (reçue acceptée). */
+  "invoice.qtyTolerance": {
+    schema: z.number({ error: "Valeur invalide." }).min(0, "La tolérance ne peut pas être négative.").max(1_000_000, "Tolérance trop élevée."),
+    default: 0,
+  },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFS;
@@ -131,4 +142,7 @@ export interface AppSettings {
   /** LOT-11 : voir `SETTING_DEFS`. */
   inventoryThresholdPct: number;
   inventoryThresholdValue: number;
+  /** LOT-13 : voir `SETTING_DEFS`. */
+  invoicePriceTolerancePct: number;
+  invoiceQtyTolerance: number;
 }

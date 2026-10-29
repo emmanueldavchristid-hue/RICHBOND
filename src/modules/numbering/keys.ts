@@ -13,6 +13,7 @@ export const COUNTER_KEYS = {
   RET: { prefix: "RET", width: 5, annual: true },
   TRF: { prefix: "TRF", width: 5, annual: true },
   AJU: { prefix: "AJU", width: 5, annual: true },
+  FAC: { prefix: "FAC", width: 5, annual: true },
   INV: { prefix: "INV", width: 4, annual: true },
   IMP: { prefix: "IMP", width: 4, annual: true },
   ART: { prefix: "ART", width: 5, annual: false },

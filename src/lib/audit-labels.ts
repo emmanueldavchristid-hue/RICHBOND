@@ -94,6 +94,16 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   INVENTORY_RECOUNT_REQUEST: "Recomptage demandé",
   INVENTORY_VALIDATE: "Inventaire validé",
   INVENTORY_CANCEL: "Inventaire annulé",
+  INVOICE_CREATE: "Facture fournisseur saisie",
+  INVOICE_UPDATE: "Facture fournisseur modifiée",
+  INVOICE_MATCH: "Rapprochement de facture refait",
+  INVOICE_APPROVE_PAYMENT: "Facture mise en bon à payer",
+  INVOICE_TRANSMIT: "Facture transmise à la comptabilité",
+  INVOICE_LITIGE: "Facture mise en litige",
+  INVOICE_LITIGE_RESOLVE: "Litige de facture levé",
+  INVOICE_CANCEL: "Facture fournisseur annulée",
+  INVOICE_ATTACHMENT_ADD: "Pièce jointe ajoutée à une facture",
+  INVOICE_ATTACHMENT_REMOVE: "Pièce jointe retirée d'une facture",
 };
 
 export const AUDIT_ENTITY_LABELS: Record<string, string> = {
@@ -112,6 +122,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   PurchaseRequest: "Demande d'achat",
   PurchaseOrder: "Bon de commande",
   Receipt: "Réception",
+  SupplierInvoice: "Facture fournisseur",
   NonConformity: "Non-conformité",
   SupplierReturn: "Retour fournisseur",
   StockIssue: "Sortie de stock",

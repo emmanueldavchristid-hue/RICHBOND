@@ -27,6 +27,8 @@ import { PO_STATUS_LABELS, PO_TYPE_LABELS } from "@/modules/purchase-orders/labe
 import { viewerCanSeePrices } from "@/modules/settings";
 import { exportMovements, exportStock, MOVEMENT_TYPE_LABELS, STOCK_SITUATION_LABELS } from "@/modules/stock";
 import { exportSuppliers } from "@/modules/suppliers";
+import { exportInvoices, invoiceDiscrepancyRows } from "@/modules/invoices/queries";
+import { INVOICE_MATCH_LABELS, INVOICE_STATUS_LABELS } from "@/modules/invoices/labels";
 
 /**
  * GET /api/export/articles | /fournisseurs | /demandes | /commandes | /mouvements | /stock : mêmes filtres que la liste (query string).
@@ -164,6 +166,55 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ entity: str
       ];
       file = await buildWorkbook("Bons de commande", cols, rows);
       name = `commandes_${stamp}.xlsx`;
+    } else if (entity === "factures") {
+      // LOT-13 : liste des factures fournisseurs, mêmes filtres que l’écran.
+      if (!can(user, "invoice.view")) return forbidden();
+      const rows = await exportInvoices(user, filters, (await getNow()).now);
+      type R = (typeof rows)[number];
+      const cols: ExcelColumn<R>[] = [
+        { header: "N° facture (interne)", width: 18, value: (r) => r.number },
+        { header: "N° facture fournisseur", width: 22, value: (r) => r.supplierInvoiceNo },
+        { header: "Fournisseur", width: 32, value: (r) => r.supplier },
+        { header: "Statut", width: 22, value: (r) => INVOICE_STATUS_LABELS[r.status] },
+        { header: "Date de facture", value: (r) => r.invoiceDate },
+        { header: "Échéance", value: (r) => r.dueDate },
+        { header: "BC", width: 26, value: (r) => r.orderNumbers },
+        { header: "Devise", value: (r) => r.currencyCode },
+        { header: "Total HT", format: "#,##0.00", value: (r) => r.totalHt },
+        { header: "TVA", format: "#,##0.00", value: (r) => r.totalVat },
+        { header: "Total TTC", format: "#,##0.00", value: (r) => r.totalTtc },
+        { header: "Total TTC (FCFA)", format: "#,##0", value: (r) => r.totalTtcXof },
+        { header: "Saisi par", width: 22, value: (r) => r.createdBy },
+      ];
+      file = await buildWorkbook("Factures", cols, rows);
+      name = `factures_${stamp}.xlsx`;
+    } else if (entity === "factures-ecarts") {
+      // LOT-13 : lignes en écart (prix ou quantité) pour la discussion avec le fournisseur.
+      if (!can(user, "invoice.view")) return forbidden();
+      const rows = await invoiceDiscrepancyRows(user, filters, (await getNow()).now);
+      type R = (typeof rows)[number];
+      const cols: ExcelColumn<R>[] = [
+        { header: "N° facture (interne)", width: 18, value: (r) => r.invoiceNumber },
+        { header: "N° facture fournisseur", width: 22, value: (r) => r.supplierInvoiceNo },
+        { header: "Fournisseur", width: 32, value: (r) => r.supplier },
+        { header: "Date de facture", value: (r) => r.invoiceDate },
+        { header: "Échéance", value: (r) => r.dueDate },
+        { header: "Statut", width: 22, value: (r) => INVOICE_STATUS_LABELS[r.status] },
+        { header: "N° BC", width: 20, value: (r) => r.orderNumber },
+        { header: "Ligne BC", value: (r) => r.lineNo },
+        { header: "Désignation", width: 40, value: (r) => r.designation },
+        { header: "Unité", value: (r) => r.unit },
+        { header: "Écart", width: 26, value: (r) => INVOICE_MATCH_LABELS[r.match] },
+        { header: "Quantité facturée", format: "0.###", value: (r) => r.invoicedQty },
+        { header: "Quantité facturable (reçue)", format: "0.###", value: (r) => r.billableQty },
+        { header: "Écart de quantité", format: "0.###", value: (r) => r.qtyDelta },
+        { header: "Prix facturé", format: "#,##0.00", value: (r) => r.invoicePrice },
+        { header: "Prix du BC (net de remise)", format: "#,##0.00", value: (r) => r.poPrice },
+        { header: "Écart de prix (%)", format: "0.00", value: (r) => r.priceDeltaPct },
+        { header: "Devise", value: (r) => r.currencyCode },
+      ];
+      file = await buildWorkbook("Écarts de facturation", cols, rows);
+      name = `factures-ecarts_${stamp}.xlsx`;
     } else if (entity === "mouvements") {
       // LOT-07 : journal des mouvements, mêmes filtres que l'écran. Coûts masqués selon le droit de voir les prix.
       if (!can(user, "stock.view")) return forbidden();

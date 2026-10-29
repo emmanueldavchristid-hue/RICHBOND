@@ -68,7 +68,7 @@ export function DebouncedInput({
 }
 
 /** Téléchargement Excel : mêmes filtres que la liste ; l'erreur (ex. trop de lignes) s'affiche en toast. */
-export function ExportButton({ href, query, testId }: { href: string; query: string; testId: string }) {
+export function ExportButton({ href, query, testId, label = "Exporter Excel" }: { href: string; query: string; testId: string; label?: string }) {
   const [busy, setBusy] = useState(false);
 
   async function download() {
@@ -113,7 +113,7 @@ export function ExportButton({ href, query, testId }: { href: string; query: str
       onClick={() => void download()}
       data-testid={testId}
     >
-      <Download /> {busy ? "Export en cours…" : "Exporter Excel"}
+      <Download /> {busy ? "Export en cours…" : label}
     </Button>
   );
 }

@@ -20,7 +20,7 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 | LOT-10 | Consultations et comparatif des offres | EX-26 | À faire |
 | LOT-11 | Inventaires hebdomadaires (mode tablette) | EX-32 | Terminé |
 | LOT-12 | Achats import, frais d'approche, coût d'arrivée dédouané | EX-40, 41, 42 | À faire |
-| LOT-13 | Factures fournisseurs et rapprochement BC / réception / facture | EX-25 | À faire |
+| LOT-13 | Factures fournisseurs et rapprochement BC / réception / facture | EX-25 | Terminé |
 | LOT-14 | Évaluation et panel fournisseurs | EX-50, 51 | À faire |
 | LOT-15 | KPI avancés et rapports quotidiens / hebdo / mensuels | EX-61, 62, 63 | À faire |
 | LOT-16 | Alertes 8h / 15h et centre de notifications | EX-64 | Terminé |

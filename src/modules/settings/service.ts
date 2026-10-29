@@ -35,6 +35,8 @@ export async function getSettings(): Promise<AppSettings> {
     stockDormantDays: get<number>("stock.dormantDays"),
     inventoryThresholdPct: get<number>("inventory.thresholdPct"),
     inventoryThresholdValue: get<number>("inventory.thresholdValue"),
+    invoicePriceTolerancePct: get<number>("invoice.priceTolerancePct"),
+    invoiceQtyTolerance: get<number>("invoice.qtyTolerance"),
   };
 }
 

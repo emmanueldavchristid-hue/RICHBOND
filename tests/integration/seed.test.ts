@@ -59,7 +59,7 @@ describe("seed idempotent", () => {
     const bc = await db.purchaseOrder.findMany({ where: { events: { some: { payload: { path: ["seedKey"], string_starts_with: "lot05:" } } } }, orderBy: { createdAt: "asc" }, include: { lines: { include: { allocations: true } }, versions: true } });
     expect(bc).toHaveLength(11);
     const bcStatus = (st: string) => bc.filter((o) => o.status === st).length;
-    expect([bcStatus("BROUILLON"), bcStatus("A_VALIDER"), bcStatus("VALIDE"), bcStatus("ENVOYE"), bcStatus("CONFIRME"), bcStatus("RECU"), bcStatus("ANNULE")]).toEqual([1, 1, 4, 1, 1, 1, 1]); // le BC des EPI est livré en partie par la réception fictive (LOT-06)
+    expect([bcStatus("BROUILLON"), bcStatus("A_VALIDER"), bcStatus("VALIDE"), bcStatus("ENVOYE"), bcStatus("CONFIRME"), bcStatus("RECU") + bcStatus("CLOTURE"), bcStatus("ANNULE")]).toEqual([1, 1, 4, 1, 1, 1, 1]); // RECU ou CLOTURE (facturé en totalité par le seed LOT-13) // le BC des EPI est livré en partie par la réception fictive (LOT-06)
     expect(bcStatus("PARTIELLEMENT_RECU")).toBe(1);
     const bcNumbers = bc.filter((o) => o.number).map((o) => Number(o.number!.slice(-5))).sort((a, b) => a - b);
     expect(bcNumbers).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));

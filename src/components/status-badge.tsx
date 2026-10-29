@@ -60,6 +60,13 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   // Inventaires (LOT-11) : A_VALIDER, VALIDE et ANNULE sont partagés
   PREPARE: { label: "Préparé", tone: "neutral" },
   EN_COMPTAGE: { label: "En comptage", tone: "indigo" },
+  // Factures fournisseurs (LOT-13) : ANNULEE est partagé
+  SAISIE: { label: "Saisie", tone: "neutral" },
+  CONFORME: { label: "Conforme", tone: "success" },
+  ECART: { label: "Écart", tone: "warning" },
+  BON_A_PAYER: { label: "Bon à payer", tone: "info" },
+  TRANSMISE: { label: "Transmise compta", tone: "indigo" },
+  LITIGE: { label: "Litige", tone: "danger" },
   // Non-conformités (LOT-06)
   OUVERTE: { label: "Ouverte", tone: "warning" },
   CLOTUREE: { label: "Clôturée", tone: "success" },

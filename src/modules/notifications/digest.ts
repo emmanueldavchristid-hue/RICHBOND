@@ -5,6 +5,7 @@ import { todayAbidjan } from "@/lib/dates";
 import { log } from "@/modules/audit/log";
 import { buyerDashboard, ruptureRisks, storekeeperDashboard } from "@/modules/reporting";
 import { countOrdersLate } from "@/modules/reporting/queries";
+import { invoiceCounters } from "@/modules/invoices/queries";
 import {
   DIGEST_ENTITY,
   DIGEST_LOCK,
@@ -40,7 +41,7 @@ export async function countUnconfirmedOrders(at: Date, createdById?: string): Pr
 
 /**
  * Contenu du digest d'un utilisateur, ou null s'il n'y a rien à signaler (aucune notification vide).
- * Les sujets sans source de données (factures, jalons import, inventaires, consultations, réceptions
+ * Les sujets sans source de données (jalons import, inventaires, consultations, réceptions
  * non validées : la réception est validée en une étape) sont volontairement omis.
  */
 export async function buildDigestFor(
@@ -52,13 +53,14 @@ export async function buildDigestFor(
   let lines: DigestLine[] = [];
 
   if (user.role === "RESPONSABLE_ACHATS") {
-    const [da, stops, bc, late, risks, unconfirmed] = await Promise.all([
+    const [da, stops, bc, late, risks, unconfirmed, inv] = await Promise.all([
       db.purchaseRequest.count({ where: { status: "SOUMISE" } }),
       db.purchaseRequest.count({ where: { status: "SOUMISE", priority: 0 } }),
       db.purchaseOrder.count({ where: { status: "A_VALIDER" } }),
       countOrdersLate(today),
       ruptureRisks(at),
       countUnconfirmedOrders(at),
+      invoiceCounters(at),
     ]);
     lines = [
       { label: "DA à valider", count: da, href: "/achats/demandes?onglet=a-valider", tone: stops > 0 ? "critical" : "attention" },
@@ -67,9 +69,11 @@ export async function buildDigestFor(
       { label: "BC en retard", count: late, href: "/achats/commandes?onglet=en-retard", tone: "critical" },
       { label: "Articles critiques en risque de rupture", count: risks.total, href: "/stock/reappro", tone: "critical" },
       { label: `BC sans confirmation depuis ${UNCONFIRMED_AFTER_DAYS} jours`, count: unconfirmed, href: "/achats/commandes?onglet=en-cours&statut=ENVOYE", tone: "attention" },
+      { label: "Factures à mettre en bon à payer", count: inv.conforme, href: "/achats/factures?onglet=a-traiter", tone: "attention" },
+      { label: "Factures en écart", count: inv.ecart, href: "/achats/factures?onglet=ecarts", tone: "attention" },
     ];
   } else if (user.role === "ACHETEUR") {
-    const [dash, unconfirmed] = await Promise.all([buyerDashboard(user, at), countUnconfirmedOrders(at, user.id)]);
+    const [dash, unconfirmed, inv] = await Promise.all([buyerDashboard(user, at), countUnconfirmedOrders(at, user.id), invoiceCounters(at)]);
     lines = [
       ...dash.cards.map((c) => ({
         label: c.label,
@@ -78,6 +82,7 @@ export async function buildDigestFor(
         tone: c.key === "mes-bc-en-retard" ? ("critical" as const) : ("attention" as const),
       })),
       { label: `BC sans confirmation depuis ${UNCONFIRMED_AFTER_DAYS} jours`, count: unconfirmed, href: `/achats/commandes?onglet=en-cours&statut=ENVOYE&acheteur=${user.id}`, tone: "attention" },
+      { label: "Factures à échéance cette semaine", count: inv.dueWeek, href: "/achats/factures?echeance=semaine", tone: "attention" },
     ];
   } else if (user.role === "MAGASINIER") {
     const dash = await storekeeperDashboard(user, at);

@@ -10,6 +10,7 @@ const LABELS: Record<string, string> = {
   demandes: "Demandes d'achat",
   commandes: "Bons de commande",
   "a-commander": "À commander",
+  factures: "Factures",
   nouvelle: "Nouvelle",
   nouveau: "Nouveau",
   modifier: "Modifier",
