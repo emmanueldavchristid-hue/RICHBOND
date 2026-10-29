@@ -6,6 +6,7 @@
  * - classe ABC calculée sur 12 mois.
  * Aucune donnée réelle. Idempotent : un article déjà marqué (commentaire du seed) n'est pas retouché.
  */
+import Module from "node:module";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 
 const DAY = 86_400_000;
@@ -39,9 +40,20 @@ const PLANS: Plan[] = [
 
 const FACTORS = [1, 0.9, 1.1];
 
+/** `server-only` interdit l'import hors Next.js ; le seed est un script serveur : on le neutralise pour ce processus. */
+function allowServerOnly() {
+  const m = Module as unknown as { _load: (request: string, ...rest: unknown[]) => unknown };
+  const original = m._load;
+  m._load = function (request: string, ...rest: unknown[]) {
+    if (request === "server-only") return {};
+    return original.call(this, request, ...rest);
+  };
+}
+
 export async function seedStock(prisma: PrismaClient): Promise<void> {
   const magasinier = await prisma.user.findUnique({ where: { email: "magasinier@richbond.test" } });
   if (!magasinier) return;
+  allowServerOnly();
   const { applyMovement } = await import("../../src/modules/stock/movements");
   const { classifyAbc } = await import("../../src/modules/stock/abc");
   const fallbackWh = await prisma.warehouse.findFirst({ where: { active: true }, orderBy: { code: "asc" } });

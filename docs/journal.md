@@ -87,3 +87,9 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - À confirmer : un recomptage demandé à la main est écrasé si le premier comptage est modifié ensuite ; périmètre du Magasinier non restreint par dépôt ; pas d'emplacement par article dans le schéma (liste triée par code).
 - Note technique : les composants client n'importent que des types de `@/modules/inventory/rules` (sinon le build Turbopack tire Prisma).
 - Suite : LOT-13 (factures et rapprochement).
+
+## LOT-13 – Factures fournisseurs et rapprochement (terminé, mode marathon)
+- Fait : factures (FAC-AAAA-xxxx), rapprochement par ligne BC / réception / facture (tolérances paramétrables), statuts SAISIE → CONFORME | ÉCART → BON À PAYER (Responsable seul, motif si écart) → TRANSMISE ; litige, annulation, doublon refusé, pièces jointes, échéancier, export des écarts, clôture du BC quand reçu et facturé. Écrans liste / saisie / détail, seed fictif (FA-DEMO-0001 à 0003).
+- Tests : 28 unitaires + intégration verts ; scénario S2-facture vert (desktop). Lint et typecheck verts.
+- Réserve : pas d'écran de modification d'une facture (action serveur prête). Recette globale et relecture sécurité prévues après ce lot (PROMPT-FINIR).
+- Suite (ordre demandé) : LOT-18, LOT-12, LOT-10, LOT-15, LOT-14.

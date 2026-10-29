@@ -6,6 +6,7 @@ import { seedReferentials } from "./seed/referentials";
 import { seedPurchaseRequests } from "./seed/purchase-requests";
 import { seedPurchaseOrders } from "./seed/purchase-orders";
 import { seedReceipts } from "./seed/receipts";
+import { seedInvoices } from "./seed/invoices";
 import { seedStock } from "./seed/stock";
 import { seedHistory } from "./seed/history";
 import { seedInventories } from "./seed/inventories";
@@ -80,6 +81,7 @@ async function seedAll() {
   await seedPurchaseRequests(prisma);
   await seedPurchaseOrders(prisma);
   await seedReceipts(prisma);
+  await seedInvoices(prisma);
   await seedStock(prisma);
   await seedHistory(prisma);
   await seedInventories(prisma);
