@@ -25,6 +25,7 @@ const ACHETEUR_OK: Action[] = [
   "supplierReturn.create",
   "importFile.view",
   "importFile.manage",
+  "importFile.close",
   "invoice.view",
   "invoice.manage",
   "supplier.view",
