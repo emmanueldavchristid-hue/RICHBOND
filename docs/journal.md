@@ -111,3 +111,10 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Tests : 1254 unitaires/intégration verts, lint et typecheck verts ; scénario S6 vert (desktop seulement, tablette non lancée).
 - Hypothèses H52 à H57 à confirmer (docs/00-contexte-client.md). Pas d'écran de modification de l'en-tête d'un dossier (action serveur prête).
 - Suite : LOT-15 (rapports et KPI).
+
+## LOT-15 – KPI avancés et rapports (terminé, mode marathon)
+- Fait : module `src/modules/reporting/` étendu (formules pures dans `kpi.ts`, définitions dans `report-defs.ts`, filtres SQL `sql-filters.ts` branchés en option sur les requêtes du tableau de bord, `report-queries.ts`, `reports.ts`) ; rapports quotidien / hebdomadaire / mensuel avec filtres période, catégorie, acheteur, fournisseur, dépôt ; exports PDF (`report-pdf.tsx`) et Excel (`report-excel.ts`) via `/api/rapports/[kind]?format=pdf|xlsx` (audit `REPORT_EXPORT`) ; pages `/rapports`, `/rapports/[kind]` ; définitions des KPI dans `docs/kpi.md` et en infobulle.
+- Droits : Responsable tout, Acheteur selon son périmètre, Magasinier aucun rapport achats ; lecture autorisée en essai expiré. Gains achats (LOT-10) et évaluation fournisseurs (LOT-14) : « Non disponible », jamais inventés.
+- Tests : intégration sur jeu connu (`tests/integration/reports.test.ts`, KPI, filtres, droits, 3 PDF + 3 Excel, quotidien < 3 s), unitaires (`tests/unit/reporting.reports.test.ts`), scénario S8 (`tests/e2e/scenarios/S8-rapports.spec.ts`, desktop).
+- Hypothèses H58 à H63 à confirmer (docs/00-contexte-client.md). Pas de migration ni de seed supplémentaire : les rapports lisent les données existantes.
+- Suite : campagne finale (e2e complet, recette, captures) ; LOT-10 et LOT-14 restent à faire (leurs KPI s'allumeront dans le rapport mensuel).

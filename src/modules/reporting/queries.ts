@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { dayKeyOf } from "@/lib/dates";
 import { PO_COUNTED_STATUSES, PO_LATE_STATUSES } from "@/modules/purchase-orders/labels";
 import type { Period } from "./period";
+import { levelWhere, movementWhere, poWhere, receiptWhere, type QueryFilter } from "./sql-filters";
 
 /**
  * Requêtes agrégées des tableaux de bord (LOT-08, EX-60) : `$queryRaw` paramétré (jamais de concaténation) ou
@@ -14,8 +15,8 @@ import type { Period } from "./period";
 
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 /** Instant UTC sans « Z » : cast `::timestamp` (colonnes `timestamp(3)` de Prisma, stockées en UTC). */
-const ts = (d: Date): string => d.toISOString().slice(0, 23);
-const day = (d: Date): string => dayKeyOf(d);
+export const ts = (d: Date): string => d.toISOString().slice(0, 23);
+export const day = (d: Date): string => dayKeyOf(d);
 const list = (xs: readonly string[]) => Prisma.join(xs);
 
 const COUNTED = PO_COUNTED_STATUSES as readonly string[];
@@ -30,12 +31,12 @@ export interface SumCount {
 // ------------------------------------------------------------------ achats
 
 /** Montant commandé (FCFA) et nombre de BC validés dans la période (date de validation, hors annulés / refusés). */
-export async function orderedInPeriod(p: Period): Promise<SumCount> {
+export async function orderedInPeriod(p: Period, f?: QueryFilter): Promise<SumCount> {
   const rows = await db.$queryRaw<{ sum: bigint | null; count: bigint }[]>`
     SELECT COALESCE(SUM(total_ht_xof), 0)::bigint AS sum, COUNT(*)::bigint AS count
-    FROM purchase_orders
-    WHERE approved_at >= ${ts(p.start)}::timestamp AND approved_at < ${ts(p.endExclusive)}::timestamp
-      AND status::text IN (${list(COUNTED)})`;
+    FROM purchase_orders po
+    WHERE po.approved_at >= ${ts(p.start)}::timestamp AND po.approved_at < ${ts(p.endExclusive)}::timestamp
+      AND po.status::text IN (${list(COUNTED)}) AND ${poWhere(f)}`;
   return { sum: num(rows[0]?.sum), count: num(rows[0]?.count) };
 }
 
@@ -63,12 +64,12 @@ export interface SupplierAmount {
 }
 
 /** Top fournisseurs en montant sur la fenêtre. */
-export async function topSuppliers(p: Period, limit: number): Promise<SupplierAmount[]> {
+export async function topSuppliers(p: Period, limit: number, f?: QueryFilter): Promise<SupplierAmount[]> {
   const rows = await db.$queryRaw<{ supplier_id: string; name: string; amount: bigint }[]>`
     SELECT po.supplier_id, s.name, COALESCE(SUM(po.total_ht_xof), 0)::bigint AS amount
     FROM purchase_orders po JOIN suppliers s ON s.id = po.supplier_id
     WHERE po.approved_at >= ${ts(p.start)}::timestamp AND po.approved_at < ${ts(p.endExclusive)}::timestamp
-      AND po.status::text IN (${list(COUNTED)})
+      AND po.status::text IN (${list(COUNTED)}) AND ${poWhere(f)}
     GROUP BY po.supplier_id, s.name
     HAVING COALESCE(SUM(po.total_ht_xof), 0) > 0
     ORDER BY amount DESC, s.name ASC
@@ -80,7 +81,7 @@ export async function topSuppliers(p: Period, limit: number): Promise<SupplierAm
  * Délai DA -> BC : somme et effectif des écarts en jours calendaires (validation du BC - validation de la DA),
  * un couple (BC, DA) compté une fois, pour les BC validés dans la période.
  */
-export async function requestToOrderDelay(p: Period): Promise<SumCount> {
+export async function requestToOrderDelay(p: Period, f?: QueryFilter): Promise<SumCount> {
   const rows = await db.$queryRaw<{ sum: bigint | null; count: bigint }[]>`
     SELECT COALESCE(SUM(d), 0)::bigint AS sum, COUNT(*)::bigint AS count FROM (
       SELECT DISTINCT po.id AS po_id, pr.id AS pr_id, (po.approved_at::date - pr.approved_at::date) AS d
@@ -90,18 +91,18 @@ export async function requestToOrderDelay(p: Period): Promise<SumCount> {
       JOIN purchase_request_lines prl ON prl.id = a.request_line_id
       JOIN purchase_requests pr ON pr.id = prl.request_id
       WHERE po.approved_at >= ${ts(p.start)}::timestamp AND po.approved_at < ${ts(p.endExclusive)}::timestamp
-        AND po.status::text IN (${list(COUNTED)}) AND pr.approved_at IS NOT NULL
+        AND po.status::text IN (${list(COUNTED)}) AND pr.approved_at IS NOT NULL AND ${poWhere(f)}
     ) t`;
   return { sum: num(rows[0]?.sum), count: num(rows[0]?.count) };
 }
 
 /** Délai BC -> réception : 1re réception non annulée du BC, tombant dans la période, moins la validation du BC (jours). */
-export async function orderToReceiptDelay(p: Period): Promise<SumCount> {
+export async function orderToReceiptDelay(p: Period, f?: QueryFilter): Promise<SumCount> {
   const rows = await db.$queryRaw<{ sum: bigint | null; count: bigint }[]>`
     SELECT COALESCE(SUM(d), 0)::bigint AS sum, COUNT(*)::bigint AS count FROM (
       SELECT (MIN(r.received_at) - po.approved_at::date) AS d
       FROM receipts r JOIN purchase_orders po ON po.id = r.order_id
-      WHERE r.status::text = 'VALIDEE' AND po.approved_at IS NOT NULL
+      WHERE r.status::text = 'VALIDEE' AND po.approved_at IS NOT NULL AND ${poWhere(f)}
       GROUP BY po.id, po.approved_at
       HAVING MIN(r.received_at) >= ${day(p.start)}::date AND MIN(r.received_at) < ${day(p.endExclusive)}::date
     ) t`;
@@ -109,28 +110,31 @@ export async function orderToReceiptDelay(p: Period): Promise<SumCount> {
 }
 
 /** Réceptions de la période (hors annulées) : effectif total et à temps (`daysLate <= 0`). */
-export async function receiptsOnTime(p: Period): Promise<{ onTime: number; total: number }> {
+export async function receiptsOnTime(p: Period, f?: QueryFilter): Promise<{ onTime: number; total: number }> {
   const rows = await db.$queryRaw<{ on_time: bigint; total: bigint }[]>`
     SELECT COUNT(*) FILTER (WHERE days_late <= 0)::bigint AS on_time, COUNT(*)::bigint AS total
-    FROM receipts
-    WHERE status::text = 'VALIDEE'
-      AND received_at >= ${day(p.start)}::date AND received_at < ${day(p.endExclusive)}::date`;
+    FROM receipts r
+    WHERE r.status::text = 'VALIDEE'
+      AND r.received_at >= ${day(p.start)}::date AND r.received_at < ${day(p.endExclusive)}::date AND ${receiptWhere(f)}`;
   return { onTime: num(rows[0]?.on_time), total: num(rows[0]?.total) };
 }
 
 // ------------------------------------------------------------------ stock
 
 /** Valeur du stock (FCFA) : Σ quantité x PMP par dépôt, arrondie par ligne comme `loadStats`. */
-export async function stockValueNow(): Promise<number> {
+export async function stockValueNow(f?: QueryFilter): Promise<number> {
   const rows = await db.$queryRaw<{ value: bigint | null }[]>`
-    SELECT COALESCE(SUM(ROUND(quantity * pmp)), 0)::bigint AS value FROM stock_levels`;
+    SELECT COALESCE(SUM(ROUND(sl.quantity * sl.pmp)), 0)::bigint AS value
+    FROM stock_levels sl JOIN items i ON i.id = sl.item_id WHERE ${levelWhere(f)}`;
   return num(rows[0]?.value);
 }
 
 /** Σ des valeurs signées des mouvements depuis `since` (T3 : valeur de fin de mois précédent = valeur actuelle - ce total). */
-export async function movementsValueSince(since: Date): Promise<number> {
+export async function movementsValueSince(since: Date, f?: QueryFilter): Promise<number> {
   const rows = await db.$queryRaw<{ value: bigint | null }[]>`
-    SELECT COALESCE(SUM(value), 0)::bigint AS value FROM stock_movements WHERE occurred_at >= ${ts(since)}::timestamp`;
+    SELECT COALESCE(SUM(m.value), 0)::bigint AS value
+    FROM stock_movements m JOIN items i ON i.id = m.item_id
+    WHERE m.occurred_at >= ${ts(since)}::timestamp AND ${movementWhere(f)}`;
   return num(rows[0]?.value);
 }
 
@@ -144,12 +148,13 @@ export async function stockValueByCategory(): Promise<{ category: string; value:
 }
 
 /** Ruptures (T3) : articles stockés dont une sortie de la période a laissé le stock à 0 (ou moins) dans un dépôt. */
-export async function stockoutsInPeriod(p: Period): Promise<number> {
+export async function stockoutsInPeriod(p: Period, f?: QueryFilter): Promise<number> {
   const rows = await db.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(DISTINCT m.item_id)::bigint AS count
     FROM stock_movements m JOIN items i ON i.id = m.item_id
     WHERE i.stocked = true AND m.stock_after <= 0 AND m.quantity < 0
-      AND m.occurred_at >= ${ts(p.start)}::timestamp AND m.occurred_at < ${ts(p.endExclusive)}::timestamp`;
+      AND m.occurred_at >= ${ts(p.start)}::timestamp AND m.occurred_at < ${ts(p.endExclusive)}::timestamp
+      AND ${movementWhere(f)}`;
   return num(rows[0]?.count);
 }
 

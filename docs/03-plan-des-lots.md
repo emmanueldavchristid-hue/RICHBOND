@@ -17,12 +17,12 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 | LOT-08 | Tableau de bord d'accueil par rôle | EX-60, 61 | Terminé |
 | **Jalon** | **DÉMO 1 au client** (parcours complet DA → stock + tableau de bord) | | |
 | LOT-09 | Import Excel/CSV des données initiales | EX-12 | Terminé |
-| LOT-10 | Consultations et comparatif des offres | EX-26 | À faire |
+| LOT-10 | Consultations et comparatif des offres | EX-26 | Reporté après mise en service |
 | LOT-11 | Inventaires hebdomadaires (mode tablette) | EX-32 | Terminé |
 | LOT-12 | Achats import, frais d'approche, coût d'arrivée dédouané | EX-40, 41, 42 | Terminé |
 | LOT-13 | Factures fournisseurs et rapprochement BC / réception / facture | EX-25 | Terminé |
-| LOT-14 | Évaluation et panel fournisseurs | EX-50, 51 | À faire |
-| LOT-15 | KPI avancés et rapports quotidiens / hebdo / mensuels | EX-61, 62, 63 | À faire |
+| LOT-14 | Évaluation et panel fournisseurs | EX-50, 51 | Reporté après mise en service |
+| LOT-15 | KPI avancés et rapports quotidiens / hebdo / mensuels | EX-61, 62, 63 | Terminé |
 | LOT-16 | Alertes 8h / 15h et centre de notifications | EX-64 | Terminé |
 | LOT-17 | Intégration Sage 100 | EX-70 | À faire |
 | LOT-18 | Durcissement, sauvegardes, guide utilisateur, déploiement | EX-03 | Terminé |
@@ -34,3 +34,8 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 4. Rapport de recette métier écrit dans `docs/recette/LOT-xx.md` (aucun point bloquant ouvert).
 5. Seed mis à jour pour que la démo montre la fonctionnalité.
 6. Branche fusionnée dans `main`, poussée sur GitHub, journal mis à jour.
+
+## Changement de périmètre (2026-11-01, décision de Jason)
+LOT-10 (comparatif des offres, EX-26) et LOT-14 (évaluation et panel fournisseurs, EX-50, 51) sont **reportés après la mise en service**.
+Après LOT-15, on passe directement à la campagne finale : suite e2e complète, recette métier globale, relecture sécurité, captures, `docs/demo-1.md`.
+Conséquence : dans les rapports, les gains achats et l'évaluation fournisseurs s'affichent « non disponible » jusqu'à ces lots.
