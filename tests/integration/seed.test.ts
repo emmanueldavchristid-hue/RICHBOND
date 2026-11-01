@@ -10,6 +10,8 @@ afterAll(async () => {
 describe("seed idempotent", () => {
   it("exécuté deux fois : pas de doublon", async () => {
     // Base de test uniquement (DATABASE_URL forcé à DATABASE_URL_TEST par vitest.config.ts).
+    await db.importFile.deleteMany(); // cascade : BC rattachés, jalons, frais, pièces
+    await db.counter.deleteMany({ where: { key: "IMP" } });
     await cleanStock(); // réceptions (LOT-06), mouvements et niveaux référencent les BC et les articles
     await db.auditLog.deleteMany();
     await db.notification.deleteMany();
@@ -64,7 +66,7 @@ describe("seed idempotent", () => {
     const bcNumbers = bc.filter((o) => o.number).map((o) => Number(o.number!.slice(-5))).sort((a, b) => a - b);
     expect(bcNumbers).toEqual(Array.from({ length: 9 }, (_, i) => i + 1));
     expect(bc.filter((o) => !o.number).map((o) => o.status).sort()).toEqual(["A_VALIDER", "BROUILLON"]);
-    expect((await db.counter.findFirstOrThrow({ where: { key: "BC" } })).value).toBe(9 + 41); // 9 BC du LOT-05 + 41 BC validés de l'historique LOT-08 (le 42e reste à valider)
+    expect((await db.counter.findFirstOrThrow({ where: { key: "BC" } })).value).toBe(9 + 41 + 1); // 9 BC du LOT-05 + 41 BC validés de l'historique LOT-08 (le 42e reste à valider) + 1 BC import du LOT-12
     // Réceptions fictives (LOT-06) : créées par le service, une seule fois malgré deux exécutions.
     const receipts = await db.receipt.findMany({ orderBy: { number: "asc" }, include: { lines: true } });
     expect(receipts.slice(0, 2).map((r) => r.number.slice(-5))).toEqual(["00001", "00002"]);
@@ -105,6 +107,16 @@ describe("seed idempotent", () => {
     expect(await db.setting.count({ where: { key: { in: ["company.name", "company.address", "purchaseOrder.pdfFooter"] } } })).toBe(3);
     expect(await db.warehouse.count({ where: { address: { not: null } } })).toBeGreaterThanOrEqual(2);
     expect(await db.supplier.count({ where: { code: { startsWith: "FRS-" } } })).toBe(25);
+    // Dossier import fictif (LOT-12) : types de frais, coefficients par défaut, un dossier ouvert avec 10 jalons, une seule fois.
+    expect(await db.approachCostType.count()).toBe(11);
+    expect(await db.approachCoefficientDefault.count()).toBe(8 + 7 + 5);
+    expect(await db.supplier.count({ where: { name: "Bearing Global Ltd" } })).toBe(1);
+    const impFiles = await db.importFile.findMany({ include: { milestones: true, costs: true, orders: true } });
+    expect(impFiles).toHaveLength(1);
+    expect(impFiles[0].milestones).toHaveLength(10);
+    expect(impFiles[0].orders).toHaveLength(1);
+    expect(impFiles[0].costs.some((c) => c.status === "REEL" && c.currencyCode === "USD")).toBe(true);
+    expect(impFiles[0].costs.some((c) => c.status === "ESTIME")).toBe(true);
     expect(await db.warehouse.count()).toBeGreaterThanOrEqual(2);
     expect(await db.department.count({ where: { code: { in: ["PROD", "MAINT", "QUAL", "LOG", "ADM", "DIR"] } } })).toBe(6);
     expect(await db.currency.count({ where: { code: { in: ["XOF", "EUR", "USD", "CNY"] } } })).toBe(4);

@@ -11,6 +11,7 @@ export const MOVEMENT_TYPE_TONES: Record<MovementTypeCode, StatusTone> = {
   TRANSFERT: "info",
   AJUSTEMENT: "violet",
   AJUSTEMENT_INVENTAIRE: "violet",
+  REEVALUATION_COUT: "violet",
 };
 
 export const MOVEMENT_TYPE_OPTIONS = (Object.keys(MOVEMENT_TYPE_LABELS) as MovementTypeCode[]).map((value) => ({

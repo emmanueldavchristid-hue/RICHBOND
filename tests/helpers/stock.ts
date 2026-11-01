@@ -5,6 +5,10 @@ import { db } from "@/lib/db";
  * À appeler AVANT cleanPurchaseOrders et cleanReferentials (clés étrangères). Base de test uniquement.
  */
 export async function cleanStock() {
+  // LOT-12 : les dossiers import référencent BC et fournisseurs (lignes, frais, jalons, pièces en cascade).
+  await db.importFile.deleteMany({});
+  await db.auditLog.deleteMany({ where: { entity: "ImportFile" } });
+  await db.counter.deleteMany({ where: { key: "IMP" } });
   // LOT-13 : les factures référencent BC et fournisseurs (lignes et pièces jointes en cascade).
   await db.supplierInvoice.deleteMany({});
   await db.auditLog.deleteMany({ where: { entity: "SupplierInvoice" } });

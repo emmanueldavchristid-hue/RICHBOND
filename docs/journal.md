@@ -100,3 +100,14 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - `npm audit` : vulnérabilités hautes corrigées ; restent 5 alertes faibles/moyennes (exceljs via uuid, shadcn) dont le correctif imposerait une régression d'exceljs : acceptées.
 - À vérifier plus tard : scripts de sauvegarde/restauration et seed de charge non rejoués ; CSP non vérifiée en navigateur ; libellés du guide déduits des scénarios ; périmètre Acheteur des BC et exports à confirmer ; recette finale `docs/recette/RECETTE-FINALE.md` en fin de marathon.
 - Suite : LOT-12 (achats import).
+
+## LOT-12 – Achats import, frais d'approche, coût dédouané (backend)
+- Fait : migration `import_files` (dossiers IMP, jalons, frais estimé/réel, types paramétrables, coefficients par défaut, ajustements, historique des coefficients, `landedUnitCostXof`, poids/volume par ligne de BC, mouvement `REEVALUATION_COUT`) ; module `src/modules/import-files/` (répartition au plus fort reste sur 4 clés, coût dédouané, coefficient, estimations, clôture transactionnelle, fiche Excel/PDF) ; server actions `src/app/(app)/import/actions.ts` (signatures en tête de fichier) ; routes de téléchargement `/api/import-files/[id]/fiche` et `/documents/[docId]` ; seed fictif (Bearing Global Ltd, un dossier avec ETA en retard).
+- Extension LOT-07 minimale : `applyMovement` accepte `REEVALUATION_COUT` (quantité 0, `valueDelta`), seule porte d'écriture de `StockLevel` conservée. La contrainte SQL `quantity <> 0` autorise ce type.
+- Hypothèses H52 à H57 ajoutées (à confirmer). Interface (pages /import) : à faire par l'agent frontend.
+
+## LOT-12 – Achats import, frais d'approche, coût dédouané (terminé, mode marathon)
+- Fait : dossiers IMP-AAAA-xxxx, 10 jalons prévu/réel avec alerte de retard, frais estimés puis réels, répartition (valeur/poids/volume/quantité, somme exacte), coût d'arrivée dédouané, coefficient d'approche historisé, clôture avec réévaluation du PMP (mouvement REEVALUATION_COUT), fiche Excel/PDF, paramétrage des frais (Responsable). Menu Import réservé aux périmètres IMPORT/ALL.
+- Tests : 1254 unitaires/intégration verts, lint et typecheck verts ; scénario S6 vert (desktop seulement, tablette non lancée).
+- Hypothèses H52 à H57 à confirmer (docs/00-contexte-client.md). Pas d'écran de modification de l'en-tête d'un dossier (action serveur prête).
+- Suite : LOT-15 (rapports et KPI).
