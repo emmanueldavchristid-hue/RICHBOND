@@ -21,6 +21,8 @@ const LABELS: Record<string, string> = {
   mouvements: "Mouvements",
   sorties: "Sorties",
   reappro: "Réapprovisionnement",
+  inventaires: "Inventaires",
+  comptage: "Comptage",
   "non-conformites": "Non-conformités",
   fournisseurs: "Fournisseurs",
   rapports: "Rapports",
