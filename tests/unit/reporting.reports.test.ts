@@ -55,17 +55,34 @@ describe("périodes des rapports (Africa/Abidjan)", () => {
   const now = new Date("2026-11-04T10:00:00.000Z"); // mercredi
   it("quotidien : le jour choisi, jour précédent en comparaison", () => {
     const p = resolveReportPeriod("quotidien", { date: "2026-10-20" }, now);
-    expect([p.from, p.to, p.days, p.label, p.previous.from]).toEqual(["2026-10-20", "2026-10-20", 1, "20/10/2026", "2026-10-19"]);
+    expect([p.from, p.to, p.days, p.label, p.previous.from]).toEqual([
+      "2026-10-20",
+      "2026-10-20",
+      1,
+      "20/10/2026",
+      "2026-10-19",
+    ]);
     expect(p.period.endExclusive.getTime() - p.period.start.getTime()).toBe(86_400_000);
   });
   it("hebdomadaire : du lundi au dimanche, semaine précédente en comparaison", () => {
     const p = resolveReportPeriod("hebdomadaire", {}, now);
-    expect([p.from, p.to, p.previous.from, p.previous.to]).toEqual(["2026-11-02", "2026-11-08", "2026-10-26", "2026-11-01"]);
+    expect([p.from, p.to, p.previous.from, p.previous.to]).toEqual([
+      "2026-11-02",
+      "2026-11-08",
+      "2026-10-26",
+      "2026-11-01",
+    ]);
     expect(p.label).toBe("Semaine du 02/11/2026 au 08/11/2026");
   });
   it("mensuel : mois calendaire, février compris", () => {
     const p = resolveReportPeriod("mensuel", { month: "2028-02" }, now);
-    expect([p.from, p.to, p.days, p.label, p.previous.to]).toEqual(["2028-02-01", "2028-02-29", 29, "Février 2028", "2028-01-31"]);
+    expect([p.from, p.to, p.days, p.label, p.previous.to]).toEqual([
+      "2028-02-01",
+      "2028-02-29",
+      29,
+      "Février 2028",
+      "2028-01-31",
+    ]);
   });
   it("jours écoulés d'un mois en cours : bornés entre 1 et la durée", () => {
     const p = resolveReportPeriod("mensuel", { month: "2026-11" }, now);
@@ -95,8 +112,14 @@ describe("droits sur les rapports", () => {
     expect(reportAccess({ role: "MAGASINIER" }).allowed).toBe(false);
   });
   it("Acheteur : périmètre imposé ; sans périmètre, refusé", () => {
-    expect(reportAccess({ role: "ACHETEUR", purchaseScope: "LOCAL" })).toEqual({ allowed: true, scope: "LOCAL" });
-    expect(reportAccess({ role: "ACHETEUR", purchaseScope: "IMPORT" })).toEqual({ allowed: true, scope: "IMPORT" });
+    expect(reportAccess({ role: "ACHETEUR", purchaseScope: "LOCAL" })).toEqual({
+      allowed: true,
+      scope: "LOCAL",
+    });
+    expect(reportAccess({ role: "ACHETEUR", purchaseScope: "IMPORT" })).toEqual({
+      allowed: true,
+      scope: "IMPORT",
+    });
     expect(reportAccess({ role: "ACHETEUR", purchaseScope: "ALL" })).toEqual({ allowed: true, scope: null });
     expect(reportAccess({ role: "ACHETEUR", purchaseScope: null }).allowed).toBe(false);
   });
@@ -130,9 +153,37 @@ describe("génération des fichiers d'un rapport (sans base)", () => {
     filters: [{ label: "Périmètre", value: "Achats locaux" }],
     notes: ["Note de test."],
     kpis: [
-      { key: "montant-achete", label: "Montant acheté", unit: "FCFA", value: 2_000_000, previous: 1_000_000, variationPct: 100, goodDirection: "NONE", help: "Aide." },
-      { key: "delai-da-bc", label: "Délai DA → BC", unit: "DAYS", value: 3.5, previous: null, variationPct: null, goodDirection: "DOWN", help: "Aide." },
-      { key: "gains-achats", label: "Gains achats", unit: "FCFA", value: null, previous: null, variationPct: null, goodDirection: "UP", help: "Aide.", unavailable: "Non disponible : module absent." },
+      {
+        key: "montant-achete",
+        label: "Montant acheté",
+        unit: "FCFA",
+        value: 2_000_000,
+        previous: 1_000_000,
+        variationPct: 100,
+        goodDirection: "NONE",
+        help: "Aide.",
+      },
+      {
+        key: "delai-da-bc",
+        label: "Délai DA → BC",
+        unit: "DAYS",
+        value: 3.5,
+        previous: null,
+        variationPct: null,
+        goodDirection: "DOWN",
+        help: "Aide.",
+      },
+      {
+        key: "gains-achats",
+        label: "Gains achats",
+        unit: "FCFA",
+        value: null,
+        previous: null,
+        variationPct: null,
+        goodDirection: "UP",
+        help: "Aide.",
+        unavailable: "Non disponible : module absent.",
+      },
     ],
     tables: [
       {
@@ -149,8 +200,21 @@ describe("génération des fichiers d'un rapport (sans base)", () => {
         ],
         emptyText: "Rien.",
       },
-      { key: "t2", title: "Vide", columns: [{ key: "a", label: "A", type: "text" }], rows: [], emptyText: "Aucune ligne." },
-      { key: "t3", title: "Indisponible", columns: [], rows: [], emptyText: "", unavailable: "Non disponible : module absent." },
+      {
+        key: "t2",
+        title: "Vide",
+        columns: [{ key: "a", label: "A", type: "text" }],
+        rows: [],
+        emptyText: "Aucune ligne.",
+      },
+      {
+        key: "t3",
+        title: "Indisponible",
+        columns: [],
+        rows: [],
+        emptyText: "",
+        unavailable: "Non disponible : module absent.",
+      },
     ],
   });
 
@@ -165,7 +229,13 @@ describe("génération des fichiers d'un rapport (sans base)", () => {
     const bytes = await buildReportWorkbook(report(kind));
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(bytes as unknown as ArrayBuffer);
-    expect(wb.worksheets.map((w) => w.name)).toEqual(["Informations", "Indicateurs", "Achats par fournisseur", "Vide", "Indisponible"]);
+    expect(wb.worksheets.map((w) => w.name)).toEqual([
+      "Informations",
+      "Indicateurs",
+      "Achats par fournisseur",
+      "Vide",
+      "Indisponible",
+    ]);
     const ws = wb.getWorksheet("Achats par fournisseur")!;
     expect(ws.getCell("A2").value).toBe("'=CMD()|' !A1");
     expect(ws.getCell("B2").value).toBe(1_250_000);
