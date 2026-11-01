@@ -1,6 +1,6 @@
 /** Libellés et codes du stock (LOT-07). Fichier pur : importable côté client. */
 
-export const MOVEMENT_TYPES = ["ENTREE_RECEPTION", "SORTIE", "RETOUR_FOURNISSEUR", "TRANSFERT", "AJUSTEMENT", "AJUSTEMENT_INVENTAIRE"] as const;
+export const MOVEMENT_TYPES = ["ENTREE_RECEPTION", "SORTIE", "RETOUR_FOURNISSEUR", "TRANSFERT", "AJUSTEMENT", "AJUSTEMENT_INVENTAIRE", "REEVALUATION_COUT"] as const;
 export type MovementTypeCode = (typeof MOVEMENT_TYPES)[number];
 
 export const MOVEMENT_TYPE_LABELS: Record<MovementTypeCode, string> = {
@@ -10,6 +10,7 @@ export const MOVEMENT_TYPE_LABELS: Record<MovementTypeCode, string> = {
   TRANSFERT: "Transfert",
   AJUSTEMENT: "Ajustement",
   AJUSTEMENT_INVENTAIRE: "Ajustement d'inventaire",
+  REEVALUATION_COUT: "Réévaluation du coût (import)",
 };
 
 export const ISSUE_STATUSES = ["VALIDEE", "ANNULEE"] as const;

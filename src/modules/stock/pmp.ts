@@ -147,6 +147,21 @@ export function computeMovement(input: MovementComputationInput): MovementComput
   };
 }
 
+/**
+ * Réévaluation de coût (LOT-12) : ajoute `valueDelta` FCFA à la valeur du stock restant sans changer la quantité.
+ * Nouveau PMP = PMP + valueDelta / stock. Refuse un stock nul ou un montant non positif.
+ */
+export function computeRevaluation(input: { stock: DecimalInput; pmp: DecimalInput; valueDelta: number }): MovementComputation {
+  const stock = toDecimal(input.stock);
+  const pmp = roundCost(input.pmp);
+  if (!Number.isInteger(input.valueDelta) || input.valueDelta <= 0) {
+    throw new BusinessError("COUT_INVALIDE", "Le surcoût à ajouter doit être un montant entier positif en FCFA.");
+  }
+  if (stock.lte(0)) throw new BusinessError("STOCK_NUL", "Réévaluation impossible : le stock est à zéro.");
+  const pmpAfter = roundCost(pmp.add(new Decimal(input.valueDelta).div(stock)));
+  return { quantity: new Decimal(0), unitCost: pmpAfter, value: input.valueDelta, pmpBefore: pmp, pmpAfter, stockAfter: stock };
+}
+
 /** Quantité sans zéros inutiles ("12.500" -> "12.5") pour les messages. */
 export function formatDecimal(d: Decimal): string {
   return d.toDecimalPlaces(QTY_DECIMALS).toString().replace(".", ",");

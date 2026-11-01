@@ -1,7 +1,7 @@
 import type { Prisma, StockDocumentType, StockMovement, StockMovementType } from "@/generated/prisma/client";
 import { BusinessError } from "@/lib/errors";
 import { notify } from "@/modules/notifications/service";
-import { Decimal, computeMovement, formatDecimal, toDecimal, type DecimalInput } from "./pmp";
+import { Decimal, computeMovement, computeRevaluation, formatDecimal, toDecimal, type DecimalInput } from "./pmp";
 
 /**
  * SEULE porte d'entrée du stock. Aucun autre fichier ne doit écrire `StockLevel` (test statique, LOT-07).
@@ -27,6 +27,11 @@ export interface MovementInput {
    * (PMP du dépôt source). Facultatif pour un ajustement positif (défaut : PMP courant). Ignoré pour une sortie : PMP du moment.
    */
   unitCost?: DecimalInput;
+  /**
+   * REEVALUATION_COUT uniquement (LOT-12) : surcoût en FCFA entiers ajouté à la valeur du stock restant. La quantité est
+   * ignorée (mouvement de valeur seule, quantité 0) et le PMP devient PMP + surcoût / stock actuel.
+   */
+  valueDelta?: number;
   documentType: StockDocumentType;
   documentId?: string | null;
   /** Numéro lisible de la pièce (REC-…, SOR-…, TRF-…, AJU-…, RET-…). */
@@ -138,6 +143,10 @@ export async function applyMovements(tx: Tx, inputs: MovementInput[]): Promise<S
     if (!item.stocked) {
       throw new BusinessError("ARTICLE_NON_STOCKE", `L'article ${item.code} n'est pas géré en stock.`);
     }
+    if (r.type === "REEVALUATION_COUT") {
+      if (r.original) throw new BusinessError("CONTREPASSATION_INVALIDE", "Une réévaluation de coût ne se contre-passe pas.");
+      continue; // quantité nulle par construction ; le montant est contrôlé par computeRevaluation
+    }
     if (r.original) continue;
     const q = toDecimal(r.input.quantity);
     if (q.isZero()) throw new BusinessError("QUANTITE_INVALIDE", "La quantité du mouvement ne peut pas être nulle.");
@@ -162,9 +171,10 @@ export async function applyMovements(tx: Tx, inputs: MovementInput[]): Promise<S
     const level = await tx.stockLevel.findUniqueOrThrow({
       where: { itemId_warehouseId: { itemId: r.itemId, warehouseId: r.warehouseId } },
     });
-    const quantity = original ? new Decimal(original.quantity).neg() : toDecimal(input.quantity);
+    const revaluation = r.type === "REEVALUATION_COUT";
+    const quantity = revaluation ? new Decimal(0) : original ? new Decimal(original.quantity).neg() : toDecimal(input.quantity);
 
-    if (new Decimal(level.quantity).add(quantity).lt(0)) {
+    if (!revaluation && new Decimal(level.quantity).add(quantity).lt(0)) {
       throw insufficientStock(
         new Decimal(level.quantity),
         itemById.get(r.itemId)!.stockUnit,
@@ -173,13 +183,15 @@ export async function applyMovements(tx: Tx, inputs: MovementInput[]): Promise<S
       );
     }
 
-    const computed = computeMovement({
-      stock: level.quantity,
-      pmp: level.pmp,
-      quantity,
-      unitCost: input.unitCost,
-      reversal: original ? { quantity: original.quantity, unitCost: original.unitCost, value: original.value } : undefined,
-    });
+    const computed = revaluation
+      ? computeRevaluation({ stock: level.quantity, pmp: level.pmp, valueDelta: input.valueDelta ?? 0 })
+      : computeMovement({
+          stock: level.quantity,
+          pmp: level.pmp,
+          quantity,
+          unitCost: input.unitCost,
+          reversal: original ? { quantity: original.quantity, unitCost: original.unitCost, value: original.value } : undefined,
+        });
 
     const movement = await tx.stockMovement.create({
       data: {
