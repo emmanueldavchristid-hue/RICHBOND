@@ -67,6 +67,8 @@ export const STATUSES: Record<string, { label: string; tone: StatusTone }> = {
   BON_A_PAYER: { label: "Bon à payer", tone: "info" },
   TRANSMISE: { label: "Transmise compta", tone: "indigo" },
   LITIGE: { label: "Litige", tone: "danger" },
+  // Dossiers import (LOT-12) : CLOTURE et ANNULE sont partagés
+  OUVERT: { label: "Ouvert", tone: "info" },
   // Non-conformités (LOT-06)
   OUVERTE: { label: "Ouverte", tone: "warning" },
   CLOTUREE: { label: "Clôturée", tone: "success" },
