@@ -9,6 +9,7 @@ import { daysLate as orderDaysLate, needsReminder } from "@/modules/purchase-ord
 import { getSettings } from "@/modules/settings";
 import { FORECAST_ITEM_SELECT, buildForecast, loadStats } from "@/modules/stock/stats";
 import { addDaysIso } from "@/modules/stock/forecast";
+import { REPORT_CATEGORY_LABELS } from "./report-defs";
 import { average, cardTone, onTimeRate, previousStockValue, sharePct, variationPct } from "./kpi";
 import { lastTwelveMonths, monthComparison, monthLabel, twelveMonthsPeriod, weekBounds } from "./period";
 import {
@@ -51,13 +52,6 @@ export interface DashboardUser extends PermissionUser {
 }
 
 const DAY_MS = 86_400_000;
-const CATEGORY_LABELS: Record<string, string> = {
-  MATIERE_PREMIERE: "Matières premières",
-  INTRANT: "Intrants",
-  PDR: "Pièces de rechange",
-  FOURNITURE: "Fournitures",
-  SERVICE: "Services",
-};
 const OPEN_FOR_BUYER = ["VALIDEE", "EN_CONSULTATION", "PARTIELLEMENT_COMMANDEE"] as const;
 const SEVERITY_RANK = { ROUGE: 0, ORANGE: 1, VERT: 2 } as const;
 
@@ -303,7 +297,7 @@ export async function responsibleDashboard(at: Date = clockNow()): Promise<Respo
       .sort((a, b) => b.value - a.value)
       .map((c) => ({
         category: c.category,
-        label: CATEGORY_LABELS[c.category] ?? c.category,
+        label: REPORT_CATEGORY_LABELS[c.category] ?? c.category,
         valueXof: c.value,
         sharePct: sharePct(c.value, stockTotal),
       })),

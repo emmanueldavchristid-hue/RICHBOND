@@ -59,3 +59,52 @@ export function previousStockValue(currentValue: number, movementsValueSinceMont
 export function onTimeRate(onTime: number, total: number): number | null {
   return ratePct(onTime, total);
 }
+
+// ------------------------------------------------------------------ LOT-15 : KPI des rapports (docs/kpi.md)
+
+/** OTIF : part des BC échus livrés à temps ET en totalité. null si aucun BC échu. */
+export function otifRate(ok: number, total: number): number | null {
+  return ratePct(ok, total);
+}
+
+/** Taux de service magasin : part des lignes de sortie servies sans rupture. */
+export function serviceRate(served: number, total: number): number | null {
+  return ratePct(served, total);
+}
+
+/** Part des achats locaux en % du montant total ; null si rien n'a été acheté. */
+export function localSharePct(localXof: number, totalXof: number): number | null {
+  return ratePct(localXof, totalXof);
+}
+
+/** Taux de conformité des factures (rapprochement sans écart). */
+export function invoiceConformityRate(conform: number, total: number): number | null {
+  return ratePct(conform, total);
+}
+
+/** Stock moyen d'une période = moyenne des valeurs de début et de fin (FCFA entier). */
+export function averageStock(startValue: number, endValue: number): number {
+  return Math.round((startValue + endValue) / 2);
+}
+
+/**
+ * Rotation annualisée (tours par an) = consommation de la période / stock moyen, ramenée à 365 jours.
+ * null si le stock moyen ou la durée est nul.
+ */
+export function stockRotation(consumptionXof: number, avgStockXof: number, periodDays: number): number | null {
+  if (avgStockXof <= 0 || periodDays <= 0) return null;
+  return round1((consumptionXof / avgStockXof) * (365 / periodDays));
+}
+
+/** Couverture moyenne en jours = stock moyen / consommation journalière. null sans consommation. */
+export function stockCoverageDays(avgStockXof: number, consumptionXof: number, periodDays: number): number | null {
+  if (consumptionXof <= 0 || periodDays <= 0 || avgStockXof < 0) return null;
+  return round1(avgStockXof / (consumptionXof / periodDays));
+}
+
+/** Moyenne simple de valeurs déjà connues (ignore les null) ; null si aucune. */
+export function meanOf(values: (number | null)[]): number | null {
+  const v = values.filter((x): x is number => x !== null);
+  if (v.length === 0) return null;
+  return round1(v.reduce((a, b) => a + b, 0) / v.length);
+}
