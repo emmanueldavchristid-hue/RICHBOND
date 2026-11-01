@@ -95,3 +95,9 @@ Correspondance avec le cahier des charges : « assistant achat local » et « as
 | H61 | Valeur des dormants et BC en retard (LOT-15) : situation à la date de génération, même pour une période passée ; seuil de dormance = réglage `stock.dormantDays` (180 jours) | à confirmer |
 | H62 | Droits des rapports (LOT-15) : Responsable tous les rapports ; Acheteur limité à son périmètre (local, import ou les deux) ; Magasinier aucun rapport achats (il garde le menu Rapports vide tant qu'aucun rapport stock n'existe) ; lecture autorisée en essai expiré ; chaque export est tracé | à confirmer |
 | H63 | Conformité des factures (LOT-15) : facture rapprochée dont toutes les lignes sont conformes au premier rapprochement ; « Gains achats » (LOT-10) et « Évaluation fournisseurs » (LOT-14) affichés « Non disponible » tant que ces lots ne sont pas livrés ; le coût moyen d'approche est la moyenne simple des coefficients des dossiers clôturés | à confirmer |
+
+## Points issus de la recette finale (2026-11-01) : à confirmer / hors lot
+- I1 Facture : pas de champ "Total TTC facture" ni de ligne de frais annexes (transport, emballage) : a confirmer avec M. DIBI, hors lot.
+- I2 Pas d ecran de modification d une facture ni de l en-tete d un dossier import (actions serveur pretes) : hors lot.
+- I3 PMP base sur le prix du BC, pas sur le prix facture : arbitrage "conformite" ou "PMP exact" a confirmer avec M. DIBI.
+- I4 Integration Sage (LOT-17) non livree : format d import et frequence a confirmer.

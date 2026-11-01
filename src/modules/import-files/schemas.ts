@@ -14,7 +14,7 @@ const optText = (max: number) =>
 
 const INCOTERMS = ["EXW", "FCA", "FAS", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"] as const;
 /** Montants saisis : positifs ou nuls, 2 décimales au plus. */
-const amount = z.number({ error: "Montant invalide." }).finite().min(0, "Le montant ne peut pas être négatif.").max(9_999_999_999_999, "Montant trop élevé.");
+const amount = z.number({ error: "Montant invalide." }).finite().min(0, "Le montant ne peut pas être négatif.").max(2_147_483_647, "Montant trop élevé.");
 const rate = z.number({ error: "Taux invalide." }).positive("Le taux doit être positif.").max(1_000_000, "Taux trop élevé.");
 
 export const fileIdSchema = z.object({ id: idSchema });

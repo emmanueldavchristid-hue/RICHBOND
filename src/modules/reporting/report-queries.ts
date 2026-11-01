@@ -317,12 +317,14 @@ export interface ClosedImportRow {
 /** Dossiers import clôturés dans la période, avec leur coefficient d'approche et le total des frais intégrés au coût. */
 export async function closedImportFiles(f: QueryFilter, p: Period): Promise<ClosedImportRow[]> {
   const sup = f.supplierId ? Prisma.sql`AND imp.supplier_id = ${f.supplierId}` : Prisma.empty;
+  const buyer = f.buyerId ? Prisma.sql`AND imp.created_by_id = ${f.buyerId}` : Prisma.empty;
   const rows = await db.$queryRaw<{ number: string; supplier: string; closed_at: Date | null; coefficient: string | null; costs: bigint }[]>`
     SELECT imp.number, s.name AS supplier, imp.closed_at, imp.coefficient::text AS coefficient,
       COALESCE((SELECT SUM(c.amount_xof) FROM approach_costs c WHERE c.file_id = imp.id AND c.vat_recoverable = false), 0)::bigint AS costs
     FROM import_files imp JOIN suppliers s ON s.id = imp.supplier_id
-    WHERE imp.status::text = 'CLOTURE' AND ${inP(Prisma.sql`imp.closed_at`, p)} ${sup}
-    ORDER BY imp.closed_at ASC, imp.number ASC`;
+    WHERE imp.status::text = 'CLOTURE' AND ${inP(Prisma.sql`imp.closed_at`, p)} ${sup} ${buyer}
+    ORDER BY imp.closed_at ASC, imp.number ASC
+    LIMIT 500`;
   return rows.map((r) => ({
     number: r.number,
     supplier: r.supplier,

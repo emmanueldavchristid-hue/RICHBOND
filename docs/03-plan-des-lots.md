@@ -35,6 +35,8 @@ Pour reprendre après une interruption (limite d'usage, coupure) : relire ce tab
 5. Seed mis à jour pour que la démo montre la fonctionnalité.
 6. Branche fusionnée dans `main`, poussée sur GitHub, journal mis à jour.
 
+Note : `docs/recette/RECETTE-FINALE.md` remplace les recettes par lot manquantes (LOT-05, 06, 07, 08, 11, 12, 13, 15, 16, 18).
+
 ## Changement de périmètre (2026-11-01, décision de Jason)
 LOT-10 (comparatif des offres, EX-26) et LOT-14 (évaluation et panel fournisseurs, EX-50, 51) sont **reportés après la mise en service**.
 Après LOT-15, on passe directement à la campagne finale : suite e2e complète, recette métier globale, relecture sécurité, captures, `docs/demo-1.md`.

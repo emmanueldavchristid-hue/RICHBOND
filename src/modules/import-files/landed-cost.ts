@@ -1,3 +1,4 @@
+import { BusinessError } from "@/lib/errors";
 import { Decimal, roundCost, toDecimal, type DecimalInput } from "@/modules/stock/pmp";
 import { allocateCost, type AllocationLine } from "./allocation";
 import type { AllocationKeyCode } from "./labels";
@@ -8,8 +9,14 @@ import type { AllocationKeyCode } from "./labels";
  */
 
 /** Montant en devise -> FCFA entier au taux figé (demi vers l'extérieur). */
+export const MAX_XOF = 2_147_483_647;
+
 export function toXof(amount: DecimalInput, rate: DecimalInput): number {
-  const v = toDecimal(amount).mul(toDecimal(rate)).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+  const d = toDecimal(amount).mul(toDecimal(rate)).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+  if (d.abs().gt(MAX_XOF)) {
+    throw new BusinessError("AMOUNT_TOO_LARGE", "Le montant converti dépasse 2 147 483 647 FCFA : vérifiez le montant et le taux.");
+  }
+  const v = d.toNumber();
   return v === 0 ? 0 : v;
 }
 

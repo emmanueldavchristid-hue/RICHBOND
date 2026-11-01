@@ -32,6 +32,7 @@ function base32(buf: Buffer): string {
 export function getLicenseSecret(env: Record<string, string | undefined> = process.env): string | null {
   const s = env.LICENSE_SECRET;
   if (s && s.length >= MIN_SECRET_LENGTH) return s;
+  if (env.NODE_ENV === "production") return null;
   if (env.NODE_ENV === "test" || env.ALLOW_TEST_NOW === "1") return DEV_FALLBACK_SECRET;
   return null;
 }

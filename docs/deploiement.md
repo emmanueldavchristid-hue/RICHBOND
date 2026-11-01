@@ -26,7 +26,14 @@ Planifier un appel HTTP POST aux mêmes heures (UTC) vers l'URL ci-dessus, avec 
 Prévue, désactivée par défaut (`ALERT_EMAIL_COPY` absent). Non implémentée : aucun utilitaire SMTP n'existe encore dans l'application.
 
 ### Alertes urgentes
-Immédiates, sans passer par la tâche planifiée : la soumission d'une DA « Arrêt de production » prévient aussitôt le Responsable (gravité critique). La rupture d'un article critique figure dans le digest (risques de rupture) ; une notification immédiate à la sortie de stock reste à brancher dans le module stock.
+Immédiates, sans passer par la tâche planifiée : la soumission d'une DA « Arrêt de production » prévient aussitôt le Responsable (gravité critique). La rupture d'un article critique déclenche aussi une alerte immédiate à la sortie de stock (déjà faite dans `movements.ts`) et figure dans le digest.
+
+### Vérifier la route cron
+La route `/api/cron/alertes` est exclue du filtre de session (elle a sa propre garde `CRON_SECRET`). Après déploiement, tester sans cookie :
+```
+curl -i -X POST -H "Authorization: Bearer VOTRE_SECRET" https://app.exemple.ci/api/cron/alertes
+```
+Réponse attendue : 200 avec le bon secret, 401 sans lui. Jamais 307 (redirection vers /connexion), qui signalerait que la route est de nouveau interceptée.
 
 
 ## Options d'hébergement (LOT-18)
@@ -43,6 +50,7 @@ Immédiates, sans passer par la tâche planifiée : la soumission d'une DA « Ar
 | `AUTH_URL` | URL publique de l'application (`https://achats.exemple.ci`). |
 | `CRON_SECRET` | Jeton de la route `/api/cron/alertes` (voir plus haut). |
 | `LICENSE_SECRET` | Secret de vérification des clés de licence (voir « Clé de licence »). |
+| `TRUST_PROXY` | `1` uniquement si l'application est derrière un reverse proxy de confiance qui pose `X-Forwarded-For`. Sinon l'en-tête est ignoré (falsifiable) et l'IP n'est pas enregistrée dans l'audit ni la limitation de connexion. |
 | `ALLOWED_ORIGINS` | Facultatif : origines autorisées pour les actions serveur si le proxy réécrit l'hôte (séparées par des virgules). |
 | `BACKUP_DIR`, `BACKUP_RETENTION_DAYS` | Facultatives, utilisées par `scripts/backup.sh` (Linux). Sous Windows, dossier et durée se règlent dans la tâche planifiée. |
 
@@ -61,7 +69,7 @@ Sur un réseau interne sans nom public : certificat de l'autorité interne du cl
 
 ## Protections de connexion et de session
 
-- 5 échecs sur un compte : verrouillage 15 minutes (`ACCOUNT_LOCKED` au journal). En plus, blocage 15 minutes après 10 échecs depuis une même adresse IP pour un même e-mail, ou 30 échecs depuis une même IP (`LOGIN_THROTTLED` au journal). Le message affiché reste générique.
+- 5 échecs sur un compte : verrouillage 15 minutes (`ACCOUNT_LOCKED` au journal). En plus, blocage 15 minutes après 10 échecs depuis une même adresse IP pour un même e-mail, ou 30 échecs depuis une même IP (`LOGIN_THROTTLED` au journal). Le message affiché reste générique. Ce blocage par IP est gardé en mémoire : il est perdu au redémarrage et ne vaut que pour une seule instance de l'application (ne pas lancer plusieurs instances derrière un répartiteur sans le remplacer par un stockage partagé).
 - Session : 8 heures, prolongée par l'activité (renouvelée toutes les heures) ; inactivité de plus de 8 heures = reconnexion.
 - CSRF : les actions serveur sont refusées par Next.js si l'en-tête `Origin` ne correspond pas à l'hôte ; la connexion Auth.js utilise un jeton CSRF ; aucune route API d'écriture n'accepte les cookies (la route cron exige le jeton `CRON_SECRET`).
 
