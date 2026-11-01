@@ -69,6 +69,8 @@ model User {
   inventoryCountsCreated   InventoryCount[]  @relation("InventoryCreator")
   inventoryCountsValidated InventoryCount[]  @relation("InventoryValidator")
 
+  importFilesCreated ImportFile[] @relation("ImportFileCreator")
+
   @@index([role, active])
   @@map("users")
 }
@@ -235,6 +237,7 @@ model Currency {
   rates          ExchangeRate[]
   suppliers      Supplier[]
   purchaseOrders PurchaseOrder[]
+  approachCosts  ApproachCost[]
 
   @@map("currencies")
 }
@@ -294,6 +297,7 @@ model Supplier {
   nonConformities NonConformity[]
   supplierReturns SupplierReturn[]
   invoices        SupplierInvoice[]
+  importFiles     ImportFile[]
 
   @@index([status, type])
   @@index([name])
@@ -720,6 +724,7 @@ model PurchaseOrder {
   charges    PurchaseOrderCharge[]
   events     PurchaseOrderEvent[]
   versions   PurchaseOrderVersion[]
+  importLink ImportFileOrder?
 
   receipts        Receipt[]
   nonConformities NonConformity[]
@@ -757,6 +762,9 @@ model PurchaseOrderLine {
   closedQty       Decimal  @default(0) @map("closed_qty") @db.Decimal(14, 3)
   closedReason    String?  @map("closed_reason")
   note            String?
+  /// LOT-12 : poids et volume par unité d'achat (clés de répartition des frais d'approche). Nuls = répartition sur la valeur.
+  unitWeightKg    Decimal? @map("unit_weight_kg") @db.Decimal(14, 4)
+  unitVolumeM3    Decimal? @map("unit_volume_m3") @db.Decimal(14, 4)
 
   order        PurchaseOrder                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
   item         Item?                         @relation(fields: [itemId], references: [id])
@@ -869,6 +877,8 @@ enum StockMovementType {
   TRANSFERT
   AJUSTEMENT
   AJUSTEMENT_INVENTAIRE
+  /// LOT-12 : surcoût d'approche ajouté au PMP du stock restant (quantité 0, valeur seule).
+  REEVALUATION_COUT
 }
 
 enum StockDocumentType {
@@ -878,6 +888,7 @@ enum StockDocumentType {
   TRANSFERT
   AJUSTEMENT
   INVENTAIRE
+  DOSSIER_IMPORT
 }
 
 enum StockIssueStatus {
@@ -924,20 +935,22 @@ model Receipt {
 }
 
 model ReceiptLine {
-  id               String         @id @default(cuid())
-  receiptId        String         @map("receipt_id")
-  orderLineId      String         @map("order_line_id")
-  itemId           String?        @map("item_id")
+  id                String         @id @default(cuid())
+  receiptId         String         @map("receipt_id")
+  orderLineId       String         @map("order_line_id")
+  itemId            String?        @map("item_id")
   /// Quantités en unité d'achat du BC.
-  deliveredQty     Decimal        @map("delivered_qty") @db.Decimal(14, 3)
-  acceptedQty      Decimal        @map("accepted_qty") @db.Decimal(14, 3)
-  refusedQty       Decimal        @default(0) @map("refused_qty") @db.Decimal(14, 3)
+  deliveredQty      Decimal        @map("delivered_qty") @db.Decimal(14, 3)
+  acceptedQty       Decimal        @map("accepted_qty") @db.Decimal(14, 3)
+  refusedQty        Decimal        @default(0) @map("refused_qty") @db.Decimal(14, 3)
   /// Quantité acceptée convertie en unité de stock.
-  acceptedStockQty Decimal        @map("accepted_stock_qty") @db.Decimal(14, 3)
-  refusalReason    RefusalReason? @map("refusal_reason")
-  lotNumber        String?        @map("lot_number")
+  acceptedStockQty  Decimal        @map("accepted_stock_qty") @db.Decimal(14, 3)
+  refusalReason     RefusalReason? @map("refusal_reason")
+  lotNumber         String?        @map("lot_number")
   /// FCFA par unité de stock.
-  unitCostXof      Decimal        @map("unit_cost_xof") @db.Decimal(14, 4)
+  unitCostXof       Decimal        @map("unit_cost_xof") @db.Decimal(14, 4)
+  /// LOT-12 : coût d'arrivée dédouané, FCFA par unité de stock, écrit à la clôture du dossier import.
+  landedUnitCostXof Decimal?       @map("landed_unit_cost_xof") @db.Decimal(14, 4)
 
   receipt         Receipt           @relation(fields: [receiptId], references: [id], onDelete: Cascade)
   orderLine       PurchaseOrderLine @relation(fields: [orderLineId], references: [id])
@@ -1319,4 +1332,247 @@ model SupplierInvoiceAttachment {
 
   @@index([invoiceId])
   @@map("supplier_invoice_attachments")
+}
+
+// ---------------------------------------------------------------- LOT-12 : dossiers import et frais d'approche
+
+enum ImportMode {
+  MARITIME
+  AERIEN
+  ROUTIER
+}
+
+enum ImportFileStatus {
+  OUVERT
+  CLOTURE
+  ANNULE
+}
+
+enum ImportMilestoneCode {
+  PROFORMA_RECUE
+  PAIEMENT_OU_CREDOC
+  MARCHANDISE_PRETE
+  EMBARQUEMENT_ETD
+  ARRIVEE_PREVUE_ETA
+  ARRIVEE_PORT
+  DOCUMENTS_RECUS
+  DEDOUANEMENT
+  ENLEVEMENT
+  RECEPTION_MAGASIN
+}
+
+enum AllocationKey {
+  VALEUR
+  POIDS
+  VOLUME
+  QUANTITE
+}
+
+enum ApproachCostStatus {
+  ESTIME
+  REEL
+}
+
+enum ImportDocumentType {
+  FACTURE_COMMERCIALE
+  PACKING_LIST
+  CONNAISSEMENT_LTA
+  CERTIFICAT_ORIGINE
+  DECLARATION_DOUANE
+  AUTRE
+}
+
+model ImportFile {
+  id                 String           @id @default(cuid())
+  /// IMP-AAAA-NNNN (table Counter).
+  number             String           @unique
+  status             ImportFileStatus @default(OUVERT)
+  supplierId         String           @map("supplier_id")
+  incoterm           Incoterm?
+  incotermPlace      String?          @map("incoterm_place")
+  mode               ImportMode
+  /// Port ou aéroport d'embarquement.
+  loadingPort        String?          @map("loading_port")
+  transitaire        String?
+  /// N° de connaissement (BL) ou de LTA.
+  blNumber           String?          @map("bl_number")
+  containerNumber    String?          @map("container_number")
+  customsDeclaration String?          @map("customs_declaration")
+  customsRegime      String?          @map("customs_regime")
+  notes              String?
+  /// Coefficient d'approche réel, figé à la clôture (coût dédouané / valeur marchandise).
+  coefficient        Decimal?         @db.Decimal(8, 4)
+  /// Fiche de calcul figée à la clôture (JSON) : exportable telle quelle après coup.
+  closingSheet       Json?            @map("closing_sheet")
+  createdById        String           @map("created_by_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  closedAt           DateTime?        @map("closed_at")
+  closedById         String?          @map("closed_by_id")
+  cancelledAt        DateTime?        @map("cancelled_at")
+  cancelledById      String?          @map("cancelled_by_id")
+  cancelledReason    String?          @map("cancelled_reason")
+
+  supplier     Supplier                     @relation(fields: [supplierId], references: [id])
+  createdBy    User                         @relation("ImportFileCreator", fields: [createdById], references: [id])
+  orders       ImportFileOrder[]
+  milestones   ImportMilestone[]
+  documents    ImportDocument[]
+  costs        ApproachCost[]
+  adjustments  ApproachCostAdjustment[]
+  coefficients ApproachCoefficientHistory[]
+
+  @@index([status, createdAt])
+  @@index([supplierId])
+  @@map("import_files")
+}
+
+/// Un BC import appartient à un seul dossier ; même fournisseur que le dossier.
+model ImportFileOrder {
+  id      String @id @default(cuid())
+  fileId  String @map("file_id")
+  orderId String @unique @map("order_id")
+
+  file  ImportFile    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  order PurchaseOrder @relation(fields: [orderId], references: [id])
+
+  @@index([fileId])
+  @@map("import_file_orders")
+}
+
+model ImportMilestone {
+  id          String              @id @default(cuid())
+  fileId      String              @map("file_id")
+  code        ImportMilestoneCode
+  plannedDate DateTime?           @map("planned_date") @db.Date
+  actualDate  DateTime?           @map("actual_date") @db.Date
+  note        String?
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at")
+
+  file ImportFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([fileId, code])
+  @@map("import_milestones")
+}
+
+model ImportDocument {
+  id           String             @id @default(cuid())
+  fileId       String             @map("file_id")
+  type         ImportDocumentType
+  fileName     String             @map("file_name")
+  mimeType     String             @map("mime_type")
+  size         Int
+  /// Nom généré côté serveur (jamais saisi).
+  path         String
+  uploadedById String             @map("uploaded_by_id")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  removedAt    DateTime?          @map("removed_at")
+
+  file ImportFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
+  @@map("import_documents")
+}
+
+/// Type de frais d'approche, paramétrable par le Responsable.
+model ApproachCostType {
+  id                    String        @id @default(cuid())
+  code                  String        @unique
+  label                 String
+  defaultKey            AllocationKey @default(VALEUR) @map("default_key")
+  /// Frais (ou taxe) récupérable par défaut : exclu du coût de revient.
+  vatRecoverableDefault Boolean       @default(false) @map("vat_recoverable_default")
+  sortOrder             Int           @default(0) @map("sort_order")
+  active                Boolean       @default(true)
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  costs    ApproachCost[]
+  defaults ApproachCoefficientDefault[]
+
+  @@map("approach_cost_types")
+}
+
+model ApproachCost {
+  id             String             @id @default(cuid())
+  fileId         String             @map("file_id")
+  typeId         String             @map("type_id")
+  status         ApproachCostStatus @default(ESTIME)
+  /// Montant dans la devise du frais.
+  amount         Decimal            @db.Decimal(16, 2)
+  currencyCode   String             @map("currency_code")
+  /// FCFA pour 1 unité de devise, figé à la saisie.
+  rate           Decimal            @db.Decimal(14, 6)
+  /// Équivalent FCFA entier (montant x taux arrondi au franc).
+  amountXof      Int                @map("amount_xof")
+  vatRecoverable Boolean            @default(false) @map("vat_recoverable")
+  allocationKey  AllocationKey      @default(VALEUR) @map("allocation_key")
+  /// Fournisseur du frais (transitaire, armateur, assureur...), texte libre.
+  payee          String?
+  /// Estimation générée par les coefficients par défaut (régénérable tant qu'elle n'a pas été remplacée).
+  autoEstimate   Boolean            @default(false) @map("auto_estimate")
+  note           String?
+  createdById    String             @map("created_by_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  file     ImportFile       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  type     ApproachCostType @relation(fields: [typeId], references: [id])
+  currency Currency         @relation(fields: [currencyCode], references: [code])
+
+  @@index([fileId])
+  @@index([typeId])
+  @@map("approach_costs")
+}
+
+/// Coefficient par défaut : % de la valeur marchandise estimé pour un type de frais, selon le mode de transport.
+model ApproachCoefficientDefault {
+  id         String     @id @default(cuid())
+  mode       ImportMode
+  typeId     String     @map("type_id")
+  pctOfValue Decimal    @map("pct_of_value") @db.Decimal(6, 2)
+  updatedAt  DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  type ApproachCostType @relation(fields: [typeId], references: [id])
+
+  @@unique([mode, typeId])
+  @@map("approach_coefficient_defaults")
+}
+
+/// Trace de chaque modification d'un frais (estimé -> réel, montant, clé de répartition).
+model ApproachCostAdjustment {
+  id        String   @id @default(cuid())
+  fileId    String   @map("file_id")
+  costId    String?  @map("cost_id")
+  userId    String   @map("user_id")
+  kind      String
+  before    Json?
+  after     Json?
+  reason    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  file ImportFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId, createdAt])
+  @@map("approach_cost_adjustments")
+}
+
+/// Coefficient d'approche réel de chaque dossier clôturé, par fournisseur et origine : sert à estimer les prochains achats.
+model ApproachCoefficientHistory {
+  id            String     @id @default(cuid())
+  fileId        String     @unique @map("file_id")
+  supplierId    String     @map("supplier_id")
+  /// Pays d'origine (pays du fournisseur).
+  origin        String
+  mode          ImportMode
+  coefficient   Decimal    @db.Decimal(8, 4)
+  goodsValueXof Int        @map("goods_value_xof")
+  costsXof      Int        @map("costs_xof")
+  closedAt      DateTime   @map("closed_at")
+
+  file ImportFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId, closedAt])
+  @@index([origin, mode])
+  @@map("approach_coefficient_history")
 }
