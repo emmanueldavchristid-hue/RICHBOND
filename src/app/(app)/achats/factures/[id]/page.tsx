@@ -114,8 +114,8 @@ async function InvoiceContent({ params }: { params: PageProps<"/achats/factures/
           </p>
         ) : null}
 
-        <div className="grid gap-5 xl:grid-cols-3">
-          <div className="space-y-5 xl:col-span-2">
+        <div className="grid gap-5 2xl:grid-cols-3">
+          <div className="space-y-5 2xl:col-span-2">
             <section className="rounded-xl border bg-card p-4" data-testid="inv-matching">
               <h2 className="text-[15px] font-semibold">Rapprochement par ligne</h2>
               <p className="mb-3 mt-1 text-xs text-muted-foreground">

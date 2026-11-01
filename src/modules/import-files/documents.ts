@@ -50,6 +50,7 @@ export async function addImportDocument(
       const file = await tx.importFile.findUnique({ where: { id: fileId }, select: { id: true, number: true, status: true } });
       if (!file) throw new BusinessError("NOT_FOUND", "Dossier import introuvable.");
       if (file.status === "ANNULE") throw new BusinessError("INVALID_STATUS", "Ce dossier est annulé.");
+      if (file.status === "CLOTURE") throw new BusinessError("INVALID_STATUS", "Ce dossier est clôturé : on n'y ajoute plus de pièce.");
       const count = await tx.importDocument.count({ where: { fileId, removedAt: null } });
       if (count >= MAX_COUNT) throw new BusinessError("ATTACHMENT_LIMIT", `Un dossier ne peut pas dépasser ${MAX_COUNT} pièces.`);
       written = fileFor(fileId, stored);

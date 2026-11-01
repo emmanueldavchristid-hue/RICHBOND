@@ -34,7 +34,15 @@ test.afterEach(async () => {
 // ---------------------------------------------------------------------------------------------------
 test("S-dashboard – Responsable : cartes à traiter, KPI, graphiques, risques de rupture, clic vers la liste filtrée", async ({
   page,
+  context,
 }) => {
+  await test.step("Date simulée : un mois contenant des réceptions validées (le KPI « livraisons à temps » en dépend)", async () => {
+    const last = await dbOne<{ d: string }>(
+      `SELECT to_char(max(received_at), 'YYYY-MM-DD') AS d FROM receipts WHERE status::text = 'VALIDEE'`,
+    );
+    await setTestNow(context, `${last.d}T12:00:00.000Z`);
+  });
+
   await test.step("Connexion : l'accueil affiche le tableau du Responsable Achats", async () => {
     await loginAs(page, "RESPONSABLE_ACHATS");
     await page.waitForLoadState("networkidle");

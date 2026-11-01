@@ -17,7 +17,7 @@ const MENUS: Record<E2ERole, { role: string; visible: string[] }> = {
     role: "Acheteur (import)",
     visible: ["accueil", "achats", "import", "stock", "fournisseurs", "rapports", "parametres"],
   },
-  MAGASINIER: { role: "Magasinier", visible: ["accueil", "achats", "stock", "rapports"] },
+  MAGASINIER: { role: "Magasinier", visible: ["accueil", "achats", "stock"] },
 };
 
 /** Le menu est latéral (>= 1024 px) ou dans le tiroir (mobile) : on ouvre le tiroir si besoin. */

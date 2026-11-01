@@ -227,7 +227,8 @@ export const NAV_ITEMS: NavEntry[] = [
     label: "Rapports",
     href: "/rapports",
     icon: "BarChart3",
-    anyOf: ["report.purchasing", "report.stock", "report.all"],
+    // Le magasinier garde report.stock (accès direct refusé/autorisé par les gardes) mais n'a pas l'entrée de menu (recette I6).
+    anyOf: ["report.purchasing", "report.all"],
   },
   {
     label: "Paramètres",

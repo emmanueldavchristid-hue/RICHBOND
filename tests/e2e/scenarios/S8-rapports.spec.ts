@@ -31,7 +31,9 @@ async function download(page: Page, testId: string): Promise<Buffer> {
   return readFileSync(path);
 }
 
-test("S8 – Rapports : le Responsable consulte et exporte les 3 rapports, le Magasinier n'y a pas accès", async ({ page }) => {
+test("S8 – Rapports : le Responsable consulte et exporte les 3 rapports, le Magasinier n'y a pas accès", async ({
+  page,
+}) => {
   await test.step("Le Responsable voit la liste des rapports", async () => {
     await loginAs(page, "RESPONSABLE_ACHATS");
     await ready(page, "/rapports");
@@ -45,7 +47,11 @@ test("S8 – Rapports : le Responsable consulte et exporte les 3 rapports, le Ma
       await expect(title(page)).toHaveText(k.heading);
       await expect(t(page, "rpt-period")).toBeVisible();
       await expect(t(page, k.kpi)).toBeVisible();
-      await expect(t(page, "rpt-kpis").getByRole("button", { name: /^Aide :/ }).first()).toBeVisible();
+      await expect(
+        t(page, "rpt-kpis")
+          .getByRole("button", { name: /^Aide :/ })
+          .first(),
+      ).toBeVisible();
       if (k.kind === "mensuel") {
         // Données des lots non livrés : annoncées, pas inventées.
         await expect(t(page, "rpt-kpi-gains-achats")).toContainText("Non disponible");

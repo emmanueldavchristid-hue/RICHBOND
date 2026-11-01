@@ -44,3 +44,8 @@ tests/e2e/_recette/
 .test-db.lock
 
 backups/
+
+# Fichiers locaux (scripts de demo, verrous de skills)
+scripts-fantome/
+skills-lock.json
+voir-la-demo.ps1

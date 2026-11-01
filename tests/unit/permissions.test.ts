@@ -112,8 +112,8 @@ describe("menu par rôle", () => {
   it("Acheteur", () => {
     expect(labels(LOCAL)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Mouvements", "Sorties", "Inventaires", "Réappro", "Fournisseurs", "Rapports", "Paramètres"]);
   });
-  it("Magasinier : Accueil, Achats, Stock, Réceptions, Non-conformités, Articles, Mouvements, Sorties, Réappro, Rapports", () => {
-    expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Mouvements", "Sorties", "Inventaires", "Réappro", "Rapports"]);
+  it("Magasinier : Accueil, Achats, Stock, Réceptions, Non-conformités, Articles, Mouvements, Sorties, Réappro (sans Rapports)", () => {
+    expect(labels(MAG)).toEqual(["Accueil", "Achats", "Stock", "Réceptions", "Non-conformités", "Articles", "Mouvements", "Sorties", "Inventaires", "Réappro"]);
   });
   it("Super-admin : consultation + Paramètres", () => {
     expect(labels(SUPER)).toContain("Paramètres");

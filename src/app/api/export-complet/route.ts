@@ -4,6 +4,7 @@ import { getNow } from "@/lib/clock";
 import { APP_TZ } from "@/lib/dates";
 import { buildMultiWorkbook, XLSX_MIME } from "@/lib/excel";
 import { can } from "@/lib/permissions";
+import { clientIpFromHeader } from "@/modules/auth/client-ip";
 import { getCurrentUser } from "@/modules/auth/session";
 import { collectFullExport, auditFullExport } from "@/modules/data-export";
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
   try {
     const sheets = await collectFullExport();
     const file = await buildMultiWorkbook(sheets);
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim().slice(0, 64) ?? null;
+    const ip = clientIpFromHeader(req.headers.get("x-forwarded-for"));
     await auditFullExport(user.id, sheets, ip);
     const stamp = formatInTimeZone((await getNow()).now, APP_TZ, "yyyyMMdd");
     return new NextResponse(new Uint8Array(file), {

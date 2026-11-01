@@ -2,6 +2,7 @@ import "server-only";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authenticate } from "@/modules/auth/authenticate";
+import { clientIpFromHeader } from "@/modules/auth/client-ip";
 import { loginSchema } from "@/modules/auth/schemas";
 import { authConfig } from "./auth.config";
 
@@ -13,8 +14,7 @@ export class DisabledError extends CredentialsSignin {
 }
 
 function clientIp(request: Request | undefined): string | null {
-  const xff = request?.headers?.get("x-forwarded-for");
-  return xff ? xff.split(",")[0].trim().slice(0, 64) : null;
+  return clientIpFromHeader(request?.headers?.get("x-forwarded-for"));
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
