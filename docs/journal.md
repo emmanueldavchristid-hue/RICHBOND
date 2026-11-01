@@ -118,3 +118,10 @@ Le plus récent en haut. Format : date · lot · fait · décisions · suite.
 - Tests : intégration sur jeu connu (`tests/integration/reports.test.ts`, KPI, filtres, droits, 3 PDF + 3 Excel, quotidien < 3 s), unitaires (`tests/unit/reporting.reports.test.ts`), scénario S8 (`tests/e2e/scenarios/S8-rapports.spec.ts`, desktop).
 - Hypothèses H58 à H63 à confirmer (docs/00-contexte-client.md). Pas de migration ni de seed supplémentaire : les rapports lisent les données existantes.
 - Suite : campagne finale (e2e complet, recette, captures) ; LOT-10 et LOT-14 restent à faire (leurs KPI s'allumeront dans le rapport mensuel).
+
+## Campagne finale (2026-11-01)
+- E2E : 16 fichiers verts en desktop et tablette (S6 desktop seul, S8 ignoré en tablette) — docs/recette/E2E-FINAL.md. 1299 tests unitaires/intégration, lint, typecheck verts.
+- Recette métier globale : accepté avec réserves (docs/recette/RECETTE-FINALE.md). Relecture sécurité : aucun bloquant ; 3 importants corrigés (proxy/cron, plafond des frais, IP fiable via TRUST_PROXY) + mineurs M1, M3, M4, M5, M9 (docs/recette/RELECTURE-SECURITE-FINALE.md).
+- Captures : docs/captures/ecrans-cles/ (55 JPEG). Démo : docs/demo-1.md.
+- Périmètre : LOT-10 et LOT-14 reportés après la mise en service ; LOT-17 (Sage) bloqué par des informations client.
+- Reste ouvert : voir docs/blocages.md (B1 codes Sage, B2 tâche planifiée 8h/15h, B3 test de restauration), hypothèses H52-H63 et I1-I4 de la recette à confirmer.
